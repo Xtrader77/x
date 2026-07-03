@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Lab | xX Trading</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#000000">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; padding:16px 16px 90px; }
+
+    /* ── Header ── */
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); }
+    .header-left h1 { font-size:20px; font-weight:800; }
+    .header-left p  { font-size:11px; color:rgba(255,255,255,0.35); margin-top:2px; }
+    .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; }
+
+    /* ── Lab type tabs (same as journal tabs style) ── */
+    .type-bar { display:flex; gap:8px; margin-bottom:14px; overflow-x:auto; scrollbar-width:none; }
+    .type-bar::-webkit-scrollbar { display:none; }
+    .type-btn { flex-shrink:0; padding:8px 16px; border-radius:50px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.45); background:transparent; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:all 0.15s; }
+    .type-btn.on { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.3); color:#fff; }
+
+    /* ── Section cards — exact match to journal.html ── */
+    .section { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; margin-bottom:14px; }
+    .section-title { font-size:13px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:16px; }
+    .section-title.lab-tag { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .lab-badge { font-size:10px; font-weight:700; padding:3px 10px; border-radius:10px; }
+    .lab-badge.bt { background:rgba(74,144,226,0.15); color:#4A90E2; }
+    .lab-badge.ms { background:rgba(245,166,35,0.15); color:#F5A623; }
+    .lab-badge.ob { background:rgba(29,185,84,0.12); color:#1DB954; }
+
+    /* ── Grid / form — exact match ── */
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .form-group { margin-bottom:14px; }
+    label { display:block; font-size:11px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.4); margin-bottom:7px; }
+    select, input[type="date"], input[type="time"], input[type="text"], textarea {
+        width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+        border-radius:8px; padding:12px 13px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; transition:all 0.2s;
+    }
+    select:focus, input:focus, textarea:focus { outline:none; border-color:rgba(255,255,255,0.3); }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:0.5; }
+    option { background:#111; }
+    textarea { min-height:100px; resize:vertical; line-height:1.6; }
+
+    /* ── Pills — exact match to journal ── */
+    .pill-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .pill { flex:1; min-width:80px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 8px; text-align:center; cursor:pointer; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6); transition:background 0.1s,border-color 0.1s; letter-spacing:0.5px; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    .pill:active { background:rgba(255,255,255,0.2) !important; transform:scale(0.97); }
+    .pill.selected { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.35); color:#fff; }
+    /* outcome-specific selected colours */
+    .pill.selected.WIN  { background:rgba(29,185,84,0.2); border-color:rgba(29,185,84,0.5); color:#1DB954; }
+    .pill.selected.LOSS { background:rgba(226,33,52,0.2); border-color:rgba(226,33,52,0.5); color:#E22134; }
+    .pill.selected.BREAKEVEN { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.4); color:#fff; }
+    .pill.selected.PENDING { background:rgba(74,144,226,0.15); border-color:rgba(74,144,226,0.4); color:#4A90E2; }
+
+    /* ── Mindset — exact match ── */
+    .mindset-row { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+    .mindset-pill { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 4px; text-align:center; cursor:pointer; font-size:11px; color:rgba(255,255,255,0.6); transition:background 0.1s; user-select:none; line-height:1.6; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    .mindset-pill:active { background:rgba(255,255,255,0.15) !important; }
+    .mindset-pill[data-mindset="1"].selected { border-color:#E22134; background:rgba(226,33,52,0.12); color:#ff6b6b; }
+    .mindset-pill[data-mindset="2"].selected { border-color:#ff7043; background:rgba(255,112,67,0.12); color:#ff9068; }
+    .mindset-pill[data-mindset="3"].selected { border-color:#ffd600; background:rgba(255,214,0,0.12); color:#ffd600; }
+    .mindset-pill[data-mindset="4"].selected { border-color:#69f0ae; background:rgba(105,240,174,0.12); color:#69f0ae; }
+    .mindset-pill[data-mindset="5"].selected { border-color:#1DB954; background:rgba(29,185,84,0.12); color:#1DB954; }
+
+    /* ── Checklist — exact match ── */
+    .checklist-cat { margin-bottom:14px; }
+    .cat-label { font-size:11px; font-weight:700; color:#4A90E2; letter-spacing:0.8px; margin-bottom:8px; }
+    .cb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; padding-left:4px; }
+    .cb-item { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:rgba(255,255,255,0.8); padding:6px 4px; min-height:36px; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    .cb-item input { width:20px; height:20px; accent-color:#fff; flex-shrink:0; cursor:pointer; }
+    .toggle-btn { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.5); padding:4px 12px; border-radius:6px; cursor:pointer; font-size:11px; font-family:'Inter',sans-serif; }
+
+    /* ── Screenshot — exact match ── */
+    .screenshot-drop { border:2px dashed rgba(255,255,255,0.1); border-radius:8px; padding:28px 20px; text-align:center; cursor:pointer; transition:all 0.2s; }
+    .screenshot-drop:hover { border-color:rgba(255,255,255,0.25); }
+    .ss-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; margin-top:14px; }
+    .ss-item { position:relative; }
+    .ss-item img { width:100%; height:90px; object-fit:cover; border-radius:6px; border:2px solid rgba(29,185,84,0.4); }
+    .ss-remove { position:absolute; top:4px; right:4px; background:rgba(226,33,52,0.9); border:none; border-radius:50%; width:22px; height:22px; color:#fff; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .ss-ann { margin-top:5px; font-size:11px; padding:7px 9px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; width:100%; color:rgba(255,255,255,0.7); font-family:'Inter',sans-serif; resize:none; }
+
+    /* ── Action buttons — match journal WIN/LOSS/BE ── */
+    .action-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:20px; }
+    .save-btn { padding:16px 8px; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+    .save-btn:active { transform:scale(0.97); }
+    .win-btn  { background:#1DB954; color:#fff; }
+    .loss-btn { background:#E22134; color:#fff; }
+    .be-btn   { background:#f5f5f7; color:#000; }
+    .pending-btn { background:rgba(74,144,226,0.8); color:#fff; }
+    .action-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+
+    /* ── Spinner — exact match ── */
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.2); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Entries list (below form) ── */
+    .entries-section { margin-top:24px; }
+    .entries-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.07); }
+    .entries-hd h2 { font-size:14px; font-weight:700; color:rgba(255,255,255,0.7); }
+    .entry-count { font-size:11px; color:rgba(255,255,255,0.35); }
+    .entry-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:14px; margin-bottom:10px; }
+    .entry-card.backtest  { border-left:3px solid #4A90E2; }
+    .entry-card.missed    { border-left:3px solid #F5A623; }
+    .entry-card.observation { border-left:3px solid #1DB954; }
+    .entry-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
+    .entry-left { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .entry-type-badge { font-size:9px; font-weight:800; padding:3px 9px; border-radius:5px; letter-spacing:0.5px; }
+    .entry-type-badge.backtest    { background:rgba(74,144,226,0.15); color:#4A90E2; }
+    .entry-type-badge.missed      { background:rgba(245,166,35,0.15); color:#F5A623; }
+    .entry-type-badge.observation { background:rgba(29,185,84,0.12); color:#1DB954; }
+    .entry-pair { font-size:14px; font-weight:700; }
+    .oc-badge { font-size:10px; font-weight:800; padding:2px 8px; border-radius:4px; }
+    .oc-badge.WIN  { background:rgba(29,185,84,0.2); color:#1DB954; }
+    .oc-badge.LOSS { background:rgba(226,33,52,0.2); color:#E22134; }
+    .oc-badge.BREAKEVEN { background:rgba(255,255,255,0.12); color:#fff; }
+    .oc-badge.PENDING   { background:rgba(74,144,226,0.15); color:#4A90E2; }
+    .entry-meta { font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:8px; }
+    .entry-notes { font-size:12px; line-height:1.6; color:rgba(255,255,255,0.75); background:rgba(255,255,255,0.02); border-radius:6px; padding:8px 10px; margin-bottom:8px; }
+    .entry-cl { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
+    .cl-tag { background:rgba(74,144,226,0.12); color:#4A90E2; font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px; }
+    .entry-ss img { width:100%; max-height:150px; object-fit:cover; border-radius:7px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.08); cursor:pointer; }
+    .entry-missed-info { font-size:11px; color:#F5A623; margin-bottom:6px; }
+    .entry-actual { font-size:11px; color:rgba(255,255,255,0.5); margin-bottom:6px; }
+    .entry-btns { display:flex; gap:7px; flex-wrap:wrap; }
+    .ebtn { padding:5px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; border:1px solid; touch-action:manipulation; }
+    .ebtn.del { background:rgba(226,33,52,0.08); border-color:rgba(226,33,52,0.22); color:#E22134; }
+    .ebtn.upd { background:rgba(74,144,226,0.08); border-color:rgba(74,144,226,0.25); color:#4A90E2; }
+
+    /* ── Stats tab ── */
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; }
+    .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:14px 10px; text-align:center; }
+    .stat-v { font-size:22px; font-weight:800; line-height:1; }
+    .stat-l { font-size:9px; font-weight:600; letter-spacing:0.7px; color:rgba(255,255,255,0.4); margin-top:5px; }
+    .chart-box { position:relative; height:200px; }
+    .bar { margin-bottom:10px; }
+    .bar-top { display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px; }
+    .bar-lbl { color:rgba(255,255,255,0.8); }
+    .bar-val { font-weight:700; }
+    .bar-track { height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+    .bar-fill { height:100%; border-radius:2px; transition:width 0.4s; }
+
+    /* ── Page tabs ── */
+    .page-tabs { display:flex; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:16px; }
+    .ptab { flex:1; padding:10px; text-align:center; font-size:12px; font-weight:600; color:rgba(255,255,255,0.4); cursor:pointer; border-bottom:2px solid transparent; touch-action:manipulation; -webkit-tap-highlight-color:transparent; background:none; border-top:none; border-left:none; border-right:none; font-family:'Inter',sans-serif; }
+    .ptab.on { color:#fff; border-bottom-color:#fff; }
+
+    /* ── Pages ── */
+    .ppage { display:none; }
+    .ppage.on { display:block; }
+
+    /* ── Insight boxes ── */
+    .ins { border-radius:9px; padding:12px 14px; font-size:12px; line-height:1.7; margin-bottom:10px; border:1px solid; }
+    .ins.g { background:rgba(29,185,84,0.07); border-color:rgba(29,185,84,0.2); }
+    .ins.r { background:rgba(226,33,52,0.07); border-color:rgba(226,33,52,0.2); }
+    .ins.b { background:rgba(74,144,226,0.07); border-color:rgba(74,144,226,0.2); }
+    .ins.o { background:rgba(245,166,35,0.07); border-color:rgba(245,166,35,0.2); }
+
+    /* ── Empty state ── */
+    .empty { text-align:center; padding:32px 16px; color:rgba(255,255,255,0.35); font-size:13px; line-height:1.8; }
+    .empty-icon { font-size:40px; margin-bottom:10px; }
+
+    /* ── SS modal ── */
+    .ss-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.93); z-index:9999; align-items:center; justify-content:center; padding:16px; }
+    .ss-modal.open { display:flex; }
+    .ss-modal img { max-width:100%; max-height:90vh; border-radius:8px; object-fit:contain; }
+    .ss-modal-close { position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+    /* ── Cycle bar ── */
+    .cycle-bar { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:10px 16px; margin-bottom:14px; text-align:center; font-size:13px; color:rgba(255,255,255,0.5); }
+    .cycle-bar strong { color:#fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <h1>🧪 TRADE LAB</h1>
+        <p>Backtest · Missed Trades · Observations</p>
+    </div>
+    <a href="/" class="back-btn">← HOME</a>
+</div>
+
+<!-- Page tabs -->
+<div class="page-tabs">
+    <button class="ptab on" data-ptab="log">Log Entry</button>
+    <button class="ptab" data-ptab="entries">Entries</button>
+    <button class="ptab" data-ptab="stats">Stats</button>
+    <button class="ptab" data-ptab="edge">Edge</button>
+</div>
+
+<!-- ═══ LOG ENTRY TAB ════════════════════════════════════════════════ -->
+<div class="ppage on" id="ppage-log">
+
+    <!-- Entry type -->
+    <div class="section">
+        <div class="section-title">ENTRY TYPE</div>
+        <div class="pill-row">
+            <div class="pill selected" data-ltype="backtest">🔬 BACKTEST</div>
+            <div class="pill" data-ltype="missed">👁 MISSED</div>
+            <div class="pill" data-ltype="observation">📝 OBSERVE</div>
+        </div>
+    </div>
+
+    <!-- Trade Details — identical to journal -->
+    <div class="section">
+        <div class="section-title">TRADE DETAILS</div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>PAIR</label>
+                <select id="f-pair">
+                    <option value="">Select</option>
+                    <option>XAUUSD</option><option>NAS100</option><option>EURUSD</option>
+                    <option>GBPUSD</option><option>AUDUSD</option><option>USDJPY</option><option>Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>DIRECTION</label>
+                <select id="f-dir">
+                    <option value="">Select</option>
+                    <option>BUY</option><option>SELL</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>DATE</label>
+                <input type="date" id="f-date">
+            </div>
+            <div class="form-group">
+                <label>TIME</label>
+                <input type="time" id="f-time">
+            </div>
+        </div>
+    </div>
+
+    <!-- Outcome -->
+    <div class="section">
+        <div class="section-title" id="outcome-title">OUTCOME / PREDICTED OUTCOME</div>
+        <div class="pill-row">
+            <div class="pill" data-outcome="WIN">WIN</div>
+            <div class="pill" data-outcome="LOSS">LOSS</div>
+            <div class="pill" data-outcome="BREAKEVEN">BE</div>
+            <div class="pill" data-outcome="PENDING">PENDING</div>
+        </div>
+        <!-- Missed only: actual market outcome -->
+        <div id="actual-outcome-section" style="display:none; margin-top:16px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.8px;color:rgba(255,255,255,0.4);margin-bottom:10px;">WHAT ACTUALLY HAPPENED IN MARKET</div>
+            <div class="pill-row">
+                <div class="pill" data-aoutcome="WIN">Would WIN</div>
+                <div class="pill" data-aoutcome="LOSS">Would LOSS</div>
+                <div class="pill" data-aoutcome="BREAKEVEN">Would BE</div>
+                <div class="pill" data-aoutcome="UNKNOWN">Unknown</div>
+            </div>
+        </div>
+        <!-- Missed only: why missed -->
+        <div id="why-missed-section" style="display:none; margin-top:16px;">
+            <label style="margin-bottom:7px;">WHY WAS IT MISSED?</label>
+            <select id="f-why-missed">
+                <option value="">Select reason</option>
+                <option>Hesitation / Fear</option>
+                <option>Away from screen</option>
+                <option>Did not see setup</option>
+                <option>Already in a trade</option>
+                <option>Daily loss limit hit</option>
+                <option>News / High impact event</option>
+                <option>Felt unsure of setup</option>
+                <option>Checklist incomplete</option>
+                <option>Other</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Execution -->
+    <div class="section">
+        <div class="section-title">EXECUTION TYPE</div>
+        <div class="pill-row">
+            <div class="pill" data-exec="limit">🎯 LIMIT</div>
+            <div class="pill" data-exec="instant">⚡ INSTANT</div>
+        </div>
+    </div>
+
+    <!-- Mindset — identical to journal -->
+    <div class="section">
+        <div class="section-title">PRE-TRADE MINDSET</div>
+        <div class="mindset-row">
+            <div class="mindset-pill" data-mindset="1">😤<br>1<br><small>Frustrated</small></div>
+            <div class="mindset-pill" data-mindset="2">😟<br>2<br><small>Off</small></div>
+            <div class="mindset-pill" data-mindset="3">😐<br>3<br><small>Neutral</small></div>
+            <div class="mindset-pill" data-mindset="4">😊<br>4<br><small>Focused</small></div>
+            <div class="mindset-pill" data-mindset="5">🔥<br>5<br><small>In zone</small></div>
+        </div>
+    </div>
+
+    <!-- Checklist — identical category split to journal -->
+    <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div class="section-title" style="margin:0;">CHECKLIST</div>
+            <button class="toggle-btn" id="toggleCL">HIDE</button>
+        </div>
+        <div id="checklistBody">
+            <div class="checklist-cat">
+                <div class="cat-label">HTF</div>
+                <div class="cb-grid">
+                    <label class="cb-item"><input type="checkbox" id="cl-H4"><span>H4</span></label>
+                </div>
+            </div>
+            <div class="checklist-cat">
+                <div class="cat-label">REFINED</div>
+                <div class="cb-grid">
+                    <label class="cb-item"><input type="checkbox" id="cl-H1EF"><span>H1 EF</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-H1EG"><span>H1 EG</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-M30EF"><span>M30 EF</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-M30EG"><span>M30 EG</span></label>
+                </div>
+            </div>
+            <div class="checklist-cat">
+                <div class="cat-label">TRADE CONTROL</div>
+                <div class="cb-grid">
+                    <label class="cb-item"><input type="checkbox" id="cl-M15EF"><span>M15 EF</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-M15EG"><span>M15 EG</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-M30EF2"><span>M30 EF</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-M30EG2"><span>M30 EG</span></label>
+                </div>
+            </div>
+            <div class="checklist-cat">
+                <div class="cat-label">ENTRY TF</div>
+                <div class="cb-grid">
+                    <label class="cb-item"><input type="checkbox" id="cl-ENTRY-M5EG"><span>M5 EG</span></label>
+                    <label class="cb-item"><input type="checkbox" id="cl-ENTRY-M1EF"><span>M1 EF</span></label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session — identical to journal -->
+    <div class="section">
+        <div class="section-title">TRADING SESSION</div>
+        <div class="pill-row">
+            <div class="pill" data-session="asia">🌏 ASIA</div>
+            <div class="pill" data-session="london">🏛️ LONDON</div>
+            <div class="pill" data-session="newyork">🗽 NY</div>
+        </div>
+    </div>
+
+    <!-- Screenshot — identical to journal -->
+    <div class="section">
+        <div class="section-title">CHART SCREENSHOT</div>
+        <div class="screenshot-drop" id="ssZone">
+            <div style="font-size:36px;margin-bottom:8px;">📸</div>
+            <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Tap to upload chart</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.4);">JPG or PNG</div>
+            <input type="file" id="ssInput" multiple accept="image/*" style="display:none;">
+        </div>
+        <div class="ss-preview" id="ssPreview"></div>
+    </div>
+
+    <!-- Notes — identical to journal -->
+    <div class="section">
+        <div class="section-title">SETUP NOTES</div>
+        <textarea id="f-notes" placeholder="Describe the setup, what you saw, your analysis..."></textarea>
+    </div>
+
+    <!-- Reason — identical to journal -->
+    <div class="section">
+        <div class="section-title">SETUP REASON / EDGE</div>
+        <input type="text" id="f-reason" placeholder="e.g. Clean H4 engulf with M30 refinement and TC confirmation">
+    </div>
+
+    <!-- Tags -->
+    <div class="section">
+        <div class="section-title">TAGS <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.3);">(optional — comma separated)</span></div>
+        <input type="text" id="f-tags" placeholder="e.g. fakeout, killzone, london-open">
+    </div>
+
+    <!-- Save buttons — same layout as WIN/LOSS/BE in journal -->
+    <div class="action-row">
+        <button class="save-btn win-btn"  id="btnWin">WIN</button>
+        <button class="save-btn loss-btn" id="btnLoss">LOSS</button>
+        <button class="save-btn be-btn"   id="btnBE">BE</button>
+    </div>
+    <div class="action-row-2">
+        <button class="save-btn pending-btn" id="btnPending">PENDING</button>
+        <button class="save-btn" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);" id="btnClear">CLEAR</button>
+    </div>
+</div>
+
+<!-- ═══ ENTRIES TAB ══════════════════════════════════════════════════ -->
+<div class="ppage" id="ppage-entries">
+    <!-- Type filter -->
+    <div class="type-bar">
+        <button class="type-btn on" data-filter="all">All</button>
+        <button class="type-btn" data-filter="backtest">🔬 Backtest</button>
+        <button class="type-btn" data-filter="missed">👁 Missed</button>
+        <button class="type-btn" data-filter="observation">📝 Observe</button>
+    </div>
+    <div id="entriesList"></div>
+</div>
+
+<!-- ═══ STATS TAB ════════════════════════════════════════════════════ -->
+<div class="ppage" id="ppage-stats">
+    <div class="stat-grid">
+        <div class="stat-card"><div class="stat-v" id="st-total">0</div><div class="stat-l">ENTRIES</div></div>
+        <div class="stat-card"><div class="stat-v" style="color:#1DB954" id="st-wr">0%</div><div class="stat-l">LAB WIN RATE</div></div>
+        <div class="stat-card"><div class="stat-v" style="color:#F5A623" id="st-regret">0</div><div class="stat-l">MISSED WINS</div></div>
+    </div>
+    <div class="stat-grid">
+        <div class="stat-card"><div class="stat-v" style="color:#4A90E2" id="st-bt">0</div><div class="stat-l">BACKTESTS</div></div>
+        <div class="stat-card"><div class="stat-v" style="color:#F5A623" id="st-ms">0</div><div class="stat-l">MISSED</div></div>
+        <div class="stat-card"><div class="stat-v" style="color:#1DB954" id="st-ob">0</div><div class="stat-l">OBSERVE</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">OUTCOME DISTRIBUTION</div>
+        <div class="chart-box"><canvas id="oc-chart"></canvas></div>
+    </div>
+    <div class="section">
+        <div class="section-title">WIN RATE BY SESSION</div>
+        <div id="sess-stats"><div class="empty" style="padding:12px 0">No session data yet</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">WIN RATE BY PAIR</div>
+        <div id="pair-stats"><div class="empty" style="padding:12px 0">No pair data yet</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">CHECKLIST ITEMS IN WINS</div>
+        <div id="cl-stats"><div class="empty" style="padding:12px 0">Log entries to see checklist data</div></div>
+    </div>
+</div>
+
+<!-- ═══ EDGE TAB ═════════════════════════════════════════════════════ -->
+<div class="ppage" id="ppage-edge">
+    <div class="section">
+        <div class="section-title">EDGE CONFIRMATION SCORE</div>
+        <div id="edge-score"><div class="empty">Log backtest entries to calculate your edge</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">LAB vs LIVE JOURNAL</div>
+        <div id="bt-vs-live"><div class="empty" style="padding:12px 0">Comparing lab win rate vs your live journal</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">MISSED TRADE REGRET SCORE</div>
+        <div id="missed-analysis"><div class="empty" style="padding:12px 0">Log missed trades to see regret score</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">WHY TRADES WERE MISSED</div>
+        <div id="why-missed-stats"><div class="empty" style="padding:12px 0">No data yet</div></div>
+    </div>
+    <div class="section">
+        <div class="section-title">BEST SETUP COMBINATIONS</div>
+        <div id="setup-rank"><div class="empty" style="padding:12px 0">Need 2+ entries with same checklist</div></div>
+    </div>
+    <div id="edge-insights"></div>
+</div>
+
+<!-- SS viewer -->
+<div class="ss-modal" id="ssModal">
+    <img id="ssModalImg" src="" alt="chart">
+    <button class="ss-modal-close" id="ssModalClose">×</button>
+</div>
+
+<script type="module">
+import { requireAuthFast, requirePin, showToast, injectBottomNav } from '/shared.js';
+import { saveLabEntry, loadLabEntries, deleteLabEntry } from '/db.js';
+
+const LAB_KEY = 'xX_lab_data';
+const CLITEMS = ['H4','H1EF','H1EG','M30EF','M30EG','M15EF','M15EG','M30EF2','M30EG2','ENTRY-M5EG','ENTRY-M1EF'];
+
+let entries = [];
+let screenshots = [];
+let selectedLabType = 'backtest';
+let entriesFilter = 'all';
+let ocChart = null;
+let liveWR = 0;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    injectBottomNav('lab');
+    setupPageTabs();
+    setupTypeFilter();
+
+    const user = await requireAuthFast('/lab.html');
+    if (!user) return;
+    await requirePin();
+
+    // Set today
+    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+    loadLocal();
+    getLiveWR();
+    render();
+    wireForm();
+
+    // Background sync
+    loadLabEntries().then(cloud => {
+        if (cloud?.length) {
+            entries = cloud;
+            localStorage.setItem(LAB_KEY, JSON.stringify(entries));
+            render();
+        }
+    }).catch(() => {});
+});
+
+function loadLocal() {
+    try { entries = JSON.parse(localStorage.getItem(LAB_KEY) || '[]'); if (!Array.isArray(entries)) entries = []; } catch { entries = []; }
+}
+
+function getLiveWR() {
+    try {
+        const jd = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
+        const lt = Object.values(jd.journals || {});
+        if (lt.length) liveWR = Math.round((lt.filter(t=>t.outcome==='WIN').length/lt.length)*100);
+    } catch {}
+}
+
+function render() {
+    renderEntries();
+    renderStats();
+    renderEdge();
+}
+
+// ── Page tabs ─────────────────────────────────────────────
+function setupPageTabs() {
+    document.querySelectorAll('.ptab').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
+            document.querySelectorAll('.ppage').forEach(p=>p.classList.remove('on'));
+            this.classList.add('on');
+            document.getElementById('ppage-'+this.dataset.ptab).classList.add('on');
+        });
+    });
+}
+
+// ── Entries filter ────────────────────────────────────────
+function setupTypeFilter() {
+    document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('on'));
+            this.classList.add('on');
+            entriesFilter = this.dataset.filter;
+            renderEntries();
+        });
+    });
+}
+
+// ── Entries ───────────────────────────────────────────────
+function renderEntries() {
+    const list = entriesFilter === 'all' ? entries : entries.filter(e=>e.labType===entriesFilter);
+    const el = document.getElementById('entriesList');
+
+    if (!list.length) {
+        const msgs = {
+            all:         ['🧪','No lab entries yet','Tap "Log Entry" tab to add your first backtest, missed trade, or observation'],
+            backtest:    ['🔬','No backtests yet','Record historical setups to validate your strategy edge'],
+            missed:      ['👁','No missed trades yet','Log setups you skipped to track your regret score'],
+            observation: ['📝','No observations yet','Log setups you are watching before committing'],
+        };
+        const [icon,title,sub] = msgs[entriesFilter]||msgs.all;
+        el.innerHTML=`<div class="empty"><div class="empty-icon">${icon}</div><strong>${title}</strong><br><span style="font-size:11px;display:block;margin-top:6px">${sub}</span></div>`;
+        return;
+    }
+
+    const tLbls = {backtest:'🔬 BACKTEST', missed:'👁 MISSED', observation:'📝 OBSERVE'};
+    el.innerHTML = list.map(e => {
+        const oc = e.outcome||'PENDING';
+        const dateStr = e.tradeDate
+            ? new Date(e.tradeDate+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+            : new Date(e.timestamp).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        const clHtml = e.checklist?.length ? `<div class="entry-cl">${e.checklist.map(c=>`<span class="cl-tag">${c}</span>`).join('')}</div>` : '';
+        const ssHtml = e.screenshotData ? `<div class="entry-ss"><img src="${e.screenshotData}" onclick="viewSS('${e.id}')" alt="chart">${e.screenshotAnnotation?`<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${esc(e.screenshotAnnotation)}</div>`:''}</div>` : '';
+        const missedHtml = e.labType==='missed'&&e.whyMissed ? `<div class="entry-missed-info">⚠ Missed: <strong>${esc(e.whyMissed)}</strong></div>` : '';
+        const actualHtml = e.labType==='missed'&&e.actualOutcome ? `<div class="entry-actual">Market outcome: <strong style="color:${e.actualOutcome==='WIN'?'#1DB954':e.actualOutcome==='LOSS'?'#E22134':'rgba(255,255,255,0.5)'}">${e.actualOutcome}</strong></div>` : '';
+        const tagsHtml = e.tags?.length ? `<div style="margin-bottom:7px">${e.tags.map(t=>`<span style="font-size:9px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5);padding:2px 8px;border-radius:10px;margin-right:4px">#${esc(t)}</span>`).join('')}</div>` : '';
+        return `<div class="entry-card ${e.labType}">
+            <div class="entry-top">
+                <div class="entry-left">
+                    <span class="entry-type-badge ${e.labType}">${tLbls[e.labType]||e.labType}</span>
+                    ${e.pair?`<span class="entry-pair">${esc(e.pair)} ${e.direction||''}</span>`:''}
+                    <span class="oc-badge ${oc}">${oc}</span>
+                </div>
+            </div>
+            <div class="entry-meta">${dateStr}${e.tradeTime?' · '+e.tradeTime:''}${e.session?' · '+e.session.toUpperCase():''}</div>
+            ${missedHtml}${actualHtml}${tagsHtml}
+            ${e.notes?`<div class="entry-notes">${esc(e.notes)}</div>`:''}
+            ${e.reason?`<div style="font-size:11px;color:#4A90E2;margin-bottom:8px">Edge: ${esc(e.reason)}</div>`:''}
+            ${clHtml}${ssHtml}
+            <div class="entry-btns">
+                ${e.outcome==='PENDING'?`<button class="ebtn upd" onclick="updateOC('${e.id}')">Update Outcome</button>`:''}
+                <button class="ebtn del" onclick="delEntry('${e.id}')">Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window.viewSS = id => {
+    const e = entries.find(x=>x.id===id);
+    if (!e?.screenshotData) return;
+    document.getElementById('ssModalImg').src = e.screenshotData;
+    document.getElementById('ssModal').classList.add('open');
+};
+document.getElementById('ssModalClose').addEventListener('click', ()=>document.getElementById('ssModal').classList.remove('open'));
+
+window.delEntry = async id => {
+    if (!confirm('Delete this entry?')) return;
+    entries = entries.filter(e=>e.id!==id);
+    localStorage.setItem(LAB_KEY, JSON.stringify(entries));
+    deleteLabEntry(id).catch(()=>{});
+    render(); showToast('Deleted','success');
+};
+window.updateOC = id => {
+    const e = entries.find(x=>x.id===id);
+    if (!e) return;
+    const oc = prompt('Outcome: WIN, LOSS, or BREAKEVEN');
+    if (!oc||!['WIN','LOSS','BREAKEVEN'].includes(oc.trim().toUpperCase())) { showToast('Invalid outcome','error'); return; }
+    e.outcome = oc.trim().toUpperCase();
+    localStorage.setItem(LAB_KEY, JSON.stringify(entries));
+    saveLabEntry(e.id, e).catch(()=>{});
+    render(); showToast('Outcome updated ✓','success');
+};
+
+// ── Stats ─────────────────────────────────────────────────
+function renderStats() {
+    const resolved = entries.filter(e=>e.outcome&&e.outcome!=='PENDING');
+    const wins     = resolved.filter(e=>e.outcome==='WIN').length;
+    const wr       = resolved.length ? Math.round((wins/resolved.length)*100) : 0;
+    const missedWins = entries.filter(e=>e.labType==='missed'&&(e.actualOutcome==='WIN'||e.outcome==='WIN')).length;
+
+    document.getElementById('st-total').textContent  = entries.length;
+    document.getElementById('st-wr').textContent     = wr+'%';
+    document.getElementById('st-regret').textContent = missedWins;
+    document.getElementById('st-bt').textContent     = entries.filter(e=>e.labType==='backtest').length;
+    document.getElementById('st-ms').textContent     = entries.filter(e=>e.labType==='missed').length;
+    document.getElementById('st-ob').textContent     = entries.filter(e=>e.labType==='observation').length;
+
+    // Outcome chart
+    const W=resolved.filter(e=>e.outcome==='WIN').length;
+    const L=resolved.filter(e=>e.outcome==='LOSS').length;
+    const BE=resolved.filter(e=>e.outcome==='BREAKEVEN').length;
+    const P=entries.filter(e=>!e.outcome||e.outcome==='PENDING').length;
+    const ctx = document.getElementById('oc-chart');
+    if (ocChart){ocChart.destroy();ocChart=null;}
+    if (entries.length) {
+        ocChart = new Chart(ctx,{type:'doughnut',data:{labels:['Wins','Losses','BE','Pending'],datasets:[{data:[W,L,BE,P],backgroundColor:['#1DB954','#E22134','#555','rgba(74,144,226,0.5)'],borderWidth:0,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'rgba(255,255,255,0.65)',font:{size:11},padding:14}}}}});
+    } else { ctx.parentElement.innerHTML='<div class="empty" style="padding:12px 0">No entries yet</div>'; }
+
+    // Session bars
+    const sessEl = document.getElementById('sess-stats');
+    const sRows = ['asia','london','newyork'].map(s=>{
+        const se=resolved.filter(e=>e.session===s);
+        if(!se.length) return null;
+        const sw=se.filter(e=>e.outcome==='WIN').length;
+        const swr=Math.round((sw/se.length)*100);
+        return bar(s.charAt(0).toUpperCase()+s.slice(1),`${swr}% (${sw}W/${se.length}T)`,swr,swr>=50?'#1DB954':'#E22134');
+    }).filter(Boolean);
+    sessEl.innerHTML = sRows.length ? sRows.join('') : '<div style="color:rgba(255,255,255,0.35);font-size:12px;padding:8px 0">No session data</div>';
+
+    // Pair bars
+    const pairEl = document.getElementById('pair-stats');
+    const pairs = [...new Set(resolved.map(e=>e.pair).filter(Boolean))];
+    const pRows = pairs.map(p=>{
+        const pe=resolved.filter(e=>e.pair===p);
+        const pw=pe.filter(e=>e.outcome==='WIN').length;
+        const pwr=Math.round((pw/pe.length)*100);
+        return bar(p,`${pwr}% (${pw}W/${pe.length}T)`,pwr,pwr>=50?'#1DB954':'#E22134');
+    });
+    pairEl.innerHTML = pRows.length ? pRows.join('') : '<div style="color:rgba(255,255,255,0.35);font-size:12px;padding:8px 0">No pair data</div>';
+
+    // CL in wins
+    const winE = entries.filter(e=>e.outcome==='WIN');
+    const clC = {}; winE.forEach(e=>(e.checklist||[]).forEach(c=>{clC[c]=(clC[c]||0)+1;}));
+    const sCL = Object.entries(clC).sort((a,b)=>b[1]-a[1]);
+    const clEl = document.getElementById('cl-stats');
+    clEl.innerHTML = sCL.length&&winE.length
+        ? sCL.map(([item,cnt])=>bar(item,Math.round((cnt/winE.length)*100)+'% of wins',Math.round((cnt/winE.length)*100),'#4A90E2')).join('')
+        : '<div style="color:rgba(255,255,255,0.35);font-size:12px;padding:8px 0">No checklist data</div>';
+}
+
+function bar(label, valStr, pct, color) {
+    return `<div class="bar"><div class="bar-top"><span class="bar-lbl">${label}</span><span class="bar-val" style="color:${color}">${valStr}</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
+}
+
+// ── Edge ──────────────────────────────────────────────────
+function renderEdge() {
+    const resolved  = entries.filter(e=>e.outcome&&e.outcome!=='PENDING');
+    const labWins   = resolved.filter(e=>e.outcome==='WIN').length;
+    const labWR     = resolved.length?Math.round((labWins/resolved.length)*100):0;
+    const missed    = entries.filter(e=>e.labType==='missed');
+    const missedW   = missed.filter(e=>e.actualOutcome==='WIN'||e.outcome==='WIN').length;
+    const regretPct = missed.length?Math.round((missedW/missed.length)*100):0;
+
+    // Edge score
+    const esEl = document.getElementById('edge-score');
+    if (!resolved.length) {
+        esEl.innerHTML='<div class="empty">Log backtest entries to calculate your edge</div>';
+    } else {
+        const grade = labWR>=70?'A+':labWR>=60?'A':labWR>=55?'B+':labWR>=50?'B':labWR>=45?'C':'D';
+        const col   = labWR>=60?'#1DB954':labWR>=50?'#F5A623':'#E22134';
+        esEl.innerHTML=`
+            <div style="text-align:center;padding:10px 0 16px">
+                <div style="font-size:50px;font-weight:900;color:${col};line-height:1">${grade}</div>
+                <div style="font-size:26px;font-weight:800;color:${col};margin-top:4px">${labWR}%</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px">${resolved.length} resolved entries</div>
+            </div>
+            <div style="font-size:12px;line-height:1.7;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.03);border-radius:8px;padding:12px;">
+                ${labWR>=60?'✅ Edge <strong>confirmed</strong>. Strategy has positive expectancy in the lab.':labWR>=50?'📊 Edge is <strong>slight</strong>. Keep building data.':'⚠️ Edge <strong>not yet confirmed</strong>. Review your entry criteria.'}
+            </div>`;
+    }
+
+    // Lab vs Live
+    const blEl = document.getElementById('bt-vs-live');
+    blEl.innerHTML=`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div style="background:rgba(74,144,226,0.06);border:1px solid rgba(74,144,226,0.15);border-radius:9px;padding:14px;text-align:center">
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.7px;color:rgba(74,144,226,0.7);margin-bottom:6px">LAB WIN RATE</div>
+                <div style="font-size:26px;font-weight:800;color:${labWR>=50?'#1DB954':'#E22134'}">${labWR}%</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.4)">${resolved.length} backtests</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:14px;text-align:center">
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.7px;color:rgba(255,255,255,0.4);margin-bottom:6px">LIVE WIN RATE</div>
+                <div style="font-size:26px;font-weight:800;color:${liveWR>=50?'#1DB954':'#E22134'}">${liveWR}%</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.4)">from live journal</div>
+            </div>
+        </div>
+        ${resolved.length&&liveWR?`<div class="ins ${labWR>liveWR?'r':'g'}">${labWR>liveWR?`⚠️ Lab (${labWR}%) > Live (${liveWR}%). Strategy is solid — <strong>execution or psychology</strong> is costing you ${labWR-liveWR}% live. Focus on discipline.`:`✅ Live (${liveWR}%) ≥ Lab (${labWR}%). Good execution — performing as expected live.`}</div>`:''}`;
+
+    // Missed analysis
+    const maEl = document.getElementById('missed-analysis');
+    if (!missed.length) {
+        maEl.innerHTML='<div style="color:rgba(255,255,255,0.35);font-size:12px;padding:8px 0">Log missed trades to see regret score</div>';
+    } else {
+        maEl.innerHTML=`
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+                <div style="text-align:center;padding:12px 8px;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.15);border-radius:9px">
+                    <div style="font-size:22px;font-weight:800;color:#F5A623">${missed.length}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">MISSED</div>
+                </div>
+                <div style="text-align:center;padding:12px 8px;background:rgba(29,185,84,0.07);border:1px solid rgba(29,185,84,0.15);border-radius:9px">
+                    <div style="font-size:22px;font-weight:800;color:#1DB954">${missedW}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">WERE WINS</div>
+                </div>
+                <div style="text-align:center;padding:12px 8px;background:rgba(226,33,52,0.07);border:1px solid rgba(226,33,52,0.15);border-radius:9px">
+                    <div style="font-size:22px;font-weight:800;color:#E22134">${regretPct}%</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">REGRET</div>
+                </div>
+            </div>
+            <div class="ins ${regretPct>=60?'r':regretPct>=40?'o':'g'}">
+                ${regretPct>=60?`🔴 <strong>${regretPct}%</strong> of missed trades were wins. You are leaving profit on the table — likely fear or hesitation.`:regretPct>=40?`⚠️ <strong>${regretPct}%</strong> regret. Review why you're skipping valid setups.`:`✅ <strong>${regretPct}%</strong> regret. Most of what you skipped wasn't worth taking.`}
+            </div>`;
+    }
+
+    // Why missed
+    const wmEl = document.getElementById('why-missed-stats');
+    const wmC = {}; missed.forEach(e=>{if(e.whyMissed) wmC[e.whyMissed]=(wmC[e.whyMissed]||0)+1;});
+    const sWM = Object.entries(wmC).sort((a,b)=>b[1]-a[1]);
+    const maxWM = sWM[0]?.[1]||1;
+    wmEl.innerHTML = sWM.length
+        ? sWM.map(([r,c])=>bar(esc(r),c+'x',Math.round((c/maxWM)*100),'#F5A623')).join('')
+        : '<div style="color:rgba(255,255,255,0.35);font-size:12px;padding:8px 0">No "why missed" data yet</div>';
+
+    // Setup rank
+    const combos = {}; resolved.forEach(e=>{
+        const k=(e.checklist||[]).slice().sort().join('+')||'No checklist';
+        if(!combos[k]) combos[k]={wins:0,total:0};
+        combos[k].total++;
+        if(e.outcome==='WIN') combos[k].wins++;
+    });
+    const sC = Object.entries(combos).filter(([,v])=>v.total>=2)
+        .map(([k,v])=>({k,wr:Math.round((v.wins/v.total)*100),total:v.total,wins:v.wins}))
+        .sort((a,b)=>b.wr-a.wr).slice(0,5);
+    const sqEl = document.getElementById('setup-rank');
+    sqEl.innerHTML = sC.length
+        ? sC.map((c,i)=>bar(`#${i+1} ${c.k.length>35?c.k.substring(0,35)+'…':c.k}`,`${c.wr}% (${c.wins}/${c.total})`,c.wr,c.wr>=60?'#1DB954':c.wr>=50?'#F5A623':'#E22134')).join('')
+        : '<div style="color:rgba(255,255,255,0.35);font-size:12px;padding:8px 0">Need 2+ entries with same checklist to rank setups</div>';
+
+    // Insights
+    const ins=[];
+    if(labWR>=60&&resolved.length>=5) ins.push({c:'g',m:`🔬 Backtest confirms edge: <strong>${labWR}%</strong> win rate over ${resolved.length} entries.`});
+    if(regretPct>=60&&missed.length>=3) ins.push({c:'r',m:`⚠️ You missed <strong>${missedW} winning trades</strong>. Hesitation is costing real profit.`});
+    if(sC[0]?.wr>=70) ins.push({c:'g',m:`🏆 Best setup: <strong>${sC[0].k.split('+').slice(0,3).join(' + ')}</strong> at <strong>${sC[0].wr}%</strong>. This is your A+ setup.`});
+    document.getElementById('edge-insights').innerHTML = ins.map(i=>`<div class="ins ${i.c}">${i.m}</div>`).join('');
+}
+
+// ── Form ──────────────────────────────────────────────────
+function wireForm() {
+    // Entry type pills
+    document.querySelectorAll('[data-ltype]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-ltype]').forEach(b=>b.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedLabType = this.dataset.ltype;
+            const isMissed = selectedLabType === 'missed';
+            const isObs    = selectedLabType === 'observation';
+            document.getElementById('actual-outcome-section').style.display = isMissed ? 'block' : 'none';
+            document.getElementById('why-missed-section').style.display     = isMissed ? 'block' : 'none';
+            document.getElementById('outcome-title').textContent = isObs
+                ? 'EXPECTED OUTCOME (optional)'
+                : isMissed ? 'WHAT YOU THOUGHT WOULD HAPPEN'
+                : 'BACKTEST OUTCOME';
+        });
+    });
+
+    // Outcome pills
+    document.querySelectorAll('[data-outcome]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-outcome]').forEach(b=>{b.classList.remove('selected');['WIN','LOSS','BREAKEVEN','PENDING'].forEach(c=>b.classList.remove(c));});
+            this.classList.add('selected', this.dataset.outcome);
+        });
+    });
+
+    // Actual outcome pills
+    document.querySelectorAll('[data-aoutcome]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-aoutcome]').forEach(b=>{b.classList.remove('selected');['WIN','LOSS','BREAKEVEN'].forEach(c=>b.classList.remove(c));});
+            this.classList.add('selected', this.dataset.aoutcome);
+        });
+    });
+
+    // Exec pills
+    document.querySelectorAll('[data-exec]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-exec]').forEach(b=>b.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+    // Session pills
+    document.querySelectorAll('[data-session]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-session]').forEach(b=>b.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+    // Mindset pills
+    document.querySelectorAll('[data-mindset]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('[data-mindset]').forEach(b=>b.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+    // Checklist toggle
+    document.getElementById('toggleCL').addEventListener('click', () => {
+        const body = document.getElementById('checklistBody');
+        const btn  = document.getElementById('toggleCL');
+        const hidden = body.style.display === 'none';
+        body.style.display = hidden ? '' : 'none';
+        btn.textContent = hidden ? 'HIDE' : 'SHOW';
+    });
+
+    // Screenshots
+    const ssZone  = document.getElementById('ssZone');
+    const ssInput = document.getElementById('ssInput');
+    ssZone.addEventListener('click', ()=>ssInput.click());
+    ssInput.addEventListener('change', e=>handleSS(e.target.files));
+
+    // Save buttons
+    document.getElementById('btnWin').addEventListener('click',     ()=>save('WIN'));
+    document.getElementById('btnLoss').addEventListener('click',    ()=>save('LOSS'));
+    document.getElementById('btnBE').addEventListener('click',      ()=>save('BREAKEVEN'));
+    document.getElementById('btnPending').addEventListener('click', ()=>save('PENDING'));
+    document.getElementById('btnClear').addEventListener('click',   clearForm);
+}
+
+function handleSS(files) {
+    Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const r = new FileReader();
+        r.onload = e => {
+            screenshots.push({ id: Date.now()+Math.random(), data: e.target.result, name: file.name, annotation: '' });
+            renderSS();
+        };
+        r.readAsDataURL(file);
+    });
+    document.getElementById('ssInput').value = '';
+}
+
+function renderSS() {
+    const c = document.getElementById('ssPreview');
+    c.innerHTML = '';
+    screenshots.forEach((ss, i) => {
+        const wrap = document.createElement('div'); wrap.className = 'ss-item';
+        const img  = document.createElement('img'); img.src = ss.data;
+        const rm   = document.createElement('button'); rm.className = 'ss-remove'; rm.textContent = '×';
+        rm.addEventListener('click', ()=>{ screenshots=screenshots.filter(s=>s.id!==ss.id); renderSS(); });
+        const ann  = document.createElement('textarea'); ann.className = 'ss-ann'; ann.rows = 2;
+        ann.placeholder = `Screenshot ${i+1} — what do you see?`; ann.value = ss.annotation||'';
+        ann.addEventListener('input', e=>{ ss.annotation = e.target.value; });
+        wrap.appendChild(img); wrap.appendChild(rm); wrap.appendChild(ann);
+        c.appendChild(wrap);
+    });
+}
+
+async function save(outcome) {
+    const pair  = document.getElementById('f-pair').value;
+    const notes = document.getElementById('f-notes').value.trim();
+
+    if (!pair)  { showToast('Select a pair', 'error'); return; }
+    if (!notes) { showToast('Add setup notes', 'error'); return; }
+    if (outcome !== 'PENDING' && selectedLabType !== 'observation') {
+        // outcome is passed directly from button — no validation needed
+    }
+
+    const actualOC = document.querySelector('[data-aoutcome].selected')?.dataset.aoutcome || null;
+    const sess     = document.querySelector('[data-session].selected')?.dataset.session    || null;
+    const exec     = document.querySelector('[data-exec].selected')?.dataset.exec          || null;
+    const mind     = document.querySelector('[data-mindset].selected')?.dataset.mindset    || null;
+    const checklist = CLITEMS.filter(k => document.getElementById('cl-'+k)?.checked);
+    const tags      = document.getElementById('f-tags').value.split(',').map(t=>t.trim().replace(/^#/,'')).filter(Boolean);
+    const ssAnn     = screenshots[0]?.annotation || '';
+
+    const entryId = `LAB_${Date.now()}`;
+    const entry = {
+        id: entryId, labType: selectedLabType,
+        pair, direction: document.getElementById('f-dir').value,
+        outcome, actualOutcome: actualOC,
+        tradeDate: document.getElementById('f-date').value,
+        tradeTime: document.getElementById('f-time').value,
+        timestamp: new Date().toISOString(),
+        notes, reason: document.getElementById('f-reason').value.trim(),
+        whyMissed: document.getElementById('f-why-missed').value,
+        session: sess, execution: exec, mindset: mind ? parseInt(mind) : null,
+        checklist, tags,
+        screenshotData: screenshots[0]?.data || null,
+        screenshotAnnotation: ssAnn,
+    };
+
+    entries.unshift(entry);
+    localStorage.setItem(LAB_KEY, JSON.stringify(entries));
+
+    // Disable buttons
+    ['btnWin','btnLoss','btnBE','btnPending'].forEach(id => {
+        const b = document.getElementById(id);
+        b.disabled = true;
+        b.innerHTML = `<span class="spinner"></span>`;
+    });
+
+    showToast('Saving...', 'info');
+    const result = await saveLabEntry(entryId, entry);
+
+    ['btnWin','btnLoss','btnBE','btnPending'].forEach(id => {
+        const b = document.getElementById(id);
+        b.disabled = false;
+    });
+    document.getElementById('btnWin').textContent     = 'WIN';
+    document.getElementById('btnLoss').textContent    = 'LOSS';
+    document.getElementById('btnBE').textContent      = 'BE';
+    document.getElementById('btnPending').textContent = 'PENDING';
+
+    if (result.success) {
+        showToast(`${outcome} entry saved to Lab ✓`, 'success');
+        clearForm();
+        render();
+        // Switch to entries tab
+        document.querySelector('[data-ptab="entries"]').click();
+    } else {
+        showToast('Cloud save failed: ' + result.error, 'error');
+        clearForm(); render();
+        document.querySelector('[data-ptab="entries"]').click();
+    }
+}
+
+function clearForm() {
+    document.getElementById('f-pair').value       = '';
+    document.getElementById('f-dir').value        = '';
+    document.getElementById('f-date').value       = new Date().toISOString().split('T')[0];
+    document.getElementById('f-time').value       = '';
+    document.getElementById('f-notes').value      = '';
+    document.getElementById('f-reason').value     = '';
+    document.getElementById('f-tags').value       = '';
+    document.getElementById('f-why-missed').value = '';
+    document.querySelectorAll('.pill').forEach(p=>{ p.classList.remove('selected'); ['WIN','LOSS','BREAKEVEN','PENDING'].forEach(c=>p.classList.remove(c)); });
+    document.querySelectorAll('.mindset-pill').forEach(p=>p.classList.remove('selected'));
+    document.querySelector('[data-ltype="backtest"]').classList.add('selected');
+    selectedLabType = 'backtest';
+    document.getElementById('actual-outcome-section').style.display = 'none';
+    document.getElementById('why-missed-section').style.display     = 'none';
+    document.getElementById('outcome-title').textContent = 'OUTCOME / PREDICTED OUTCOME';
+    CLITEMS.forEach(k=>{ const el=document.getElementById('cl-'+k); if(el) el.checked=false; });
+    screenshots = [];
+    renderSS();
+    showToast('Form cleared', 'info');
+}
+
+function esc(t) { const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; }
+</script>
+</body>
+</html>
