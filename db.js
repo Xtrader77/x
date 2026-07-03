@@ -42,12 +42,12 @@ export async function signOut() {
 }
 
 export async function getCurrentUser() {
-    // First try local session — instant, no network call
-    const { data: { session } } = await supabase.auth.getSession();
+    // getSession() reads from localStorage instantly — no network call
+    const { data: { session }, error } = await supabase.auth.getSession();
     if (session?.user) return session.user;
-    // Fallback to network check if no local session
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+    // If no local session, try refreshing from network
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed?.session?.user || null;
 }
 
 export async function resetPassword(email) {
@@ -106,7 +106,11 @@ export async function saveRecovery(question, answerHash) {
 // ── Trades ────────────────────────────────────────────────────────────────────
 export async function saveTrade(tradeId, tradeData) {
     const user = await getCurrentUser();
-    if (!user) return { success: false, error: 'Not logged in' };
+    if (!user) return { success: false, error: 'Not logged in — please sign out and sign back in' };
+
+    // Verify session is valid before attempting write
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: 'Session expired — please sign out and sign back in' };
 
     const row = {
         id: tradeId, user_id: user.id,
