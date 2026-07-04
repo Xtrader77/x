@@ -33,11 +33,37 @@ export async function signUp(email, password, name) {
 export async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
+
+    // Check if this is a different user than what's in localStorage
+    const storedUserId = localStorage.getItem('xX_current_user_id');
+    const newUserId    = data.user?.id;
+
+    if (storedUserId && storedUserId !== newUserId) {
+        // Different user — wipe all previous user's local data
+        const keysToRemove = [
+            'xX_journal_data', 'xX_cycle_data', 'xX_improvement_engine',
+            'xX_lab_data', 'xX_app_pin', 'xX_recovery', 'xX_trader_profile'
+        ];
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        sessionStorage.clear();
+    }
+
+    // Store current user ID so we can detect account switches
+    if (newUserId) localStorage.setItem('xX_current_user_id', newUserId);
+
     return { success: true, user: data.user };
 }
 
 export async function signOut() {
     await supabase.auth.signOut();
+    // Clear ALL user data from localStorage on logout
+    const keysToRemove = [
+        'xX_journal_data', 'xX_cycle_data', 'xX_improvement_engine',
+        'xX_lab_data', 'xX_app_pin', 'xX_recovery', 'xX_trader_profile',
+        'xX_install_dismissed'
+    ];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    sessionStorage.clear();
     return { success: true };
 }
 

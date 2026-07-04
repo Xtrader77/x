@@ -27,6 +27,19 @@ export async function requireAuthFast(redirectTo) {
         location.href = '/login.html';
         return null;
     }
+
+    // Detect account switch — if stored user ID doesn't match current session, clear data
+    const storedUserId = localStorage.getItem('xX_current_user_id');
+    if (storedUserId && storedUserId !== user.id) {
+        const keysToRemove = [
+            'xX_journal_data', 'xX_cycle_data', 'xX_improvement_engine',
+            'xX_lab_data', 'xX_app_pin', 'xX_recovery', 'xX_trader_profile'
+        ];
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        sessionStorage.clear();
+    }
+    localStorage.setItem('xX_current_user_id', user.id);
+
     // Fire background sync — never awaited, never blocks render
     _bgSync();
     return user;
