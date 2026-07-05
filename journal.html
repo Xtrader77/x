@@ -402,7 +402,7 @@ async function save(outcome) {
     const tradeTime   = document.getElementById('tradeTime').value;
     const isBackdated = tradeDate !== TODAY;
     const timestamp   = new Date(`${tradeDate}T${tradeTime}:00`).toISOString();
-    const tradeId     = `TRADE_${journals.tradeCounter++}`;
+    const tradeId      = `TRADE_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
     const sess = document.querySelector('[data-session].selected')?.dataset.session || '';
     const exec = document.querySelector('[data-exec].selected')?.dataset.exec || '';
