@@ -10,265 +10,373 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; padding:16px 16px 90px; }
-        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); }
-        h1 { font-size:20px; font-weight:800; }
-        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; }
-        .section { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; margin-bottom:14px; }
-        .section-title { font-size:13px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:16px; }
-        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        .form-group { margin-bottom:14px; }
+        html, body { height:100%; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; }
+
+        /* -- App shell: left sidebar + main content -- */
+        .app-shell { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+
+        .sidebar {
+            background:#0a0a0a; border-right:1px solid rgba(255,255,255,0.07);
+            padding:22px 14px; display:flex; flex-direction:column; gap:2px;
+            position:sticky; top:0; height:100vh;
+        }
+        .sidebar-brand { display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
+        .sidebar-brand .mark { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#1DB954,#4A90E2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+        .sidebar-brand .name { font-size:14px; font-weight:800; letter-spacing:0.5px; }
+        .sidebar-brand .sub  { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+
+        .nav-link {
+            display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:9px;
+            text-decoration:none; color:rgba(255,255,255,0.5); font-size:13px; font-weight:600;
+            transition:background 0.15s, color 0.15s;
+        }
+        .nav-link .ic { font-size:16px; width:20px; text-align:center; }
+        .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85); }
+        .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; }
+        .nav-link.active .ic { filter:drop-shadow(0 0 6px rgba(255,255,255,0.25)); }
+
+        .sidebar-foot { margin-top:auto; padding:12px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); padding-top:14px; }
+
+        /* -- Main column -- */
+        .main { padding:26px 34px 100px; max-width:1240px; width:100%; }
+
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .header-left h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
+        .header-left .subtitle { font-size:12.5px; color:rgba(255,255,255,0.4); margin-top:4px; }
+        .header-right { display:flex; align-items:center; gap:14px; }
+
+        .cycle-chip { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:9px 16px; font-size:13px; color:rgba(255,255,255,0.55); }
+        .cycle-chip strong { color:#fff; }
+
+        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:9px 18px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; transition:border-color 0.15s, color 0.15s; }
+        .back-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
+
+        .msg { border-radius:8px; padding:13px 16px; font-size:13px; margin-bottom:14px; display:none; }
+        .error-msg   { background:rgba(226,33,52,0.1); border:1px solid rgba(226,33,52,0.3); color:#ff6b6b; }
+        .success-msg { background:rgba(29,185,84,0.1); border:1px solid rgba(29,185,84,0.25); color:#1DB954; }
+
+        .mt4-banner { background:rgba(74,144,226,0.1); border:1px solid rgba(74,144,226,0.3); border-radius:10px; padding:14px 18px; margin-bottom:18px; display:none; }
+        .mt4-banner.show { display:flex; align-items:flex-start; gap:12px; }
+        .mt4-banner-body { flex:1; font-size:13px; }
+        .mt4-banner-body strong { display:block; color:#4A90E2; margin-bottom:3px; }
+        .mt4-banner-body span { color:rgba(255,255,255,0.5); }
+        .mt4-dismiss { background:none; border:none; color:rgba(255,255,255,0.3); font-size:20px; cursor:pointer; line-height:1; }
+        .mt4-dismiss:hover { color:rgba(255,255,255,0.7); }
+
+        /* -- Two-column working area -- */
+        .workspace { display:grid; grid-template-columns:1fr 380px; gap:18px; align-items:start; }
+        .col-main, .col-side { display:flex; flex-direction:column; gap:14px; }
+
+        .section { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:22px; }
+        .section-title { font-size:12.5px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; }
+
+        .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .form-group { margin-bottom:0; }
         label { display:block; font-size:11px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.4); margin-bottom:7px; }
         select, input[type="date"], input[type="time"], input[type="text"], textarea {
             width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
-            border-radius:8px; padding:12px 13px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; transition:all 0.2s;
+            border-radius:8px; padding:11px 13px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; transition:all 0.15s;
         }
-        select:focus, input:focus, textarea:focus { outline:none; border-color:rgba(255,255,255,0.3); }
+        select:focus, input:focus, textarea:focus { outline:none; border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.07); }
+        select:hover, input:hover, textarea:hover { border-color:rgba(255,255,255,0.2); }
         input[type="date"]::-webkit-calendar-picker-indicator,
-        input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:0.5; }
+        input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:0.5; cursor:pointer; }
         option { background:#111; }
-        textarea { min-height:120px; resize:vertical; line-height:1.6; }
+        textarea { min-height:110px; resize:vertical; line-height:1.6; }
+        #notes { min-height:150px; }
+
         .backdated { display:inline-block; font-size:10px; font-weight:700; color:#ffd600; background:rgba(255,214,0,0.1); border:1px solid rgba(255,214,0,0.3); border-radius:20px; padding:2px 10px; margin-left:8px; }
+
         .pill-row { display:flex; gap:8px; flex-wrap:wrap; }
-        .pill { flex:1; min-width:80px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 8px; text-align:center; cursor:pointer; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6); transition:background 0.1s,border-color 0.1s; letter-spacing:0.5px; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-        .pill:active { background:rgba(255,255,255,0.2) !important; transform:scale(0.97); }
+        .pill { flex:1; min-width:80px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 8px; text-align:center; cursor:pointer; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6); transition:background 0.12s,border-color 0.12s,transform 0.08s; letter-spacing:0.5px; user-select:none; }
+        .pill:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.2); }
+        .pill:active { transform:scale(0.97); }
         .pill.selected { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.35); color:#fff; }
+
         .mindset-row { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
-        .mindset-pill { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 4px; text-align:center; cursor:pointer; font-size:11px; color:rgba(255,255,255,0.6); transition:background 0.1s; user-select:none; line-height:1.6; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-        .mindset-pill:active { background:rgba(255,255,255,0.15) !important; }
+        .mindset-pill { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px 4px; text-align:center; cursor:pointer; font-size:11px; color:rgba(255,255,255,0.6); transition:background 0.12s,border-color 0.12s; user-select:none; line-height:1.6; }
+        .mindset-pill:hover { background:rgba(255,255,255,0.08); }
         .mindset-pill[data-mindset="1"].selected { border-color:#E22134; background:rgba(226,33,52,0.12); color:#ff6b6b; }
         .mindset-pill[data-mindset="2"].selected { border-color:#ff7043; background:rgba(255,112,67,0.12); color:#ff9068; }
         .mindset-pill[data-mindset="3"].selected { border-color:#ffd600; background:rgba(255,214,0,0.12); color:#ffd600; }
         .mindset-pill[data-mindset="4"].selected { border-color:#69f0ae; background:rgba(105,240,174,0.12); color:#69f0ae; }
         .mindset-pill[data-mindset="5"].selected { border-color:#1DB954; background:rgba(29,185,84,0.12); color:#1DB954; }
-        .checklist-cat { margin-bottom:14px; }
-        .cat-label { font-size:11px; font-weight:700; color:#4A90E2; letter-spacing:0.8px; margin-bottom:8px; }
-        .cb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; padding-left:4px; }
-        .cb-item { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:rgba(255,255,255,0.8); padding:6px 4px; min-height:36px; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-        .cb-item input { width:20px; height:20px; accent-color:#fff; flex-shrink:0; cursor:pointer; }
+
+        .checklist-cat { margin-bottom:16px; }
+        .checklist-cat:last-child { margin-bottom:0; }
+        .cat-label { font-size:11px; font-weight:700; color:#4A90E2; letter-spacing:0.8px; margin-bottom:9px; }
+        .cb-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .cb-item { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:rgba(255,255,255,0.8); padding:6px 8px; min-height:32px; border-radius:6px; transition:background 0.12s; }
+        .cb-item:hover { background:rgba(255,255,255,0.04); }
+        .cb-item input { width:17px; height:17px; accent-color:#fff; flex-shrink:0; cursor:pointer; }
+
         .toggle-btn { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.5); padding:4px 12px; border-radius:6px; cursor:pointer; font-size:11px; font-family:'Inter',sans-serif; }
-        .screenshot-drop { border:2px dashed rgba(255,255,255,0.1); border-radius:8px; padding:30px 20px; text-align:center; cursor:pointer; transition:all 0.2s; }
-        .screenshot-drop:hover { border-color:rgba(255,255,255,0.25); }
-        .ss-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; margin-top:14px; }
+        .toggle-btn:hover { color:#fff; border-color:rgba(255,255,255,0.25); }
+
+        .screenshot-drop { border:2px dashed rgba(255,255,255,0.12); border-radius:10px; padding:34px 20px; text-align:center; cursor:pointer; transition:all 0.15s; }
+        .screenshot-drop:hover { border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.02); }
+        .ss-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-top:16px; }
         .ss-item { position:relative; }
-        .ss-item img { width:100%; height:90px; object-fit:cover; border-radius:6px; border:2px solid rgba(29,185,84,0.4); }
-        .ss-remove { position:absolute; top:4px; right:4px; background:rgba(226,33,52,0.9); border:none; border-radius:50%; width:22px; height:22px; color:#fff; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-        .ss-ann { margin-top:5px; font-size:11px; padding:7px 9px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; width:100%; color:rgba(255,255,255,0.7); font-family:'Inter',sans-serif; resize:none; }
+        .ss-item img { width:100%; height:100px; object-fit:cover; border-radius:6px; border:2px solid rgba(29,185,84,0.4); }
+        .ss-remove { position:absolute; top:5px; right:5px; background:rgba(226,33,52,0.9); border:none; border-radius:50%; width:22px; height:22px; color:#fff; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .ss-remove:hover { background:rgba(226,33,52,1); }
+        .ss-ann { margin-top:6px; font-size:11px; padding:7px 9px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; width:100%; color:rgba(255,255,255,0.7); font-family:'Inter',sans-serif; resize:none; }
+
         .rule-tags { display:flex; flex-wrap:wrap; gap:8px; }
-        .rule-tag { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:9px 16px; font-size:12px; cursor:pointer; color:rgba(255,255,255,0.6); transition:background 0.1s; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; min-height:38px; display:flex; align-items:center; }
-        .rule-tag:active { background:rgba(255,255,255,0.15) !important; }
+        .rule-tag { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:9px 15px; font-size:12px; cursor:pointer; color:rgba(255,255,255,0.6); transition:background 0.12s,border-color 0.12s; user-select:none; }
+        .rule-tag:hover { background:rgba(255,255,255,0.08); }
         .rule-tag.selected { background:rgba(226,33,52,0.15); border-color:rgba(226,33,52,0.5); color:#ff6b6b; }
-        .action-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:20px; }
-        .save-btn { padding:16px 8px; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s; }
-        .save-btn:active { transform:scale(0.97); }
+
+        /* -- Sticky action footer, aligned with main content column -- */
+        .action-footer { position:sticky; bottom:0; margin-top:22px; padding:16px 0 2px; background:linear-gradient(180deg, rgba(0,0,0,0) 0%, #000 28%); }
+        .action-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; max-width:640px; margin:0 auto; }
+        .save-btn { padding:16px 8px; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+        .save-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
+        .save-btn:active { transform:scale(0.98); }
         .win-btn  { background:#1DB954; color:#fff; }
         .loss-btn { background:#E22134; color:#fff; }
         .be-btn   { background:#f5f5f7; color:#000; }
-        .msg { border-radius:8px; padding:13px 16px; font-size:13px; margin-bottom:14px; display:none; }
-        .error-msg   { background:rgba(226,33,52,0.1); border:1px solid rgba(226,33,52,0.3); color:#ff6b6b; }
-        .success-msg { background:rgba(29,185,84,0.1); border:1px solid rgba(29,185,84,0.25); color:#1DB954; }
-        .cycle-bar { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:12px 16px; margin-bottom:14px; text-align:center; font-size:13px; color:rgba(255,255,255,0.5); }
-        .cycle-bar strong { color:#fff; }
-        .mt4-banner { background:rgba(74,144,226,0.1); border:1px solid rgba(74,144,226,0.3); border-radius:10px; padding:14px 16px; margin-bottom:14px; display:none; }
-        .mt4-banner.show { display:flex; align-items:flex-start; gap:12px; }
-        .mt4-banner-body { flex:1; font-size:13px; }
-        .mt4-banner-body strong { display:block; color:#4A90E2; margin-bottom:3px; }
-        .mt4-banner-body span { color:rgba(255,255,255,0.5); }
-        .mt4-dismiss { background:none; border:none; color:rgba(255,255,255,0.3); font-size:20px; cursor:pointer; }
+
         .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.2); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
         .win-btn  .spinner { border-top-color:#1DB954; }
         .loss-btn .spinner { border-top-color:#E22134; }
         @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* -- Responsive fallback: collapse to single column below ~980px -- */
+        @media (max-width:980px) {
+            .app-shell { grid-template-columns:1fr; }
+            .sidebar { display:none; }
+            .main { padding:20px 16px 90px; }
+            .workspace { grid-template-columns:1fr; }
+            .grid-4 { grid-template-columns:1fr 1fr; }
+        }
     </style>
 </head>
 <body>
-<div class="header">
-    <h1>NEW TRADE</h1>
-    <a href="/" class="back-btn">← HOME</a>
-</div>
+<div class="app-shell">
 
-<div class="mt4-banner" id="mt4Banner">
-    <div class="mt4-banner-body">
-        <strong id="mt4BannerTitle">MT4 Trade Detected</strong>
-        <span id="mt4BannerSub">Add your notes and save.</span>
-    </div>
-    <button class="mt4-dismiss" id="mt4Dismiss">×</button>
-</div>
-
-<div class="cycle-bar">Cycle: <strong id="cycleNum">1</strong> · Trades: <strong id="cycleTrades">0</strong> / 20</div>
-
-<div class="msg error-msg"   id="errMsg"></div>
-<div class="msg success-msg" id="okMsg"></div>
-
-<!-- Trade Details -->
-<div class="section">
-    <div class="section-title">TRADE DETAILS</div>
-    <div class="grid-2">
-        <div class="form-group">
-            <label>PAIR</label>
-            <select id="pair">
-                <option value="">Select</option>
-                <option>XAUUSD</option><option>NAS100</option><option>EURUSD</option>
-                <option>GBPUSD</option><option>AUDUSD</option><option>USDJPY</option><option>Other</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>DIRECTION</label>
-            <select id="direction">
-                <option value="">Select</option>
-                <option>BUY</option><option>SELL</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>DATE <span class="backdated" id="backdatedBadge" style="display:none;">BACKDATED</span></label>
-            <input type="date" id="tradeDate">
-        </div>
-        <div class="form-group">
-            <label>TIME</label>
-            <input type="time" id="tradeTime">
-        </div>
-    </div>
-    <div class="form-group" id="mt4LevelGroup" style="display:none;">
-        <label>EA LEVEL <span style="font-size:10px;color:#4A90E2;">(from MT4)</span></label>
-        <input type="text" id="mt4Level" readonly style="color:rgba(74,144,226,0.9);">
-    </div>
-</div>
-
-<!-- Execution -->
-<div class="section">
-    <div class="section-title">EXECUTION TYPE</div>
-    <div class="pill-row">
-        <div class="pill" data-exec="limit">🎯 LIMIT</div>
-        <div class="pill" data-exec="instant">⚡ INSTANT</div>
-    </div>
-</div>
-
-<!-- Mindset -->
-<div class="section">
-    <div class="section-title">PRE-TRADE MINDSET</div>
-    <div class="mindset-row">
-        <div class="mindset-pill" data-mindset="1">😤<br>1<br><small>Frustrated</small></div>
-        <div class="mindset-pill" data-mindset="2">😟<br>2<br><small>Off</small></div>
-        <div class="mindset-pill" data-mindset="3">😐<br>3<br><small>Neutral</small></div>
-        <div class="mindset-pill" data-mindset="4">😊<br>4<br><small>Focused</small></div>
-        <div class="mindset-pill" data-mindset="5">🔥<br>5<br><small>In zone</small></div>
-    </div>
-</div>
-
-<!-- Checklist -->
-<div class="section">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div class="section-title" style="margin:0;">CHECKLIST</div>
-        <button class="toggle-btn" id="toggleCL">HIDE</button>
-    </div>
-    <div id="checklistBody">
-        <div class="checklist-cat">
-            <div class="cat-label">HTF</div>
-            <div class="cb-grid">
-                <label class="cb-item"><input type="checkbox" id="cl-H4"><span>H4</span></label>
+    <!-- Desktop sidebar navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="mark">xX</div>
+            <div>
+                <div class="name">xX Trading</div>
+                <div class="sub">Journal</div>
             </div>
         </div>
-        <div class="checklist-cat">
-            <div class="cat-label">REFINED</div>
-            <div class="cb-grid">
-                <label class="cb-item"><input type="checkbox" id="cl-H1EF"><span>H1 EF</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-H1EG"><span>H1 EG</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-M30EF"><span>M30 EF</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-M30EG"><span>M30 EG</span></label>
+        <a href="/" class="nav-link"><span class="ic">🏠</span>Home</a>
+        <a href="/journal.html" class="nav-link active"><span class="ic">📝</span>New Trade</a>
+        <a href="/dashboard.html" class="nav-link"><span class="ic">📊</span>Dashboard</a>
+        <a href="/analytics.html" class="nav-link"><span class="ic">📈</span>Analytics</a>
+        <a href="/lab.html" class="nav-link"><span class="ic">🧪</span>Lab</a>
+        <a href="/improvement.html" class="nav-link"><span class="ic">🔧</span>Improve</a>
+        <a href="/profile.html" class="nav-link"><span class="ic">👤</span>Profile</a>
+        <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+
+        <div class="header">
+            <div class="header-left">
+                <h1>New Trade</h1>
+                <div class="subtitle">Log the setup, the execution, and the mindset behind it.</div>
+            </div>
+            <div class="header-right">
+                <div class="cycle-chip">Cycle <strong id="cycleNum">1</strong> · Trades <strong id="cycleTrades">0</strong>/20</div>
+                <a href="/" class="back-btn">← Home</a>
             </div>
         </div>
-        <div class="checklist-cat">
-            <div class="cat-label">TRADE CONTROL</div>
-            <div class="cb-grid">
-                <label class="cb-item"><input type="checkbox" id="cl-M15EF"><span>M15 EF</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-M15EG"><span>M15 EG</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-M30EF2"><span>M30 EF</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-M30EG2"><span>M30 EG</span></label>
+
+        <div class="mt4-banner" id="mt4Banner">
+            <div class="mt4-banner-body">
+                <strong id="mt4BannerTitle">MT4 Trade Detected</strong>
+                <span id="mt4BannerSub">Add your notes and save.</span>
+            </div>
+            <button class="mt4-dismiss" id="mt4Dismiss">×</button>
+        </div>
+
+        <div class="msg error-msg"   id="errMsg"></div>
+        <div class="msg success-msg" id="okMsg"></div>
+
+        <div class="workspace">
+            <!-- Left column: core trade data -->
+            <div class="col-main">
+
+                <div class="section">
+                    <div class="section-title">TRADE DETAILS</div>
+                    <div class="grid-4">
+                        <div class="form-group">
+                            <label>PAIR</label>
+                            <select id="pair">
+                                <option value="">Select</option>
+                                <option>XAUUSD</option><option>NAS100</option><option>EURUSD</option>
+                                <option>GBPUSD</option><option>AUDUSD</option><option>USDJPY</option><option>Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>DIRECTION</label>
+                            <select id="direction">
+                                <option value="">Select</option>
+                                <option>BUY</option><option>SELL</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>DATE <span class="backdated" id="backdatedBadge" style="display:none;">BACKDATED</span></label>
+                            <input type="date" id="tradeDate">
+                        </div>
+                        <div class="form-group">
+                            <label>TIME</label>
+                            <input type="time" id="tradeTime">
+                        </div>
+                    </div>
+                    <div class="form-group" id="mt4LevelGroup" style="display:none;margin-top:14px;">
+                        <label>EA LEVEL <span style="font-size:10px;color:#4A90E2;">(from MT4)</span></label>
+                        <input type="text" id="mt4Level" readonly style="color:rgba(74,144,226,0.9);">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">EXECUTION TYPE</div>
+                    <div class="pill-row">
+                        <div class="pill" data-exec="limit">🎯 LIMIT</div>
+                        <div class="pill" data-exec="instant">⚡ INSTANT</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">TRADING SESSION</div>
+                    <div class="pill-row">
+                        <div class="pill" data-session="asia">🌏 ASIA</div>
+                        <div class="pill" data-session="london">🏛️ LONDON</div>
+                        <div class="pill" data-session="newyork">🗽 NY</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">SCREENSHOTS</div>
+                    <div class="screenshot-drop" id="ssZone">
+                        <div style="font-size:36px;margin-bottom:8px;">📸</div>
+                        <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Click to upload, or drag files in</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,0.4);">JPG or PNG</div>
+                        <input type="file" id="ssInput" multiple accept="image/*" style="display:none;">
+                    </div>
+                    <div class="ss-preview" id="ssPreview"></div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">JOURNAL NOTES</div>
+                    <textarea id="notes" placeholder="Write your thoughts, observations and analysis..."></textarea>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">TRADE REASON</div>
+                    <input type="text" id="reason" placeholder="e.g. Good patience, Entered early, Followed plan...">
+                </div>
+
+            </div>
+
+            <!-- Right column: psychology, checklist, review -->
+            <div class="col-side">
+
+                <div class="section">
+                    <div class="section-title">PRE-TRADE MINDSET</div>
+                    <div class="mindset-row">
+                        <div class="mindset-pill" data-mindset="1">😤<br>1<br><small>Frustrated</small></div>
+                        <div class="mindset-pill" data-mindset="2">😟<br>2<br><small>Off</small></div>
+                        <div class="mindset-pill" data-mindset="3">😐<br>3<br><small>Neutral</small></div>
+                        <div class="mindset-pill" data-mindset="4">😊<br>4<br><small>Focused</small></div>
+                        <div class="mindset-pill" data-mindset="5">🔥<br>5<br><small>In zone</small></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <div class="section-title" style="margin:0;">CHECKLIST</div>
+                        <button class="toggle-btn" id="toggleCL">HIDE</button>
+                    </div>
+                    <div id="checklistBody">
+                        <div class="checklist-cat">
+                            <div class="cat-label">HTF</div>
+                            <div class="cb-grid">
+                                <label class="cb-item"><input type="checkbox" id="cl-H4"><span>H4</span></label>
+                            </div>
+                        </div>
+                        <div class="checklist-cat">
+                            <div class="cat-label">REFINED</div>
+                            <div class="cb-grid">
+                                <label class="cb-item"><input type="checkbox" id="cl-H1EF"><span>H1 EF</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-H1EG"><span>H1 EG</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-M30EF"><span>M30 EF</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-M30EG"><span>M30 EG</span></label>
+                            </div>
+                        </div>
+                        <div class="checklist-cat">
+                            <div class="cat-label">TRADE CONTROL</div>
+                            <div class="cb-grid">
+                                <label class="cb-item"><input type="checkbox" id="cl-M15EF"><span>M15 EF</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-M15EG"><span>M15 EG</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-M30EF2"><span>M30 EF</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-M30EG2"><span>M30 EG</span></label>
+                            </div>
+                        </div>
+                        <div class="checklist-cat">
+                            <div class="cat-label">ENTRY TF</div>
+                            <div class="cb-grid">
+                                <label class="cb-item"><input type="checkbox" id="cl-ENTRY-M5EG"><span>M5 EG</span></label>
+                                <label class="cb-item"><input type="checkbox" id="cl-ENTRY-M1EF"><span>M1 EF</span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">RULE BREAKS</div>
+                    <div class="rule-tags">
+                        <div class="rule-tag" data-rule="Entered Early">Entered Early</div>
+                        <div class="rule-tag" data-rule="Entered Late">Entered Late</div>
+                        <div class="rule-tag" data-rule="Chased Market">Chased Market</div>
+                        <div class="rule-tag" data-rule="No Confirmation">No Confirmation</div>
+                        <div class="rule-tag" data-rule="Ignored Checklist">Ignored Checklist</div>
+                        <div class="rule-tag" data-rule="Moved SL">Moved SL</div>
+                        <div class="rule-tag" data-rule="Closed Early">Closed Early</div>
+                        <div class="rule-tag" data-rule="Revenge Trade">Revenge Trade</div>
+                        <div class="rule-tag" data-rule="Against HTF Bias">Against HTF Bias</div>
+                        <div class="rule-tag" data-rule="Overtrading">Overtrading</div>
+                        <div class="rule-tag" data-rule="FOMO">FOMO</div>
+                        <div class="rule-tag" data-rule="No Rule Break">✅ No Rule Break</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">EXECUTION RATING</div>
+                    <div class="pill-row" style="flex-wrap:wrap;">
+                        <div class="pill" data-rating="1">⭐<br><small>Poor</small></div>
+                        <div class="pill" data-rating="2">⭐⭐<br><small>Below</small></div>
+                        <div class="pill" data-rating="3">⭐⭐⭐<br><small>Avg</small></div>
+                        <div class="pill" data-rating="4">⭐⭐⭐⭐<br><small>Good</small></div>
+                        <div class="pill" data-rating="5">⭐⭐⭐⭐⭐<br><small>Perfect</small></div>
+                    </div>
+                </div>
+
             </div>
         </div>
-        <div class="checklist-cat">
-            <div class="cat-label">ENTRY TF</div>
-            <div class="cb-grid">
-                <label class="cb-item"><input type="checkbox" id="cl-ENTRY-M5EG"><span>M5 EG</span></label>
-                <label class="cb-item"><input type="checkbox" id="cl-ENTRY-M1EF"><span>M1 EF</span></label>
+
+        <div class="action-footer">
+            <div class="action-row">
+                <button class="save-btn win-btn"  id="btnWin">WIN</button>
+                <button class="save-btn loss-btn" id="btnLoss">LOSS</button>
+                <button class="save-btn be-btn"   id="btnBE">BE</button>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Session -->
-<div class="section">
-    <div class="section-title">TRADING SESSION</div>
-    <div class="pill-row">
-        <div class="pill" data-session="asia">🌏 ASIA</div>
-        <div class="pill" data-session="london">🏛️ LONDON</div>
-        <div class="pill" data-session="newyork">🗽 NY</div>
-    </div>
-</div>
-
-<!-- Screenshots -->
-<div class="section">
-    <div class="section-title">SCREENSHOTS</div>
-    <div class="screenshot-drop" id="ssZone">
-        <div style="font-size:36px;margin-bottom:8px;">📸</div>
-        <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Tap to upload</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.4);">JPG or PNG</div>
-        <input type="file" id="ssInput" multiple accept="image/*" style="display:none;">
-    </div>
-    <div class="ss-preview" id="ssPreview"></div>
-</div>
-
-<!-- Notes -->
-<div class="section">
-    <div class="section-title">JOURNAL NOTES</div>
-    <textarea id="notes" placeholder="Write your thoughts, observations and analysis..."></textarea>
-</div>
-
-<!-- Reason -->
-<div class="section">
-    <div class="section-title">TRADE REASON</div>
-    <input type="text" id="reason" placeholder="e.g. Good patience, Entered early, Followed plan...">
-</div>
-
-<!-- Rule Breaks -->
-<div class="section">
-    <div class="section-title">RULE BREAKS</div>
-    <div class="rule-tags">
-        <div class="rule-tag" data-rule="Entered Early">Entered Early</div>
-        <div class="rule-tag" data-rule="Entered Late">Entered Late</div>
-        <div class="rule-tag" data-rule="Chased Market">Chased Market</div>
-        <div class="rule-tag" data-rule="No Confirmation">No Confirmation</div>
-        <div class="rule-tag" data-rule="Ignored Checklist">Ignored Checklist</div>
-        <div class="rule-tag" data-rule="Moved SL">Moved SL</div>
-        <div class="rule-tag" data-rule="Closed Early">Closed Early</div>
-        <div class="rule-tag" data-rule="Revenge Trade">Revenge Trade</div>
-        <div class="rule-tag" data-rule="Against HTF Bias">Against HTF Bias</div>
-        <div class="rule-tag" data-rule="Overtrading">Overtrading</div>
-        <div class="rule-tag" data-rule="FOMO">FOMO</div>
-        <div class="rule-tag" data-rule="No Rule Break">✅ No Rule Break</div>
-    </div>
-</div>
-
-<!-- Execution Rating -->
-<div class="section">
-    <div class="section-title">EXECUTION RATING</div>
-    <div class="pill-row">
-        <div class="pill" data-rating="1">⭐<br><small>Poor</small></div>
-        <div class="pill" data-rating="2">⭐⭐<br><small>Below</small></div>
-        <div class="pill" data-rating="3">⭐⭐⭐<br><small>Avg</small></div>
-        <div class="pill" data-rating="4">⭐⭐⭐⭐<br><small>Good</small></div>
-        <div class="pill" data-rating="5">⭐⭐⭐⭐⭐<br><small>Perfect</small></div>
-    </div>
-</div>
-
-<div class="action-row">
-    <button class="save-btn win-btn"  id="btnWin">WIN</button>
-    <button class="save-btn loss-btn" id="btnLoss">LOSS</button>
-    <button class="save-btn be-btn"   id="btnBE">BE</button>
+    </main>
 </div>
 
 <script type="module">
-import { requireAuth, requirePin, showToast, injectBottomNav } from '/shared.js';
+import { requireAuth, requirePin, showToast } from '/shared.js';
 import { saveTrade, saveCycles, loadAllTrades, loadCycles } from '/db.js';
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -277,11 +385,9 @@ let cycles    = { currentCycle:1, tradesInCurrentCycle:0, completedCycles:[], al
 let screenshots = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-    injectBottomNav('journal');
 
 function makeSingleSelect(selector) {
     document.querySelectorAll(selector).forEach(el => {
-        // Use pointerdown for instant response on Android (no 300ms delay)
         el.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             document.querySelectorAll(selector).forEach(x => x.classList.remove('selected'));
@@ -315,13 +421,21 @@ function init() {
         });
     });
 
-    // Screenshots
     const ssInput = document.getElementById('ssInput');
     const ssZone  = document.getElementById('ssZone');
     ssZone.addEventListener('click', () => ssInput.click());
     ssInput.addEventListener('change', e => handleScreenshots(e.target.files));
 
-    // Checklist toggle
+    ['dragenter','dragover'].forEach(evt => ssZone.addEventListener(evt, e => {
+        e.preventDefault(); ssZone.style.borderColor = 'rgba(255,255,255,0.4)';
+    }));
+    ['dragleave','drop'].forEach(evt => ssZone.addEventListener(evt, e => {
+        e.preventDefault(); ssZone.style.borderColor = 'rgba(255,255,255,0.12)';
+    }));
+    ssZone.addEventListener('drop', e => {
+        if (e.dataTransfer?.files?.length) handleScreenshots(e.dataTransfer.files);
+    });
+
     document.getElementById('toggleCL').addEventListener('click', () => {
         const body = document.getElementById('checklistBody');
         const btn  = document.getElementById('toggleCL');
@@ -330,21 +444,17 @@ function init() {
         btn.textContent = hidden ? 'HIDE' : 'SHOW';
     });
 
-    // MT4 dismiss
     document.getElementById('mt4Dismiss').addEventListener('click', () => {
         document.getElementById('mt4Banner').classList.remove('show');
     });
 
-    // Save buttons
     document.getElementById('btnWin').addEventListener('click',  () => save('WIN'));
     document.getElementById('btnLoss').addEventListener('click', () => save('LOSS'));
     document.getElementById('btnBE').addEventListener('click',   () => save('BREAKEVEN'));
 
-    // Cycle display
     document.getElementById('cycleNum').textContent    = cycles.currentCycle;
     document.getElementById('cycleTrades').textContent = cycles.tradesInCurrentCycle;
 
-    // Prefill from duplicate or inbox
     prefill();
 }
 
@@ -436,13 +546,11 @@ async function save(outcome) {
         cycles.currentCycle++; cycles.tradesInCurrentCycle = 0;
     }
 
-    // Cache to localStorage
     try {
         localStorage.setItem('xX_journal_data', JSON.stringify(journals));
         localStorage.setItem('xX_cycle_data', JSON.stringify(cycles));
     } catch(e) {}
 
-    // Disable save buttons while uploading
     ['btnWin','btnLoss','btnBE'].forEach(id => {
         document.getElementById(id).disabled = true;
         document.getElementById(id).innerHTML = `<span class="spinner"></span>`;
@@ -488,7 +596,6 @@ function prefill() {
         t.ruleBreaks?.forEach(rb => document.querySelector(`.rule-tag[data-rule="${rb}"]`)?.classList.add('selected'));
     }
 
-    // Inbox prefill
     const raw = sessionStorage.getItem('xX_pending_prefill');
     if (raw) {
         sessionStorage.removeItem('xX_pending_prefill');
@@ -518,7 +625,6 @@ function prefill() {
     if (!user) return;
     await requirePin();
 
-    // Load from localStorage cache or cloud
     try {
         const cached = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
         if (cached.journals) journals = cached;
