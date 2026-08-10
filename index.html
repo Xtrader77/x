@@ -10,131 +10,208 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; display:flex; flex-direction:column; padding-bottom:80px; }
-        .top-bar { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 0; }
-        .top-left { font-size:12px; font-weight:700; letter-spacing:1.5px; color:rgba(255,255,255,0.25); }
-        .profile-btn { width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; text-decoration:none; transition:all 0.2s; }
+        html, body { height:100%; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; }
+
+        /* -- App shell: left sidebar + main content -- */
+        .app-shell { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+        .sidebar { background:#0a0a0a; border-right:1px solid rgba(255,255,255,0.07); padding:22px 14px; display:flex; flex-direction:column; gap:2px; position:sticky; top:0; height:100vh; }
+        .sidebar-brand { display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
+        .sidebar-brand .mark { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#1DB954,#4A90E2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+        .sidebar-brand .name { font-size:14px; font-weight:800; letter-spacing:0.5px; }
+        .sidebar-brand .sub  { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+        .nav-link { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:9px; text-decoration:none; color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; transition:background 0.15s, color 0.15s; }
+        .nav-link .ic { font-size:16px; width:20px; text-align:center; }
+        .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85); }
+        .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; box-shadow:inset 3px 0 0 #1DB954; }
+        .nav-link .lbl { white-space:nowrap; }
+        .sidebar-foot { margin-top:auto; padding:12px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); padding-top:14px; }
+        .main { padding:26px 34px 60px; max-width:1240px; width:100%; }
+        @media (max-width:980px) {
+            .app-shell { grid-template-columns:64px 1fr; }
+            .sidebar { padding:18px 8px; align-items:center; }
+            .sidebar-brand { padding:6px 0 22px; justify-content:center; }
+            .sidebar-brand div:not(.mark) { display:none; }
+            .nav-link { justify-content:center; padding:12px 0; width:44px; }
+            .nav-link .lbl { display:none; }
+            .sidebar-foot { display:none; }
+            .main { padding:16px 16px 40px; }
+        }
+
+        /* -- Header -- */
+        .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .header-left .logo-row { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+        .header-left .logo { font-size:34px; font-weight:800; letter-spacing:-1.5px; background:linear-gradient(135deg,#fff,#1DB954); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+        .header-left .tagline { font-size:12px; color:rgba(255,255,255,0.35); font-style:italic; }
+        .greeting { font-size:14px; color:rgba(255,255,255,0.5); }
+        .header-right { display:flex; align-items:center; gap:12px; }
+        .cycle-chip { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:9px 16px; font-size:13px; color:rgba(255,255,255,0.55); white-space:nowrap; }
+        .cycle-chip strong { color:#fff; }
+        .profile-btn { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:17px; cursor:pointer; text-decoration:none; transition:all 0.2s; flex-shrink:0; }
         .profile-btn:hover { background:rgba(255,255,255,0.14); }
-        .main { flex:1; display:flex; flex-direction:column; align-items:center; padding:40px 24px 20px; }
-        .logo { font-size:64px; font-weight:800; letter-spacing:-3px; margin-bottom:8px; }
-        .tagline { font-size:14px; color:rgba(255,255,255,0.35); font-style:italic; margin-bottom:10px; }
-        .trader-greeting { font-size:13px; color:rgba(255,255,255,0.25); letter-spacing:0.3px; margin-bottom:36px; }
-        .home-stats-row { display:none; width:100%; max-width:900px; gap:10px; margin-bottom:22px; }
-        .home-stats-row.show { display:grid; grid-template-columns:repeat(3,1fr); }
-        .home-stat { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px 14px; text-align:center; }
-        .home-stat-val { font-size:24px; font-weight:800; }
-        .home-stat-label { font-size:10px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.4); margin-top:3px; }
-        .nav-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; max-width:480px; }
-        .nav-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:14px; padding:24px 16px 20px; text-decoration:none; color:#fff; display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; transition:all 0.25s; }
-        .nav-card:hover, .nav-card:active { background:#1a1a1a; border-color:rgba(255,255,255,0.12); transform:translateY(-2px); }
-        .nav-card.full-width { grid-column:1/-1; flex-direction:row; text-align:left; gap:16px; }
-        .nav-icon { font-size:28px; }
-        .nav-title { font-size:11px; font-weight:700; letter-spacing:1.2px; }
-        .nav-desc { font-size:11px; color:rgba(255,255,255,0.35); line-height:1.5; }
-        .cycle-bar { width:100%; max-width:480px; background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px 20px; margin-bottom:20px; }
-        .cycle-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+
+        /* -- Cards / stats (shared visual language) -- */
+        .card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; margin-bottom:14px; }
+        .card-title { font-size:12.5px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:16px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+        .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px 14px; position:relative; overflow:hidden; transition:border-color 0.15s; }
+        .stat-card:hover { border-color:rgba(255,255,255,0.15); }
+        .stat-card .stat-ic { position:absolute; top:14px; right:14px; font-size:16px; opacity:0.35; }
+        .stat-value { font-size:30px; font-weight:800; }
+        .stat-label { font-size:11px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.45); margin-top:4px; }
+        @media (max-width:980px) { .stats-grid { grid-template-columns:1fr 1fr; } }
+
+        .cycle-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; margin-bottom:14px; }
+        .cycle-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
         .cycle-label { font-size:11px; font-weight:700; letter-spacing:0.8px; color:rgba(255,255,255,0.4); }
-        .cycle-val   { font-size:14px; font-weight:700; }
-        .cycle-track { height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
-        .cycle-fill  { height:100%; background:#fff; border-radius:2px; transition:width 0.4s ease; }
-        .install-banner { width:100%; max-width:480px; background:rgba(74,144,226,0.08); border:1px solid rgba(74,144,226,0.2); border-radius:12px; padding:14px 18px; display:none; align-items:center; gap:14px; margin-bottom:16px; }
+        .cycle-val { font-size:14px; font-weight:700; }
+        .progress-track { height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+        .progress-fill  { height:100%; background:linear-gradient(90deg,#1DB954,#4A90E2); border-radius:3px; transition:width 0.4s; }
+
+        .chart-wrap { position:relative; height:220px; }
+        .empty-state { text-align:center; padding:30px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
+
+        /* -- Quick action tiles -- */
+        .tiles-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+        @media (max-width:980px) { .tiles-grid { grid-template-columns:1fr 1fr; } }
+        .tile { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:14px; padding:22px 18px; text-decoration:none; color:#fff; display:flex; flex-direction:column; gap:10px; transition:all 0.2s; position:relative; overflow:hidden; }
+        .tile:hover { background:#1a1a1a; border-color:rgba(255,255,255,0.15); transform:translateY(-2px); }
+        .tile .tile-ic-wrap { width:42px; height:42px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; }
+        .tile-journal .tile-ic-wrap { background:rgba(29,185,84,0.15); }
+        .tile-dashboard .tile-ic-wrap { background:rgba(74,144,226,0.15); }
+        .tile-analytics .tile-ic-wrap { background:rgba(255,214,0,0.13); }
+        .tile-lab .tile-ic-wrap { background:rgba(226,33,52,0.13); }
+        .tile-improve .tile-ic-wrap { background:rgba(74,144,226,0.15); }
+        .tile-profile .tile-ic-wrap { background:rgba(255,255,255,0.08); }
+        .tile-title { font-size:13px; font-weight:700; letter-spacing:0.4px; }
+        .tile-desc { font-size:11.5px; color:rgba(255,255,255,0.4); line-height:1.5; }
+        .tile-arrow { position:absolute; top:20px; right:18px; font-size:14px; color:rgba(255,255,255,0.2); transition:transform 0.2s, color 0.2s; }
+        .tile:hover .tile-arrow { transform:translateX(3px); color:rgba(255,255,255,0.5); }
+        .tile.featured { grid-column:1/-1; flex-direction:row; align-items:center; padding:26px 26px; background:linear-gradient(135deg, rgba(29,185,84,0.1), rgba(74,144,226,0.06)); border-color:rgba(29,185,84,0.2); }
+        .tile.featured .tile-ic-wrap { width:52px; height:52px; font-size:24px; background:rgba(29,185,84,0.18); flex-shrink:0; }
+        .tile.featured .tile-title { font-size:16px; }
+        .tile.featured .tile-desc { font-size:12.5px; }
+
+        /* -- Install banner -- */
+        .install-banner { background:rgba(74,144,226,0.08); border:1px solid rgba(74,144,226,0.2); border-radius:12px; padding:14px 18px; display:none; align-items:center; gap:14px; margin-bottom:16px; }
         .install-banner.show { display:flex; }
         .install-btn { background:#4A90E2; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; white-space:nowrap; }
         .install-text { flex:1; font-size:12px; color:rgba(255,255,255,0.6); line-height:1.5; }
         .install-dismiss { background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; font-size:18px; }
-
-        /* -- Desktop widening -- */
-        @media (min-width:860px) {
-            .cycle-bar, .home-stats-row { max-width:900px; }
-            .nav-grid { max-width:900px; grid-template-columns:repeat(3,1fr); gap:16px; }
-            .nav-card { padding:30px 18px 26px; }
-            .nav-card.full-width { grid-column:1/-1; }
-            .logo { font-size:80px; }
-        }
     </style>
 </head>
 <body>
-<div class="top-bar">
-    <div class="top-left">xX TRADING</div>
-    <a href="/profile.html" class="profile-btn" id="profileBtn">👤</a>
-</div>
-
-<div class="main">
-    <div class="logo">xX</div>
-    <div class="tagline">where discipline becomes leverage</div>
-    <div class="trader-greeting" id="greeting">Loading...</div>
-
-    <!-- Quick stats (desktop) -->
-    <div class="home-stats-row" id="homeStatsRow">
-        <div class="home-stat"><div class="home-stat-val" id="homeTotalTrades">0</div><div class="home-stat-label">TOTAL TRADES</div></div>
-        <div class="home-stat"><div class="home-stat-val" id="homeWinRate">0%</div><div class="home-stat-label">WIN RATE</div></div>
-        <div class="home-stat"><div class="home-stat-val" id="homeCurrentCycle">1</div><div class="home-stat-label">CURRENT CYCLE</div></div>
-    </div>
-
-    <!-- PWA install banner -->
-    <div class="install-banner" id="installBanner">
-        <div class="install-text">📲 Add to your home screen for the full app experience.</div>
-        <button class="install-btn" id="installBtn">INSTALL</button>
-        <button class="install-dismiss" id="dismissInstall">×</button>
-    </div>
-
-    <!-- Quick stats (shown once local trade data is available) -->
-    <div class="home-stats-row" id="homeStatsRow">
-        <div class="home-stat"><div class="home-stat-val" id="homeTotalTrades">0</div><div class="home-stat-label">TOTAL TRADES</div></div>
-        <div class="home-stat"><div class="home-stat-val" id="homeWinRate">0%</div><div class="home-stat-label">WIN RATE</div></div>
-        <div class="home-stat"><div class="home-stat-val" id="homeCycle">1</div><div class="home-stat-label">CURRENT CYCLE</div></div>
-    </div>
-
-    <!-- Cycle progress bar -->
-    <div class="cycle-bar">
-        <div class="cycle-row">
-            <span class="cycle-label">CYCLE PROGRESS</span>
-            <span class="cycle-val" id="cycleText">Cycle 1 · 0 / 20 trades</span>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="mark">xX</div>
+            <div><div class="name">xX Trading</div><div class="sub">Home</div></div>
         </div>
-        <div class="cycle-track"><div class="cycle-fill" id="cycleFill" style="width:0%"></div></div>
-    </div>
+        <a href="/" class="nav-link active" title="Home"><span class="ic">🏠</span><span class="lbl">Home</span></a>
+        <a href="/journal.html" class="nav-link" title="New Trade"><span class="ic">📝</span><span class="lbl">New Trade</span></a>
+        <a href="/dashboard.html" class="nav-link" title="Dashboard"><span class="ic">📊</span><span class="lbl">Dashboard</span></a>
+        <a href="/analytics.html" class="nav-link" title="Analytics"><span class="ic">📈</span><span class="lbl">Analytics</span></a>
+        <a href="/lab.html" class="nav-link" title="Lab"><span class="ic">🧪</span><span class="lbl">Lab</span></a>
+        <a href="/improvement.html" class="nav-link" title="Improve"><span class="ic">🔧</span><span class="lbl">Improve</span></a>
+        <a href="/profile.html" class="nav-link" title="Profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
+        <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
+    </aside>
 
-    <!-- Nav grid -->
-    <div class="nav-grid">
-        <a href="/journal.html" class="nav-card full-width">
-            <div class="nav-icon">📝</div>
-            <div>
-                <div class="nav-title">NEW TRADE ENTRY</div>
-                <div class="nav-desc">Record a trade with full analysis</div>
+    <main class="main">
+
+        <div class="header">
+            <div class="header-left">
+                <div class="logo-row">
+                    <div class="logo">xX</div>
+                    <div class="tagline">where discipline<br>becomes leverage</div>
+                </div>
+                <div class="greeting" id="greeting">Loading...</div>
             </div>
-        </a>
-        <a href="/dashboard.html" class="nav-card">
-            <div class="nav-icon">📊</div>
-            <div class="nav-title">DASHBOARD</div>
-            <div class="nav-desc">Stats &amp; calendar</div>
-        </a>
-        <a href="/analytics.html" class="nav-card">
-            <div class="nav-icon">📈</div>
-            <div class="nav-title">ANALYTICS</div>
-            <div class="nav-desc">Deep dive metrics</div>
-        </a>
-        <a href="/lab.html" class="nav-card">
-            <div class="nav-icon">🧪</div>
-            <div class="nav-title">TRADE LAB</div>
-            <div class="nav-desc">Backtest &amp; missed trades</div>
-        </a>
-        <a href="/improvement.html" class="nav-card">
-            <div class="nav-icon">🔧</div>
-            <div class="nav-title">IMPROVEMENT</div>
-            <div class="nav-desc">Review &amp; grow</div>
-        </a>
-        <a href="/profile.html" class="nav-card">
-            <div class="nav-icon">👤</div>
-            <div class="nav-title">PROFILE</div>
-            <div class="nav-desc">Settings &amp; PIN</div>
-        </a>
-    </div>
+            <div class="header-right">
+                <div class="cycle-chip">Cycle <strong id="cycleNumChip">1</strong> · <strong id="cycleTradesChip">0</strong>/20</div>
+                <a href="/profile.html" class="profile-btn" id="profileBtn">👤</a>
+            </div>
+        </div>
+
+        <div class="install-banner" id="installBanner">
+            <div class="install-text">📲 Add to your home screen for the full app experience.</div>
+            <button class="install-btn" id="installBtn">INSTALL</button>
+            <button class="install-dismiss" id="dismissInstall">×</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card"><span class="stat-ic">📦</span><div class="stat-value" id="homeTotalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
+            <div class="stat-card"><span class="stat-ic">🎯</span><div class="stat-value" id="homeWinRate">0%</div><div class="stat-label">WIN RATE</div></div>
+            <div class="stat-card"><span class="stat-ic">🔁</span><div class="stat-value" id="homeCurrentCycle">1</div><div class="stat-label">CURRENT CYCLE</div></div>
+            <div class="stat-card"><span class="stat-ic">🔥</span><div class="stat-value" id="homeStreak">0</div><div class="stat-label">CURRENT STREAK</div></div>
+        </div>
+
+        <!-- Cycle progress -->
+        <div class="cycle-card">
+            <div class="cycle-row">
+                <span class="cycle-label">CYCLE PROGRESS</span>
+                <span class="cycle-val" id="cycleText">Cycle 1 · 0 / 20 trades</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
+        </div>
+
+        <!-- Recent performance chart -->
+        <div class="card">
+            <div class="card-title">RECENT PERFORMANCE</div>
+            <div class="chart-wrap"><canvas id="homeEquityChart"></canvas></div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="tiles-grid">
+            <a href="/journal.html" class="tile featured tile-journal">
+                <div class="tile-ic-wrap">📝</div>
+                <div>
+                    <div class="tile-title">NEW TRADE ENTRY</div>
+                    <div class="tile-desc">Record a trade with full mindset, checklist and execution analysis</div>
+                </div>
+                <span class="tile-arrow">→</span>
+            </a>
+            <a href="/dashboard.html" class="tile tile-dashboard">
+                <div class="tile-ic-wrap">📊</div>
+                <div class="tile-title">DASHBOARD</div>
+                <div class="tile-desc">Stats, equity curve &amp; calendar</div>
+                <span class="tile-arrow">→</span>
+            </a>
+            <a href="/analytics.html" class="tile tile-analytics">
+                <div class="tile-ic-wrap">📈</div>
+                <div class="tile-title">ANALYTICS</div>
+                <div class="tile-desc">Deep dive performance metrics</div>
+                <span class="tile-arrow">→</span>
+            </a>
+            <a href="/lab.html" class="tile tile-lab">
+                <div class="tile-ic-wrap">🧪</div>
+                <div class="tile-title">TRADE LAB</div>
+                <div class="tile-desc">Backtest &amp; missed trade log</div>
+                <span class="tile-arrow">→</span>
+            </a>
+            <a href="/improvement.html" class="tile tile-improve">
+                <div class="tile-ic-wrap">🔧</div>
+                <div class="tile-title">IMPROVEMENT</div>
+                <div class="tile-desc">Review, reflect &amp; grow</div>
+                <span class="tile-arrow">→</span>
+            </a>
+            <a href="/profile.html" class="tile tile-profile">
+                <div class="tile-ic-wrap">👤</div>
+                <div class="tile-title">PROFILE</div>
+                <div class="tile-desc">Settings, PIN &amp; account</div>
+                <span class="tile-arrow">→</span>
+            </a>
+        </div>
+
+    </main>
 </div>
 
 <script type="module">
-import { requireAuth, requireAuthFast, requirePin, syncToLocalStorage, injectBottomNav } from '/shared.js';
+import { requireAuth, requireAuthFast, requirePin, syncToLocalStorage } from '/shared.js';
 import { getCurrentUser, getProfile } from '/db.js';
 
 // PWA install prompt
@@ -171,16 +248,14 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
         const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
         document.getElementById('greeting').textContent = `${greet}, ${name}`;
 
-        // Update profile btn emoji
         if (profile?.emoji) document.getElementById('profileBtn').textContent = profile.emoji;
 
-        // Cache profile for lock screen
         localStorage.setItem('xX_trader_profile', JSON.stringify({ name, emoji: profile?.emoji || '👤' }));
     } catch(e) {
         document.getElementById('greeting').textContent = 'Ready to trade?';
     }
 
-    // Cycle bar
+    // Cycle bar + chip
     try {
         const cycles = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
         const current   = cycles.currentCycle || 1;
@@ -188,22 +263,72 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
         const pct = Math.min((tradesIn / 20) * 100, 100);
         document.getElementById('cycleText').textContent  = `Cycle ${current} · ${tradesIn} / 20 trades`;
         document.getElementById('cycleFill').style.width  = pct + '%';
-        document.getElementById('homeCurrentCycle').textContent  = current;
+        document.getElementById('homeCurrentCycle').textContent = current;
+        document.getElementById('cycleNumChip').textContent = current;
+        document.getElementById('cycleTradesChip').textContent = tradesIn;
     } catch(e) {}
 
-    // Quick stats strip (from cached journal data, if any trades exist yet)
+    // Stats + equity chart (from cached journal data, if any trades exist yet)
     try {
         const journalData = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
-        const trades = Object.values(journalData.journals || {});
+        const trades = Object.values(journalData.journals || {})
+            .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+
         if (trades.length) {
             const wins = trades.filter(t => t.outcome === 'WIN').length;
             document.getElementById('homeTotalTrades').textContent = trades.length;
             document.getElementById('homeWinRate').textContent = ((wins / trades.length) * 100).toFixed(1) + '%';
-            document.getElementById('homeStatsRow').classList.add('show');
+
+            // Current streak (from most recent trade backwards)
+            let streak = 0, streakType = null;
+            for (let i = trades.length - 1; i >= 0; i--) {
+                const o = trades[i].outcome;
+                if (o === 'BREAKEVEN') break;
+                if (streakType === null) { streakType = o; streak = 1; }
+                else if (o === streakType) { streak++; }
+                else break;
+            }
+            document.getElementById('homeStreak').textContent = (streakType === 'LOSS' ? '-' : '') + streak;
+
+            renderHomeEquityChart(trades);
+        } else {
+            document.getElementById('homeEquityChart').parentElement.innerHTML = '<div class="empty-state">No trades yet — log your first in New Trade Entry</div>';
         }
     } catch(e) {}
 
-});
+function renderHomeEquityChart(trades) {
+    let running = 0;
+    const points = trades.map(t => {
+        running += t.outcome === 'WIN' ? 1 : t.outcome === 'LOSS' ? -1 : 0;
+        return running;
+    });
+    const labels = trades.map((t, i) => `#${i+1}`);
+    new Chart(document.getElementById('homeEquityChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: points,
+                borderColor: '#1DB954',
+                backgroundColor: 'rgba(29,185,84,0.1)',
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.25,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:10, font:{size:10} } },
+                y: { grid: { color:'rgba(255,255,255,0.06)' }, ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} } }
+            }
+        }
+    });
+}
+
 </script>
 </body>
 </html>

@@ -144,10 +144,18 @@
         .loss-btn .spinner { border-top-color:#E22134; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
-        /* -- Responsive fallback: collapse to single column below ~980px -- */
+        /* -- Responsive: icon-rail sidebar + single column below ~980px -- */
+        .sidebar { transition:width 0.15s; }
+        .nav-link .lbl { white-space:nowrap; }
+        .nav-link.active { box-shadow:inset 3px 0 0 #1DB954; }
         @media (max-width:980px) {
-            .app-shell { grid-template-columns:1fr; }
-            .sidebar { display:none; }
+            .app-shell { grid-template-columns:64px 1fr; }
+            .sidebar { padding:18px 8px; align-items:center; }
+            .sidebar-brand { padding:6px 0 22px; justify-content:center; }
+            .sidebar-brand div:not(.mark) { display:none; }
+            .nav-link { justify-content:center; padding:12px 0; width:44px; }
+            .nav-link .lbl { display:none; }
+            .sidebar-foot { display:none; }
             .main { padding:20px 16px 90px; }
             .workspace { grid-template-columns:1fr; }
             .grid-4 { grid-template-columns:1fr 1fr; }
@@ -166,13 +174,13 @@
                 <div class="sub">Journal</div>
             </div>
         </div>
-        <a href="/" class="nav-link"><span class="ic">🏠</span>Home</a>
-        <a href="/journal.html" class="nav-link active"><span class="ic">📝</span>New Trade</a>
-        <a href="/dashboard.html" class="nav-link"><span class="ic">📊</span>Dashboard</a>
-        <a href="/analytics.html" class="nav-link"><span class="ic">📈</span>Analytics</a>
-        <a href="/lab.html" class="nav-link"><span class="ic">🧪</span>Lab</a>
-        <a href="/improvement.html" class="nav-link"><span class="ic">🔧</span>Improve</a>
-        <a href="/profile.html" class="nav-link"><span class="ic">👤</span>Profile</a>
+        <a href="/" class="nav-link" title="Home"><span class="ic">🏠</span><span class="lbl">Home</span></a>
+        <a href="/journal.html" class="nav-link active" title="New Trade"><span class="ic">📝</span><span class="lbl">New Trade</span></a>
+        <a href="/dashboard.html" class="nav-link" title="Dashboard"><span class="ic">📊</span><span class="lbl">Dashboard</span></a>
+        <a href="/analytics.html" class="nav-link" title="Analytics"><span class="ic">📈</span><span class="lbl">Analytics</span></a>
+        <a href="/lab.html" class="nav-link" title="Lab"><span class="ic">🧪</span><span class="lbl">Lab</span></a>
+        <a href="/improvement.html" class="nav-link" title="Improve"><span class="ic">🔧</span><span class="lbl">Improve</span></a>
+        <a href="/profile.html" class="nav-link" title="Profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
         <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
     </aside>
 
