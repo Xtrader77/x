@@ -174,20 +174,37 @@ export async function saveTrade(tradeId, tradeData) {
         return { success: false, error: msg };
     }
 
+    let screenshotFailures = 0;
+    let screenshotTotal = 0;
     if (tradeData.screenshots?.length > 0) {
         await supabase.from('screenshots').delete().eq('trade_id', tradeId).eq('user_id', user.id);
         for (let i = 0; i < tradeData.screenshots.length; i++) {
             const ss = tradeData.screenshots[i];
             if (!ss.data) continue;
+            screenshotTotal++;
             const name = `ss_${i}_${ss.name || 'screenshot'}`.substring(0, 100);
-            const { error: ssError } = await supabase.from('screenshots').insert({
-                trade_id: tradeId, user_id: user.id,
-                name, annotation: ss.annotation || '', data: ss.data
-            });
-            if (ssError) console.warn('Screenshot save error:', ssError.message);
+            const payload = { trade_id: tradeId, user_id: user.id, name, annotation: ss.annotation || '', data: ss.data };
+
+            let { error: ssError } = await supabase.from('screenshots').insert(payload);
+            if (ssError) {
+                // One retry — most failures here are transient network blips, not
+                // permanent rejections, so a single retry recovers most of them.
+                console.warn(`Screenshot ${i+1}/${tradeData.screenshots.length} failed, retrying:`, ssError.message);
+                const retry = await supabase.from('screenshots').insert(payload);
+                ssError = retry.error;
+            }
+            if (ssError) {
+                console.error(`Screenshot ${i+1}/${tradeData.screenshots.length} failed permanently:`, ssError.message);
+                screenshotFailures++;
+            }
         }
     }
-    return { success: true };
+    return {
+        success: true,
+        screenshotsSaved: screenshotTotal - screenshotFailures,
+        screenshotsTotal: screenshotTotal,
+        screenshotsFailed: screenshotFailures
+    };
 }
 
 export async function loadAllTrades(includeScreenshots = false) {

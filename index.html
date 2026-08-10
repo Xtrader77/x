@@ -29,7 +29,7 @@
         .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; box-shadow:inset 3px 0 0 #1DB954; }
         .nav-link .lbl { white-space:nowrap; }
         .sidebar-foot { margin-top:auto; padding:12px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); padding-top:14px; }
-        .main { padding:26px 34px 60px; max-width:1240px; width:100%; }
+        .main { padding:26px 34px 60px; width:100%; }
         @media (max-width:980px) {
             .app-shell { grid-template-columns:64px 1fr; }
             .sidebar { padding:18px 8px; align-items:center; }
@@ -131,6 +131,7 @@
         <a href="/analytics.html" class="nav-link" title="Analytics"><span class="ic">📈</span><span class="lbl">Analytics</span></a>
         <a href="/lab.html" class="nav-link" title="Lab"><span class="ic">🧪</span><span class="lbl">Lab</span></a>
         <a href="/improvement.html" class="nav-link" title="Improve"><span class="ic">🔧</span><span class="lbl">Improve</span></a>
+        <a href="/cycles.html" class="nav-link" title="Cycles"><span class="ic">🔁</span><span class="lbl">Cycles</span></a>
         <a href="/profile.html" class="nav-link" title="Profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
         <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
     </aside>
@@ -271,6 +272,42 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
 });
 
 
+// ── Trader's Constitution — bound immediately, independent of the auth/data
+// chain below. If anything in that chain stalls (slow network, auth hiccup),
+// this still works right away instead of silently having no click handler.
+const constEl   = document.getElementById('constitutionText');
+const constBtn  = document.getElementById('constToggle');
+const constNote = document.getElementById('constSavedNote');
+const DEFAULT_CONSTITUTION = `1. Only trade during my chosen session — no exceptions.
+2. Max 1 trade per day. If I miss it, I wait for tomorrow.
+3. No entry without the full checklist confirmed.
+4. No revenge trading after a loss.
+5. Never move my stop loss further away.
+6. Journal every trade honestly — wins and losses.
+7. Walk away after 2 losses in a row for the day.`;
+
+// Uses a generic key until we know who's logged in, then migrates to a
+// per-user key below once `user` resolves — so it still works instantly.
+let constKey = 'xX_constitution_anon';
+constEl.value = localStorage.getItem(constKey) || DEFAULT_CONSTITUTION;
+
+constBtn.addEventListener('click', () => {
+    const editing = !constEl.disabled;
+    if (editing) {
+        localStorage.setItem(constKey, constEl.value);
+        constEl.disabled = true;
+        constBtn.textContent = 'EDIT';
+        constBtn.classList.remove('saving');
+        constNote.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    } else {
+        constEl.disabled = false;
+        constEl.focus();
+        constBtn.textContent = 'SAVE';
+        constBtn.classList.add('saving');
+        constNote.textContent = '';
+    }
+});
+
     const user = await requireAuthFast('/');
     if (!user) return;
     await requirePin();
@@ -367,42 +404,25 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
         document.getElementById('homeEquityChart').parentElement.innerHTML = '<div class="empty-state">No trades yet — log your first in New Trade Entry</div>';
     }
 
-    // ── Trader's Constitution — personal rules, editable per trader ──────────
-    const CONST_KEY = `xX_constitution_${user.id}`;
-    const constEl   = document.getElementById('constitutionText');
-    const constBtn  = document.getElementById('constToggle');
-    const constNote = document.getElementById('constSavedNote');
-    const DEFAULT_CONSTITUTION = `1. Only trade during my chosen session — no exceptions.
-2. Max 1 trade per day. If I miss it, I wait for tomorrow.
-3. No entry without the full checklist confirmed.
-4. No revenge trading after a loss.
-5. Never move my stop loss further away.
-6. Journal every trade honestly — wins and losses.
-7. Walk away after 2 losses in a row for the day.`;
-
-    constEl.value = localStorage.getItem(CONST_KEY) || DEFAULT_CONSTITUTION;
-
-    constBtn.addEventListener('click', () => {
-        const editing = !constEl.disabled;
-        if (editing) {
-            // Currently editing -> save and lock
-            localStorage.setItem(CONST_KEY, constEl.value);
-            constEl.disabled = true;
-            constBtn.textContent = 'EDIT';
-            constBtn.classList.remove('saving');
-            constNote.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        } else {
-            // Currently locked -> unlock for editing
-            constEl.disabled = false;
-            constEl.focus();
-            constBtn.textContent = 'SAVE';
-            constBtn.classList.add('saving');
-            constNote.textContent = '';
+    // Now that we know who's logged in, migrate the constitution to a
+    // per-user key so different traders on the same browser don't share one.
+    const userConstKey = `xX_constitution_${user.id}`;
+    if (userConstKey !== constKey) {
+        const existingUserValue = localStorage.getItem(userConstKey);
+        if (existingUserValue) {
+            constEl.value = existingUserValue;
+        } else if (localStorage.getItem(constKey)) {
+            // First time this user has loaded Home — carry over whatever was
+            // already typed under the generic key rather than losing it.
+            localStorage.setItem(userConstKey, localStorage.getItem(constKey));
         }
-    });
+        constKey = userConstKey;
+    }
 
-// Level-progression chart for the CURRENT cycle: starts at level 1, WIN moves
-// up (max 11), LOSS moves down (min 1), BE holds — mirrors the EA's level system.
+// Level-progression chart for the CURRENT cycle: trade #1 starts at level 1,
+// WIN moves up (max 11), LOSS moves down (min 1), BE holds — mirrors the EA's
+// level system. Fixed x-axis of 1–20 (a full cycle) so the frame is always
+// consistent regardless of how many trades have been logged so far.
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
     const canvas = document.getElementById('homeEquityChart');
@@ -413,13 +433,18 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     }
 
     let level = 1;
-    const points = [1]; // start at level 1 before the first trade
+    const points = [];
     cycleTrades.forEach(t => {
+        points.push(level); // level going INTO this trade (trade #1 = level 1)
         if (t.outcome === 'WIN') level = Math.min(level + 1, 11);
         else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
-        points.push(level);
+        // BE holds — level unchanged
     });
-    const labels = ['Start', ...cycleTrades.map((t, i) => `#${i+1}`)];
+
+    // Pad out to a fixed 20-slot cycle frame with nulls (renders as gaps, not zeros)
+    const CYCLE_LENGTH = 20;
+    while (points.length < CYCLE_LENGTH) points.push(null);
+    const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
 
     new Chart(canvas, {
         type: 'line',
@@ -433,7 +458,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 pointRadius: 3,
                 pointBackgroundColor: '#1DB954',
                 pointHoverRadius: 5,
-                stepped: false,
+                spanGaps: false,
                 tension: 0.15,
                 fill: true
             }]
@@ -442,8 +467,8 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:12, font:{size:10} } },
-                y: { min:1, max:11, ticks: { stepSize:1, color:'rgba(255,255,255,0.35)', font:{size:10} }, grid: { color:'rgba(255,255,255,0.06)' } }
+                x: { title: { display:true, text:'Trade # in cycle', color:'rgba(255,255,255,0.3)', font:{size:10} }, grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:20, font:{size:10} } },
+                y: { min:1, max:11, title: { display:true, text:'Level', color:'rgba(255,255,255,0.3)', font:{size:10} }, ticks: { stepSize:1, color:'rgba(255,255,255,0.35)', font:{size:10} }, grid: { color:'rgba(255,255,255,0.06)' } }
             }
         }
     });
