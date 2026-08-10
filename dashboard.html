@@ -14,16 +14,38 @@
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; padding:16px 16px 90px; }
+        html, body { height:100%; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; }
+
+        /* -- App shell: left sidebar + main content -- */
+        .app-shell { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+        .sidebar { background:#0a0a0a; border-right:1px solid rgba(255,255,255,0.07); padding:22px 14px; display:flex; flex-direction:column; gap:2px; position:sticky; top:0; height:100vh; }
+        .sidebar-brand { display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
+        .sidebar-brand .mark { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#1DB954,#4A90E2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+        .sidebar-brand .name { font-size:14px; font-weight:800; letter-spacing:0.5px; }
+        .sidebar-brand .sub  { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+        .nav-link { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:9px; text-decoration:none; color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; transition:background 0.15s, color 0.15s; }
+        .nav-link .ic { font-size:16px; width:20px; text-align:center; }
+        .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85); }
+        .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; }
+        .sidebar-foot { margin-top:auto; padding:12px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); padding-top:14px; }
+        .main { padding:26px 34px 100px; max-width:1240px; width:100%; }
+        @media (max-width:980px) { .app-shell { grid-template-columns:1fr; } .sidebar { display:none; } .main { padding:16px 16px 90px; } }
+
         .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); }
-        h1 { font-size:20px; font-weight:800; }
-        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; }
+        h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
+        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; transition:border-color 0.15s,color 0.15s; }
+        .back-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
         .card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; margin-bottom:14px; }
         .card-title { font-size:13px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:16px; }
-        .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-        .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px 14px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+        .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px 14px; position:relative; overflow:hidden; transition:border-color 0.15s; }
+        .stat-card:hover { border-color:rgba(255,255,255,0.15); }
+        .stat-card .stat-ic { position:absolute; top:14px; right:14px; font-size:16px; opacity:0.35; }
         .stat-value { font-size:32px; font-weight:800; }
         .stat-label { font-size:11px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.45); margin-top:4px; }
+        .charts-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:14px; margin-bottom:14px; align-items:start; }
+        @media (max-width:980px) { .stats-grid { grid-template-columns:1fr 1fr; } .charts-grid { grid-template-columns:1fr; } }
         .cycle-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; margin-bottom:14px; }
         .cycle-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
         .cycle-label { font-size:11px; font-weight:700; letter-spacing:0.8px; color:rgba(255,255,255,0.4); }
@@ -95,39 +117,62 @@
     </style>
 </head>
 <body>
-<div class="header">
-    <h1>DASHBOARD</h1>
-    <a href="/" class="back-btn">← HOME</a>
-</div>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="mark">xX</div>
+            <div><div class="name">xX Trading</div><div class="sub">Dashboard</div></div>
+        </div>
+        <a href="/" class="nav-link"><span class="ic">🏠</span>Home</a>
+        <a href="/journal.html" class="nav-link"><span class="ic">📝</span>New Trade</a>
+        <a href="/dashboard.html" class="nav-link active"><span class="ic">📊</span>Dashboard</a>
+        <a href="/analytics.html" class="nav-link"><span class="ic">📈</span>Analytics</a>
+        <a href="/lab.html" class="nav-link"><span class="ic">🧪</span>Lab</a>
+        <a href="/improvement.html" class="nav-link"><span class="ic">🔧</span>Improve</a>
+        <a href="/profile.html" class="nav-link"><span class="ic">👤</span>Profile</a>
+        <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
+    </aside>
+    <main class="main">
 
-<div class="export-row">
-    <button class="exp-btn" id="xlsxBtn">📊 Excel</button>
-    <button class="exp-btn" id="pdfBtn">📄 PDF</button>
-    <button class="exp-btn" id="csvBtn">📋 CSV</button>
-</div>
-
-<!-- Cycle -->
-<div class="cycle-card">
-    <div class="cycle-row">
-        <span class="cycle-label">CYCLE PROGRESS</span>
-        <span class="cycle-val">Cycle <span id="cycleNum">1</span> · <span id="cycleTrades">0</span>/20</span>
+    <div class="header">
+        <h1>DASHBOARD</h1>
+        <a href="/" class="back-btn">← HOME</a>
     </div>
-    <div class="progress-track"><div class="progress-fill" id="cycleBar" style="width:0%"></div></div>
-</div>
 
-<!-- Stats -->
-<div class="stats-grid">
-    <div class="stat-card"><div class="stat-value" id="totalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
-    <div class="stat-card"><div class="stat-value" id="winRate">0%</div><div class="stat-label">WIN RATE</div></div>
-    <div class="stat-card"><div class="stat-value" id="avgWinStreak">0</div><div class="stat-label">AVG WIN STREAK</div></div>
-    <div class="stat-card"><div class="stat-value" id="avgLossStreak">0</div><div class="stat-label">AVG LOSS STREAK</div></div>
-</div>
+    <div class="export-row">
+        <button class="exp-btn" id="xlsxBtn">📊 Excel</button>
+        <button class="exp-btn" id="pdfBtn">📄 PDF</button>
+        <button class="exp-btn" id="csvBtn">📋 CSV</button>
+    </div>
 
-<!-- Chart -->
-<div class="card">
-    <div class="card-title">WIN / LOSS DISTRIBUTION</div>
-    <div class="chart-wrap"><canvas id="wlChart"></canvas></div>
-</div>
+    <!-- Cycle -->
+    <div class="cycle-card">
+        <div class="cycle-row">
+            <span class="cycle-label">CYCLE PROGRESS</span>
+            <span class="cycle-val">Cycle <span id="cycleNum">1</span> · <span id="cycleTrades">0</span>/20</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="cycleBar" style="width:0%"></div></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card"><span class="stat-ic">📦</span><div class="stat-value" id="totalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
+        <div class="stat-card"><span class="stat-ic">🎯</span><div class="stat-value" id="winRate">0%</div><div class="stat-label">WIN RATE</div></div>
+        <div class="stat-card"><span class="stat-ic">🔥</span><div class="stat-value" id="avgWinStreak">0</div><div class="stat-label">AVG WIN STREAK</div></div>
+        <div class="stat-card"><span class="stat-ic">🧊</span><div class="stat-value" id="avgLossStreak">0</div><div class="stat-label">AVG LOSS STREAK</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+        <div class="card">
+            <div class="card-title">PERFORMANCE OVER TIME</div>
+            <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-title">WIN / LOSS DISTRIBUTION</div>
+            <div class="chart-wrap"><canvas id="wlChart"></canvas></div>
+        </div>
+    </div>
 
 <!-- Calendar -->
 <div class="card">
@@ -151,6 +196,9 @@
 <div class="card">
     <div class="card-title">RECENT TRADES</div>
     <div id="tradesList"></div>
+</div>
+
+    </main>
 </div>
 
 <!-- Screenshot modal -->
@@ -190,9 +238,52 @@ function init() {
     updateCycle();
     updateStats();
     renderChart();
+    renderEquityChart();
     renderTrades();
     initCalendar();
     setupExports();
+}
+
+// Cumulative WIN(+1)/LOSS(-1)/BE(0) score over time — a simple, dependency-free
+// "performance over time" line so trends are visible at a glance.
+function renderEquityChart() {
+    const trades = Object.values(journals.journals)
+        .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const ctx = document.getElementById('equityChart');
+    if (!trades.length) {
+        ctx.parentElement.innerHTML = '<div class="empty-state">No trades yet</div>';
+        return;
+    }
+    let running = 0;
+    const points = trades.map((t, i) => {
+        running += t.outcome === 'WIN' ? 1 : t.outcome === 'LOSS' ? -1 : 0;
+        return running;
+    });
+    const labels = trades.map((t, i) => `#${i+1}`);
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: points,
+                borderColor: '#4A90E2',
+                backgroundColor: 'rgba(74,144,226,0.12)',
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.25,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:8, font:{size:10} } },
+                y: { grid: { color:'rgba(255,255,255,0.06)' }, ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} } }
+            }
+        }
+    });
 }
 
 function updateCycle() {

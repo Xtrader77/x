@@ -10,8 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; }
-        .lock-screen { text-align:center; width:320px; padding:20px; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+        body::before { content:''; position:fixed; top:-20%; left:50%; transform:translateX(-50%); width:900px; height:900px; background:radial-gradient(circle, rgba(29,185,84,0.08) 0%, rgba(74,144,226,0.05) 40%, transparent 70%); pointer-events:none; z-index:0; }
+        .lock-screen { position:relative; z-index:1; text-align:center; width:320px; padding:20px; }
         .logo { font-size:40px; margin-bottom:10px; }
         .app-name { font-size:22px; font-weight:800; letter-spacing:-0.5px; margin-bottom:4px; }
         .trader-name { font-size:14px; color:rgba(255,255,255,0.4); margin-bottom:40px; }
@@ -40,6 +41,11 @@
         .back-link { font-size:12px; color:rgba(255,255,255,0.25); margin-top:12px; cursor:pointer; display:block; text-align:center; }
         .back-link:hover { color:rgba(255,255,255,0.5); }
         .new-pin-dots { display:flex; gap:14px; justify-content:flex-start; margin-bottom:14px; }
+
+        /* -- Desktop: give the compact lock screen a card frame -- */
+        @media (min-width:860px) {
+            .lock-screen { background:#0d0d0d; border:1px solid rgba(255,255,255,0.07); border-radius:20px; padding:44px 40px; box-shadow:0 20px 60px rgba(0,0,0,0.5); width:360px; }
+        }
     </style>
 </head>
 <body>

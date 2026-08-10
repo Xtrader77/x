@@ -20,7 +20,12 @@
         .main { flex:1; display:flex; flex-direction:column; align-items:center; padding:40px 24px 20px; }
         .logo { font-size:64px; font-weight:800; letter-spacing:-3px; margin-bottom:8px; }
         .tagline { font-size:14px; color:rgba(255,255,255,0.35); font-style:italic; margin-bottom:10px; }
-        .trader-greeting { font-size:13px; color:rgba(255,255,255,0.25); letter-spacing:0.3px; margin-bottom:50px; }
+        .trader-greeting { font-size:13px; color:rgba(255,255,255,0.25); letter-spacing:0.3px; margin-bottom:36px; }
+        .home-stats-row { display:none; width:100%; max-width:900px; gap:10px; margin-bottom:22px; }
+        .home-stats-row.show { display:grid; grid-template-columns:repeat(3,1fr); }
+        .home-stat { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px 14px; text-align:center; }
+        .home-stat-val { font-size:24px; font-weight:800; }
+        .home-stat-label { font-size:10px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.4); margin-top:3px; }
         .nav-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; max-width:480px; }
         .nav-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:14px; padding:24px 16px 20px; text-decoration:none; color:#fff; display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; transition:all 0.25s; }
         .nav-card:hover, .nav-card:active { background:#1a1a1a; border-color:rgba(255,255,255,0.12); transform:translateY(-2px); }
@@ -39,6 +44,15 @@
         .install-btn { background:#4A90E2; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; white-space:nowrap; }
         .install-text { flex:1; font-size:12px; color:rgba(255,255,255,0.6); line-height:1.5; }
         .install-dismiss { background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; font-size:18px; }
+
+        /* -- Desktop widening -- */
+        @media (min-width:860px) {
+            .cycle-bar, .home-stats-row { max-width:900px; }
+            .nav-grid { max-width:900px; grid-template-columns:repeat(3,1fr); gap:16px; }
+            .nav-card { padding:30px 18px 26px; }
+            .nav-card.full-width { grid-column:1/-1; }
+            .logo { font-size:80px; }
+        }
     </style>
 </head>
 <body>
@@ -52,11 +66,25 @@
     <div class="tagline">where discipline becomes leverage</div>
     <div class="trader-greeting" id="greeting">Loading...</div>
 
+    <!-- Quick stats (desktop) -->
+    <div class="home-stats-row" id="homeStatsRow">
+        <div class="home-stat"><div class="home-stat-val" id="homeTotalTrades">0</div><div class="home-stat-label">TOTAL TRADES</div></div>
+        <div class="home-stat"><div class="home-stat-val" id="homeWinRate">0%</div><div class="home-stat-label">WIN RATE</div></div>
+        <div class="home-stat"><div class="home-stat-val" id="homeCurrentCycle">1</div><div class="home-stat-label">CURRENT CYCLE</div></div>
+    </div>
+
     <!-- PWA install banner -->
     <div class="install-banner" id="installBanner">
         <div class="install-text">📲 Add to your home screen for the full app experience.</div>
         <button class="install-btn" id="installBtn">INSTALL</button>
         <button class="install-dismiss" id="dismissInstall">×</button>
+    </div>
+
+    <!-- Quick stats (shown once local trade data is available) -->
+    <div class="home-stats-row" id="homeStatsRow">
+        <div class="home-stat"><div class="home-stat-val" id="homeTotalTrades">0</div><div class="home-stat-label">TOTAL TRADES</div></div>
+        <div class="home-stat"><div class="home-stat-val" id="homeWinRate">0%</div><div class="home-stat-label">WIN RATE</div></div>
+        <div class="home-stat"><div class="home-stat-val" id="homeCycle">1</div><div class="home-stat-label">CURRENT CYCLE</div></div>
     </div>
 
     <!-- Cycle progress bar -->
@@ -160,6 +188,19 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
         const pct = Math.min((tradesIn / 20) * 100, 100);
         document.getElementById('cycleText').textContent  = `Cycle ${current} · ${tradesIn} / 20 trades`;
         document.getElementById('cycleFill').style.width  = pct + '%';
+        document.getElementById('homeCurrentCycle').textContent  = current;
+    } catch(e) {}
+
+    // Quick stats strip (from cached journal data, if any trades exist yet)
+    try {
+        const journalData = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
+        const trades = Object.values(journalData.journals || {});
+        if (trades.length) {
+            const wins = trades.filter(t => t.outcome === 'WIN').length;
+            document.getElementById('homeTotalTrades').textContent = trades.length;
+            document.getElementById('homeWinRate').textContent = ((wins / trades.length) * 100).toFixed(1) + '%';
+            document.getElementById('homeStatsRow').classList.add('show');
+        }
     } catch(e) {}
 
 });

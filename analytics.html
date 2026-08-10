@@ -14,16 +14,37 @@
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; padding:16px 16px 90px; }
+        html, body { height:100%; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; }
+
+        /* -- App shell: left sidebar + main content -- */
+        .app-shell { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+        .sidebar { background:#0a0a0a; border-right:1px solid rgba(255,255,255,0.07); padding:22px 14px; display:flex; flex-direction:column; gap:2px; position:sticky; top:0; height:100vh; }
+        .sidebar-brand { display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
+        .sidebar-brand .mark { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#1DB954,#4A90E2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+        .sidebar-brand .name { font-size:14px; font-weight:800; letter-spacing:0.5px; }
+        .sidebar-brand .sub  { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+        .nav-link { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:9px; text-decoration:none; color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; transition:background 0.15s, color 0.15s; }
+        .nav-link .ic { font-size:16px; width:20px; text-align:center; }
+        .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85); }
+        .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; }
+        .sidebar-foot { margin-top:auto; padding:12px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); padding-top:14px; }
+        .main { padding:26px 34px 100px; max-width:1240px; width:100%; }
+        @media (max-width:980px) { .app-shell { grid-template-columns:1fr; } .sidebar { display:none; } .main { padding:16px 16px 90px; } }
+
         .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); }
-        h1 { font-size:20px; font-weight:800; }
-        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; }
+        h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
+        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; transition:border-color 0.15s,color 0.15s; }
+        .back-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
         .card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; margin-bottom:14px; }
         .card-title { font-size:13px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:16px; }
-        .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-        .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px 14px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:14px; }
+        .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px 14px; transition:border-color 0.15s; }
+        .stat-card:hover { border-color:rgba(255,255,255,0.15); }
         .stat-value { font-size:28px; font-weight:800; }
         .stat-label { font-size:10px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.4); margin-top:4px; }
+        .cards-2col { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+        @media (max-width:980px) { .stats-grid { grid-template-columns:1fr 1fr; } .cards-2col { grid-template-columns:1fr; } }
         .chart-wrap { position:relative; height:240px; }
         .perf-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
         .perf-item:last-child { border-bottom:none; }
@@ -45,87 +66,115 @@
     </style>
 </head>
 <body>
-<div class="header">
-    <h1>ANALYTICS</h1>
-    <a href="/" class="back-btn">← HOME</a>
-</div>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="mark">xX</div>
+            <div><div class="name">xX Trading</div><div class="sub">Analytics</div></div>
+        </div>
+        <a href="/" class="nav-link"><span class="ic">🏠</span>Home</a>
+        <a href="/journal.html" class="nav-link"><span class="ic">📝</span>New Trade</a>
+        <a href="/dashboard.html" class="nav-link"><span class="ic">📊</span>Dashboard</a>
+        <a href="/analytics.html" class="nav-link active"><span class="ic">📈</span>Analytics</a>
+        <a href="/lab.html" class="nav-link"><span class="ic">🧪</span>Lab</a>
+        <a href="/improvement.html" class="nav-link"><span class="ic">🔧</span>Improve</a>
+        <a href="/profile.html" class="nav-link"><span class="ic">👤</span>Profile</a>
+        <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
+    </aside>
+    <main class="main">
 
-<div class="export-row">
-    <button class="exp-btn" id="xlsxBtn">📊 Excel</button>
-    <button class="exp-btn" id="pdfBtn">📄 PDF</button>
-    <button class="exp-btn" id="csvBtn">📋 CSV</button>
-</div>
-
-<!-- Key Stats -->
-<div class="stats-grid">
-    <div class="stat-card"><div class="stat-value" id="totalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
-    <div class="stat-card"><div class="stat-value" id="winRate">0%</div><div class="stat-label">WIN RATE</div></div>
-    <div class="stat-card"><div class="stat-value" id="profitFactor">—</div><div class="stat-label">PROFIT FACTOR</div></div>
-    <div class="stat-card"><div class="stat-value" id="maxWinStreak">0</div><div class="stat-label">MAX WIN STREAK</div></div>
-    <div class="stat-card"><div class="stat-value" id="avgWinStreak">0</div><div class="stat-label">AVG WIN STREAK</div></div>
-    <div class="stat-card"><div class="stat-value" id="avgLossStreak">0</div><div class="stat-label">AVG LOSS STREAK</div></div>
-</div>
-
-<!-- Performance Chart -->
-<div class="card">
-    <div class="card-title">WIN/LOSS PERFORMANCE</div>
-    <div class="chart-toggle-row">
-        <button class="chart-toggle active" data-type="bar">Bars</button>
-        <button class="chart-toggle" data-type="line">Line</button>
+    <div class="header">
+        <h1>ANALYTICS</h1>
+        <a href="/" class="back-btn">← HOME</a>
     </div>
-    <div class="chart-wrap"><canvas id="perfChart"></canvas></div>
-</div>
 
-<!-- Execution + Session -->
-<div class="card">
-    <div class="card-title">EXECUTION WIN RATE</div>
-    <div class="chart-wrap"><canvas id="execChart"></canvas></div>
-</div>
-<div class="card">
-    <div class="card-title">SESSION WIN RATE</div>
-    <div class="chart-wrap"><canvas id="sessChart"></canvas></div>
-</div>
+    <div class="export-row">
+        <button class="exp-btn" id="xlsxBtn">📊 Excel</button>
+        <button class="exp-btn" id="pdfBtn">📄 PDF</button>
+        <button class="exp-btn" id="csvBtn">📋 CSV</button>
+    </div>
 
-<!-- Pair / Execution / Session tables -->
-<div class="card">
-    <div class="card-title">PAIR PERFORMANCE</div>
-    <div id="pairPerf"></div>
-</div>
-<div class="card">
-    <div class="card-title">EXECUTION TYPE</div>
-    <div id="execPerf"></div>
-</div>
-<div class="card">
-    <div class="card-title">SESSION BREAKDOWN</div>
-    <div id="sessPerf"></div>
-</div>
+    <!-- Key Stats -->
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="totalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
+        <div class="stat-card"><div class="stat-value" id="winRate">0%</div><div class="stat-label">WIN RATE</div></div>
+        <div class="stat-card"><div class="stat-value" id="profitFactor">—</div><div class="stat-label">PROFIT FACTOR</div></div>
+        <div class="stat-card"><div class="stat-value" id="maxWinStreak">0</div><div class="stat-label">MAX WIN STREAK</div></div>
+        <div class="stat-card"><div class="stat-value" id="avgWinStreak">0</div><div class="stat-label">AVG WIN STREAK</div></div>
+        <div class="stat-card"><div class="stat-value" id="avgLossStreak">0</div><div class="stat-label">AVG LOSS STREAK</div></div>
+    </div>
 
-<!-- HTF + Refined -->
-<div class="card">
-    <div class="card-title">HTF + REFINED WIN RATES</div>
-    <div class="chart-wrap"><canvas id="htfChart"></canvas></div>
-</div>
-<div class="card">
-    <div class="card-title">HTF + REFINED PERFORMANCE</div>
-    <div id="htfTable"></div>
-</div>
+    <!-- Performance Chart -->
+    <div class="card">
+        <div class="card-title">WIN/LOSS PERFORMANCE</div>
+        <div class="chart-toggle-row">
+            <button class="chart-toggle active" data-type="bar">Bars</button>
+            <button class="chart-toggle" data-type="line">Line</button>
+        </div>
+        <div class="chart-wrap"><canvas id="perfChart"></canvas></div>
+    </div>
 
-<!-- TC + Entry -->
-<div class="card">
-    <div class="card-title">TC + ENTRY WIN RATES</div>
-    <div class="chart-wrap"><canvas id="tcEntryChart"></canvas></div>
-</div>
-<div class="card">
-    <div class="card-title">TC PERFORMANCE TABLE</div>
-    <div id="tcEntryTable"></div>
-</div>
+    <!-- Execution + Session -->
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">EXECUTION WIN RATE</div>
+            <div class="chart-wrap"><canvas id="execChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-title">SESSION WIN RATE</div>
+            <div class="chart-wrap"><canvas id="sessChart"></canvas></div>
+        </div>
+    </div>
 
-<!-- TC Alone vs TC + Entry -->
-<div class="card">
-    <div class="card-title">TC ALONE vs TC + ENTRY</div>
-    <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:12px;">H4 + Refined + TC with and without Entry TF</div>
-    <div class="chart-wrap"><canvas id="tcAloneChart"></canvas></div>
-    <div id="tcAloneTable" style="margin-top:14px;"></div>
+    <!-- Pair / Execution / Session tables -->
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">PAIR PERFORMANCE</div>
+            <div id="pairPerf"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">EXECUTION TYPE</div>
+            <div id="execPerf"></div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">SESSION BREAKDOWN</div>
+        <div id="sessPerf"></div>
+    </div>
+
+    <!-- HTF + Refined -->
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">HTF + REFINED WIN RATES</div>
+            <div class="chart-wrap"><canvas id="htfChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-title">HTF + REFINED PERFORMANCE</div>
+            <div id="htfTable"></div>
+        </div>
+    </div>
+
+    <!-- TC + Entry -->
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">TC + ENTRY WIN RATES</div>
+            <div class="chart-wrap"><canvas id="tcEntryChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-title">TC PERFORMANCE TABLE</div>
+            <div id="tcEntryTable"></div>
+        </div>
+    </div>
+
+    <!-- TC Alone vs TC + Entry -->
+    <div class="card">
+        <div class="card-title">TC ALONE vs TC + ENTRY</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:12px;">H4 + Refined + TC with and without Entry TF</div>
+        <div class="chart-wrap"><canvas id="tcAloneChart"></canvas></div>
+        <div id="tcAloneTable" style="margin-top:14px;"></div>
+    </div>
+
+    </main>
 </div>
 
 <script type="module">

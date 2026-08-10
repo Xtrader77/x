@@ -10,9 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
-        .card { width:100%; max-width:440px; background:#0d0d0d; border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:40px 36px; }
-        .logo { font-size:42px; font-weight:800; letter-spacing:-2px; text-align:center; margin-bottom:4px; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; position:relative; overflow:hidden; }
+        body::before { content:''; position:fixed; top:-20%; left:50%; transform:translateX(-50%); width:900px; height:900px; background:radial-gradient(circle, rgba(29,185,84,0.08) 0%, rgba(74,144,226,0.05) 40%, transparent 70%); pointer-events:none; z-index:0; }
+        .card { position:relative; z-index:1; width:100%; max-width:440px; background:#0d0d0d; border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:40px 36px; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+        .logo { font-size:42px; font-weight:800; letter-spacing:-2px; text-align:center; margin-bottom:4px; background:linear-gradient(135deg,#fff,#1DB954); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
         .tagline { text-align:center; font-size:12px; color:rgba(255,255,255,0.3); letter-spacing:1px; margin-bottom:32px; }
         .form-title { font-size:18px; font-weight:700; margin-bottom:6px; }
         .form-sub { font-size:13px; color:rgba(255,255,255,0.4); margin-bottom:24px; }
@@ -42,9 +43,31 @@
         .success-box { background:rgba(29,185,84,0.1); border:1px solid rgba(29,185,84,0.25); border-radius:8px; padding:12px 14px; font-size:13px; color:#1DB954; margin-bottom:16px; display:none; line-height:1.6; }
         .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(0,0,0,0.3); border-top-color:#000; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
         @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* -- Desktop split-screen -- */
+        .auth-shell { position:relative; z-index:1; display:flex; width:100%; max-width:1000px; align-items:stretch; }
+        .brand-panel { display:none; }
+        @media (min-width:860px) {
+            body { padding:32px; }
+            .auth-shell { background:#0a0a0a; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.07); box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+            .brand-panel { display:flex; flex-direction:column; justify-content:center; flex:1; padding:50px 46px; background:radial-gradient(circle at 30% 20%, rgba(29,185,84,0.12) 0%, rgba(74,144,226,0.06) 45%, transparent 75%); border-right:1px solid rgba(255,255,255,0.06); }
+            .brand-panel .big-logo { font-size:64px; font-weight:800; letter-spacing:-3px; background:linear-gradient(135deg,#fff,#1DB954); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:10px; }
+            .brand-panel .big-tag { font-size:14px; color:rgba(255,255,255,0.4); font-style:italic; margin-bottom:30px; }
+            .brand-panel .feat { display:flex; align-items:flex-start; gap:12px; margin-bottom:18px; font-size:13px; color:rgba(255,255,255,0.65); line-height:1.5; }
+            .brand-panel .feat .fi { font-size:18px; flex-shrink:0; }
+            .card { box-shadow:none; border:none; border-radius:0; max-width:460px; }
+        }
     </style>
 </head>
 <body>
+<div class="auth-shell">
+    <div class="brand-panel">
+        <div class="big-logo">xX</div>
+        <div class="big-tag">where discipline becomes leverage</div>
+        <div class="feat"><span class="fi">🧠</span><span>Track your pre-trade mindset alongside every entry, exit, and outcome.</span></div>
+        <div class="feat"><span class="fi">📈</span><span>Break down performance by pair, session, execution type, and setup.</span></div>
+        <div class="feat"><span class="fi">🔒</span><span>Your data syncs securely to the cloud so it's there wherever you trade from.</span></div>
+    </div>
 <div class="card">
     <div class="logo">xX</div>
     <div class="tagline">TRADING JOURNAL</div>
@@ -99,6 +122,7 @@
     <button class="btn-primary" id="registerBtn">CREATE ACCOUNT</button>
     <div class="divider">or</div>
     <div class="switch-link">Already have an account? <a href="/login.html">Sign in</a></div>
+</div>
 </div>
 
 <script type="module">
