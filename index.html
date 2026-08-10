@@ -73,6 +73,21 @@
 
         .chart-wrap { position:relative; height:220px; }
         .empty-state { text-align:center; padding:30px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
+        .chart-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-top:-10px; margin-bottom:14px; }
+
+        /* -- Two-column: main content + Trader's Constitution side panel -- */
+        .content-grid { display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start; }
+        @media (max-width:1180px) { .content-grid { grid-template-columns:1fr; } }
+        .constitution-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; position:sticky; top:26px; }
+        .constitution-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+        .constitution-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-bottom:14px; }
+        .const-toggle { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.6); padding:5px 13px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; font-family:'Inter',sans-serif; transition:all 0.15s; }
+        .const-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.3); }
+        .const-toggle.saving { background:rgba(29,185,84,0.15); border-color:rgba(29,185,84,0.4); color:#1DB954; }
+        #constitutionText { width:100%; min-height:400px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:14px; color:#fff; font-size:13px; line-height:1.7; font-family:'Inter',sans-serif; resize:vertical; }
+        #constitutionText:disabled { background:transparent; border-color:transparent; padding:0; resize:none; color:rgba(255,255,255,0.75); }
+        #constitutionText:focus { outline:none; border-color:rgba(255,255,255,0.3); }
+        .const-saved-note { font-size:10.5px; color:rgba(255,255,255,0.25); margin-top:10px; text-align:right; }
 
         /* -- Quick action tiles -- */
         .tiles-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
@@ -142,69 +157,89 @@
             <button class="install-dismiss" id="dismissInstall">×</button>
         </div>
 
-        <!-- Stats -->
-        <div class="stats-grid">
-            <div class="stat-card"><span class="stat-ic">📦</span><div class="stat-value" id="homeTotalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
-            <div class="stat-card"><span class="stat-ic">🎯</span><div class="stat-value" id="homeWinRate">0%</div><div class="stat-label">WIN RATE</div></div>
-            <div class="stat-card"><span class="stat-ic">🔁</span><div class="stat-value" id="homeCurrentCycle">1</div><div class="stat-label">CURRENT CYCLE</div></div>
-            <div class="stat-card"><span class="stat-ic">🔥</span><div class="stat-value" id="homeStreak">0</div><div class="stat-label">CURRENT STREAK</div></div>
-        </div>
+        <div class="content-grid">
+            <div class="col-main">
 
-        <!-- Cycle progress -->
-        <div class="cycle-card">
-            <div class="cycle-row">
-                <span class="cycle-label">CYCLE PROGRESS</span>
-                <span class="cycle-val" id="cycleText">Cycle 1 · 0 / 20 trades</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
-        </div>
-
-        <!-- Recent performance chart -->
-        <div class="card">
-            <div class="card-title">RECENT PERFORMANCE</div>
-            <div class="chart-wrap"><canvas id="homeEquityChart"></canvas></div>
-        </div>
-
-        <!-- Quick actions -->
-        <div class="tiles-grid">
-            <a href="/journal.html" class="tile featured tile-journal">
-                <div class="tile-ic-wrap">📝</div>
-                <div>
-                    <div class="tile-title">NEW TRADE ENTRY</div>
-                    <div class="tile-desc">Record a trade with full mindset, checklist and execution analysis</div>
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card"><span class="stat-ic">📦</span><div class="stat-value" id="homeTotalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
+                    <div class="stat-card"><span class="stat-ic">🎯</span><div class="stat-value" id="homeWinRate">0%</div><div class="stat-label">WIN RATE</div></div>
+                    <div class="stat-card"><span class="stat-ic">🔁</span><div class="stat-value" id="homeCurrentCycle">1</div><div class="stat-label">CURRENT CYCLE</div></div>
+                    <div class="stat-card"><span class="stat-ic">🔥</span><div class="stat-value" id="homeStreak">0</div><div class="stat-label">CURRENT STREAK</div></div>
                 </div>
-                <span class="tile-arrow">→</span>
-            </a>
-            <a href="/dashboard.html" class="tile tile-dashboard">
-                <div class="tile-ic-wrap">📊</div>
-                <div class="tile-title">DASHBOARD</div>
-                <div class="tile-desc">Stats, equity curve &amp; calendar</div>
-                <span class="tile-arrow">→</span>
-            </a>
-            <a href="/analytics.html" class="tile tile-analytics">
-                <div class="tile-ic-wrap">📈</div>
-                <div class="tile-title">ANALYTICS</div>
-                <div class="tile-desc">Deep dive performance metrics</div>
-                <span class="tile-arrow">→</span>
-            </a>
-            <a href="/lab.html" class="tile tile-lab">
-                <div class="tile-ic-wrap">🧪</div>
-                <div class="tile-title">TRADE LAB</div>
-                <div class="tile-desc">Backtest &amp; missed trade log</div>
-                <span class="tile-arrow">→</span>
-            </a>
-            <a href="/improvement.html" class="tile tile-improve">
-                <div class="tile-ic-wrap">🔧</div>
-                <div class="tile-title">IMPROVEMENT</div>
-                <div class="tile-desc">Review, reflect &amp; grow</div>
-                <span class="tile-arrow">→</span>
-            </a>
-            <a href="/profile.html" class="tile tile-profile">
-                <div class="tile-ic-wrap">👤</div>
-                <div class="tile-title">PROFILE</div>
-                <div class="tile-desc">Settings, PIN &amp; account</div>
-                <span class="tile-arrow">→</span>
-            </a>
+
+                <!-- Cycle progress -->
+                <div class="cycle-card">
+                    <div class="cycle-row">
+                        <span class="cycle-label">CYCLE PROGRESS</span>
+                        <span class="cycle-val" id="cycleText">Cycle 1 · 0 / 20 trades</span>
+                    </div>
+                    <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
+                </div>
+
+                <!-- Recent performance chart -->
+                <div class="card">
+                    <div class="card-title">CYCLE PROGRESSION</div>
+                    <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 11 for this cycle</div>
+                    <div class="chart-wrap"><canvas id="homeEquityChart"></canvas></div>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="tiles-grid">
+                    <a href="/journal.html" class="tile featured tile-journal">
+                        <div class="tile-ic-wrap">📝</div>
+                        <div>
+                            <div class="tile-title">NEW TRADE ENTRY</div>
+                            <div class="tile-desc">Record a trade with full mindset, checklist and execution analysis</div>
+                        </div>
+                        <span class="tile-arrow">→</span>
+                    </a>
+                    <a href="/dashboard.html" class="tile tile-dashboard">
+                        <div class="tile-ic-wrap">📊</div>
+                        <div class="tile-title">DASHBOARD</div>
+                        <div class="tile-desc">Stats, equity curve &amp; calendar</div>
+                        <span class="tile-arrow">→</span>
+                    </a>
+                    <a href="/analytics.html" class="tile tile-analytics">
+                        <div class="tile-ic-wrap">📈</div>
+                        <div class="tile-title">ANALYTICS</div>
+                        <div class="tile-desc">Deep dive performance metrics</div>
+                        <span class="tile-arrow">→</span>
+                    </a>
+                    <a href="/lab.html" class="tile tile-lab">
+                        <div class="tile-ic-wrap">🧪</div>
+                        <div class="tile-title">TRADE LAB</div>
+                        <div class="tile-desc">Backtest &amp; missed trade log</div>
+                        <span class="tile-arrow">→</span>
+                    </a>
+                    <a href="/improvement.html" class="tile tile-improve">
+                        <div class="tile-ic-wrap">🔧</div>
+                        <div class="tile-title">IMPROVEMENT</div>
+                        <div class="tile-desc">Review, reflect &amp; grow</div>
+                        <span class="tile-arrow">→</span>
+                    </a>
+                    <a href="/profile.html" class="tile tile-profile">
+                        <div class="tile-ic-wrap">👤</div>
+                        <div class="tile-title">PROFILE</div>
+                        <div class="tile-desc">Settings, PIN &amp; account</div>
+                        <span class="tile-arrow">→</span>
+                    </a>
+                </div>
+
+            </div>
+
+            <!-- Trader's Constitution — personal rules, editable per trader -->
+            <div class="col-side">
+                <div class="constitution-card">
+                    <div class="constitution-head">
+                        <div class="card-title" style="margin-bottom:0;">TRADER'S CONSTITUTION</div>
+                        <button class="const-toggle" id="constToggle">EDIT</button>
+                    </div>
+                    <div class="constitution-sub">Your personal rules. Read them before every session.</div>
+                    <textarea id="constitutionText" disabled></textarea>
+                    <div class="const-saved-note" id="constSavedNote"></div>
+                </div>
+            </div>
         </div>
 
     </main>
@@ -212,7 +247,7 @@
 
 <script type="module">
 import { requireAuth, requireAuthFast, requirePin, syncToLocalStorage } from '/shared.js';
-import { getCurrentUser, getProfile } from '/db.js';
+import { getCurrentUser, getProfile, loadAllTrades } from '/db.js';
 
 // PWA install prompt
 let deferredPrompt = null;
@@ -255,55 +290,138 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
         document.getElementById('greeting').textContent = 'Ready to trade?';
     }
 
-    // Cycle bar + chip
+    // ── Fetch fresh trade data directly from the cloud before rendering ──────
+    // Previously this page only read the localStorage cache, which is written
+    // by a background sync that fires ~100ms after page load — so Home could
+    // render stale cycle/stat numbers on first paint. Awaiting the real fetch
+    // here means what you see is always correct, not last session's cache.
+    let trades = [];
+    try {
+        const result = await loadAllTrades();
+        if (result?.journals) {
+            trades = Object.values(result.journals).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            localStorage.setItem('xX_journal_data', JSON.stringify({
+                journals: result.journals,
+                tradeCounter: result.tradeCounter || 1
+            }));
+
+            // Recalculate cycles from the real trade count — same logic used by
+            // the background sync, so Home and every other page always agree.
+            const total = trades.length;
+            const done  = Math.floor(total / 20);
+            const inCur = total % 20;
+            const freshCycles = {
+                currentCycle: done + 1,
+                tradesInCurrentCycle: inCur,
+                completedCycles: Array.from({length: done}, (_, i) => ({
+                    cycleNumber: i + 1,
+                    completedAt: trades[(i+1)*20 - 1]?.timestamp || new Date().toISOString()
+                })),
+                allTrades: trades.map(t => t.tradeId)
+            };
+            localStorage.setItem('xX_cycle_data', JSON.stringify(freshCycles));
+        } else {
+            // Cloud fetch returned nothing usable — fall back to cache rather than showing zeros
+            const cached = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
+            trades = Object.values(cached.journals || {}).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+        }
+    } catch(e) {
+        const cached = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
+        trades = Object.values(cached.journals || {}).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+
+    // Cycle bar + chip (now reading the just-refreshed cache, always in sync)
+    let currentCycleNum = 1;
     try {
         const cycles = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-        const current   = cycles.currentCycle || 1;
+        currentCycleNum = cycles.currentCycle || 1;
         const tradesIn  = cycles.tradesInCurrentCycle || 0;
         const pct = Math.min((tradesIn / 20) * 100, 100);
-        document.getElementById('cycleText').textContent  = `Cycle ${current} · ${tradesIn} / 20 trades`;
+        document.getElementById('cycleText').textContent  = `Cycle ${currentCycleNum} · ${tradesIn} / 20 trades`;
         document.getElementById('cycleFill').style.width  = pct + '%';
-        document.getElementById('homeCurrentCycle').textContent = current;
-        document.getElementById('cycleNumChip').textContent = current;
+        document.getElementById('homeCurrentCycle').textContent = currentCycleNum;
+        document.getElementById('cycleNumChip').textContent = currentCycleNum;
         document.getElementById('cycleTradesChip').textContent = tradesIn;
     } catch(e) {}
 
-    // Stats + equity chart (from cached journal data, if any trades exist yet)
-    try {
-        const journalData = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
-        const trades = Object.values(journalData.journals || {})
-            .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    // Stats + cycle progression chart
+    if (trades.length) {
+        const wins = trades.filter(t => t.outcome === 'WIN').length;
+        document.getElementById('homeTotalTrades').textContent = trades.length;
+        document.getElementById('homeWinRate').textContent = ((wins / trades.length) * 100).toFixed(1) + '%';
 
-        if (trades.length) {
-            const wins = trades.filter(t => t.outcome === 'WIN').length;
-            document.getElementById('homeTotalTrades').textContent = trades.length;
-            document.getElementById('homeWinRate').textContent = ((wins / trades.length) * 100).toFixed(1) + '%';
-
-            // Current streak (from most recent trade backwards)
-            let streak = 0, streakType = null;
-            for (let i = trades.length - 1; i >= 0; i--) {
-                const o = trades[i].outcome;
-                if (o === 'BREAKEVEN') break;
-                if (streakType === null) { streakType = o; streak = 1; }
-                else if (o === streakType) { streak++; }
-                else break;
-            }
-            document.getElementById('homeStreak').textContent = (streakType === 'LOSS' ? '-' : '') + streak;
-
-            renderHomeEquityChart(trades);
-        } else {
-            document.getElementById('homeEquityChart').parentElement.innerHTML = '<div class="empty-state">No trades yet — log your first in New Trade Entry</div>';
+        // Current streak (from most recent trade backwards)
+        let streak = 0, streakType = null;
+        for (let i = trades.length - 1; i >= 0; i--) {
+            const o = trades[i].outcome;
+            if (o === 'BREAKEVEN') break;
+            if (streakType === null) { streakType = o; streak = 1; }
+            else if (o === streakType) { streak++; }
+            else break;
         }
-    } catch(e) {}
+        document.getElementById('homeStreak').textContent = (streakType === 'LOSS' ? '-' : '') + streak;
 
-function renderHomeEquityChart(trades) {
-    let running = 0;
-    const points = trades.map(t => {
-        running += t.outcome === 'WIN' ? 1 : t.outcome === 'LOSS' ? -1 : 0;
-        return running;
+        renderCycleProgressionChart(trades, currentCycleNum);
+    } else {
+        document.getElementById('homeEquityChart').parentElement.innerHTML = '<div class="empty-state">No trades yet — log your first in New Trade Entry</div>';
+    }
+
+    // ── Trader's Constitution — personal rules, editable per trader ──────────
+    const CONST_KEY = `xX_constitution_${user.id}`;
+    const constEl   = document.getElementById('constitutionText');
+    const constBtn  = document.getElementById('constToggle');
+    const constNote = document.getElementById('constSavedNote');
+    const DEFAULT_CONSTITUTION = `1. Only trade during my chosen session — no exceptions.
+2. Max 1 trade per day. If I miss it, I wait for tomorrow.
+3. No entry without the full checklist confirmed.
+4. No revenge trading after a loss.
+5. Never move my stop loss further away.
+6. Journal every trade honestly — wins and losses.
+7. Walk away after 2 losses in a row for the day.`;
+
+    constEl.value = localStorage.getItem(CONST_KEY) || DEFAULT_CONSTITUTION;
+
+    constBtn.addEventListener('click', () => {
+        const editing = !constEl.disabled;
+        if (editing) {
+            // Currently editing -> save and lock
+            localStorage.setItem(CONST_KEY, constEl.value);
+            constEl.disabled = true;
+            constBtn.textContent = 'EDIT';
+            constBtn.classList.remove('saving');
+            constNote.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        } else {
+            // Currently locked -> unlock for editing
+            constEl.disabled = false;
+            constEl.focus();
+            constBtn.textContent = 'SAVE';
+            constBtn.classList.add('saving');
+            constNote.textContent = '';
+        }
     });
-    const labels = trades.map((t, i) => `#${i+1}`);
-    new Chart(document.getElementById('homeEquityChart'), {
+
+// Level-progression chart for the CURRENT cycle: starts at level 1, WIN moves
+// up (max 11), LOSS moves down (min 1), BE holds — mirrors the EA's level system.
+function renderCycleProgressionChart(allTrades, cycleNum) {
+    const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
+    const canvas = document.getElementById('homeEquityChart');
+
+    if (!cycleTrades.length) {
+        canvas.parentElement.innerHTML = '<div class="empty-state">No trades in this cycle yet — your level will move here as you win or lose</div>';
+        return;
+    }
+
+    let level = 1;
+    const points = [1]; // start at level 1 before the first trade
+    cycleTrades.forEach(t => {
+        if (t.outcome === 'WIN') level = Math.min(level + 1, 11);
+        else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
+        points.push(level);
+    });
+    const labels = ['Start', ...cycleTrades.map((t, i) => `#${i+1}`)];
+
+    new Chart(canvas, {
         type: 'line',
         data: {
             labels,
@@ -312,9 +430,11 @@ function renderHomeEquityChart(trades) {
                 borderColor: '#1DB954',
                 backgroundColor: 'rgba(29,185,84,0.1)',
                 borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0.25,
+                pointRadius: 3,
+                pointBackgroundColor: '#1DB954',
+                pointHoverRadius: 5,
+                stepped: false,
+                tension: 0.15,
                 fill: true
             }]
         },
@@ -322,8 +442,8 @@ function renderHomeEquityChart(trades) {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:10, font:{size:10} } },
-                y: { grid: { color:'rgba(255,255,255,0.06)' }, ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} } }
+                x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:12, font:{size:10} } },
+                y: { min:1, max:11, ticks: { stepSize:1, color:'rgba(255,255,255,0.35)', font:{size:10} }, grid: { color:'rgba(255,255,255,0.06)' } }
             }
         }
     });
