@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -42,10 +42,47 @@
         }
 
         /* -- Header -- */
-        .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .header { 
+            display:flex; 
+            justify-content:space-between; 
+            align-items:flex-start; 
+            margin-bottom:22px; 
+            padding-bottom:18px; 
+            border-bottom:1px solid rgba(255,255,255,0.08); 
+            flex-wrap: wrap;
+            gap: 12px;
+        }
         .header-left .logo-row { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
         .header-left .logo { font-size:34px; font-weight:800; letter-spacing:-1.5px; background:linear-gradient(135deg,#fff,#1DB954); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-        .header-left .tagline { font-size:12px; color:rgba(255,255,255,0.35); font-style:italic; }
+        
+        /* --- PROMINENT TAGLINE AT THE TOP --- */
+        .global-tagline {
+            text-align: center;
+            width: 100%;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .global-tagline .main-statement {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            color: #ffffff;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #ffffff, #1DB954);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .global-tagline .sub-statement {
+            font-size: 12px;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 3px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        /* ----------------------------- */
+
         .greeting { font-size:14px; color:rgba(255,255,255,0.5); }
         .header-right { display:flex; align-items:center; gap:12px; }
         .cycle-chip { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:9px 16px; font-size:13px; color:rgba(255,255,255,0.55); white-space:nowrap; }
@@ -147,11 +184,17 @@
 
     <main class="main">
 
+        <!-- PROMINENT TAGLINE AT THE TOP OF THE PAGE -->
+        <div class="global-tagline">
+            <div class="main-statement">Where discipline becomes leverage</div>
+            <div class="sub-statement">xX TRADING JOURNAL</div>
+        </div>
+        <!-- -------------------------------------- -->
+
         <div class="header">
             <div class="header-left">
                 <div class="logo-row">
                     <div class="logo">xX</div>
-                    <div class="tagline">where discipline<br>becomes leverage</div>
                 </div>
                 <div class="greeting" id="greeting">Loading...</div>
             </div>
