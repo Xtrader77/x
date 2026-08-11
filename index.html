@@ -360,17 +360,17 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     }
 
     let level = 1;
-    const points = [];
+    const points = [1]; // Start at level 1 before any trades
+    
     cycleTrades.forEach(t => {
-        points.push(level); // level going INTO this trade (trade #1 = level 1)
         if (t.outcome === 'WIN') level = Math.min(level + 1, 11);
         else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
         // BE holds — level unchanged
+        points.push(level);
     });
 
-    const CYCLE_LENGTH = 20;
-    while (points.length < CYCLE_LENGTH) points.push(null);
-    const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
+    // Labels match the number of points we have (level before trade #1 + level after each trade)
+    const labels = Array.from({length: points.length}, (_, i) => `${i+1}`);
 
     new Chart(canvas, {
         type: 'line',
@@ -402,7 +402,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 x: {
                     title: { display:true, text:'Trade # in cycle', color:'rgba(255,255,255,0.3)', font:{size:10} },
                     grid: { display:false },
-                    ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:20, font:{size:10} }
+                    ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} }
                 },
                 y: {
                     min:0, max:11,
