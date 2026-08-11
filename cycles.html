@@ -181,10 +181,6 @@ trades.forEach((t, i) => {
 });
 
 const cycleNums = Object.keys(cycles).map(Number).sort((a,b) => a - b);
-const currentCycleNum = cycleNums.length ? Math.max(...cycleNums) : 1;
-const isCurrentComplete = (cycles[currentCycleNum] || []).length >= 20;
-const displayCurrentNum = isCurrentComplete ? currentCycleNum + 1 : currentCycleNum;
-const currentTrades = isCurrentComplete ? [] : (cycles[currentCycleNum] || []);
 
 // Load manually created cycles from localStorage
 let manualCycles = [];
@@ -200,32 +196,8 @@ try {
 } catch(e) {}
 
 // IMPORTANT: Override the displayed current cycle with the saved one from localStorage
-// This ensures that when you start a new cycle (e.g., Cycle 3), it shows 0 trades even though 
-// the trades array might still be grouping into Cycle 2.
 let actualCurrentNum = savedCurrentCycle;
 let actualCurrentTrades = trades.filter(t => (t.cycleNumber || 1) === actualCurrentNum);
-
-// If the saved cycle has no trades yet, it's a fresh new cycle
-if (actualCurrentTrades.length === 0) {
-    // This is a fresh cycle - start at Level 1, 0 trades
-    document.getElementById('curCycleTitle').textContent = names[actualCurrentNum] ? `Cycle ${actualCurrentNum} · ${names[actualCurrentNum]}` : `Cycle ${actualCurrentNum}`;
-    document.getElementById('curCycleSub').textContent = `0 / 20 trades`;
-    document.getElementById('curCycleFill').style.width = '0%';
-    document.getElementById('curCycleNameInput').value = names[actualCurrentNum] || '';
-    document.getElementById('curCycleWinRate').textContent = '0%';
-    document.getElementById('curCycleTrades').textContent = '0';
-    document.getElementById('curCycleLevel').textContent = '1';
-} else {
-    // Render the cycle with its existing trades
-    const curPct = Math.min((actualCurrentTrades.length / 20) * 100, 100);
-    document.getElementById('curCycleTitle').textContent = names[actualCurrentNum] ? `Cycle ${actualCurrentNum} · ${names[actualCurrentNum]}` : `Cycle ${actualCurrentNum}`;
-    document.getElementById('curCycleSub').textContent = `${actualCurrentTrades.length} / 20 trades`;
-    document.getElementById('curCycleFill').style.width = curPct + '%';
-    document.getElementById('curCycleNameInput').value = names[actualCurrentNum] || '';
-    document.getElementById('curCycleWinRate').textContent = winRate(actualCurrentTrades).toFixed(1) + '%';
-    document.getElementById('curCycleTrades').textContent = actualCurrentTrades.length;
-    document.getElementById('curCycleLevel').textContent = actualCurrentTrades.length ? levelSeries(actualCurrentTrades).endLevel : 1;
-}
 
 function levelSeries(cycleTrades) {
     let level = 1;
@@ -246,13 +218,24 @@ function winRate(cycleTrades) {
 
 // ── Render current cycle card ────────────────────────────────────────────
 const names = getNames();
+const curPct = Math.min((actualCurrentTrades.length / 20) * 100, 100);
 
+document.getElementById('curCycleTitle').textContent = names[actualCurrentNum] ? `Cycle ${actualCurrentNum} · ${names[actualCurrentNum]}` : `Cycle ${actualCurrentNum}`;
+document.getElementById('curCycleSub').textContent = `${actualCurrentTrades.length} / 20 trades`;
+document.getElementById('curCycleFill').style.width = curPct + '%';
+document.getElementById('curCycleNameInput').value = names[actualCurrentNum] || '';
+document.getElementById('curCycleWinRate').textContent = winRate(actualCurrentTrades).toFixed(1) + '%';
+document.getElementById('curCycleTrades').textContent = actualCurrentTrades.length;
+document.getElementById('curCycleLevel').textContent = actualCurrentTrades.length ? levelSeries(actualCurrentTrades).endLevel : 1;
+
+// FIX: Re-bind the Save Name button correctly
 document.getElementById('curCycleNameSave').addEventListener('click', () => {
     const val = document.getElementById('curCycleNameInput').value.trim();
     const n = getNames();
     if (val) n[actualCurrentNum] = val; else delete n[actualCurrentNum];
     saveNames(n);
     document.getElementById('curCycleTitle').textContent = val ? `Cycle ${actualCurrentNum} · ${val}` : `Cycle ${actualCurrentNum}`;
+    showToast('Cycle name saved!', 'success');
 });
 
 // ── Start New Cycle (FORK + HARD RESET) ──────────────────────────────────
