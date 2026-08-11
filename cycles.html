@@ -133,9 +133,9 @@
         </div>
 
         <!-- Completed cycles -->
-        <div class="card-title" style="margin:22px 0 12px;font-size:13px;">COMPLETED CYCLES</div>
+        <div class="card-title" style="margin:22px 0 12px;font-size:13px;">ALL CYCLES</div>
         <div id="cyclesGrid" class="cycles-grid"></div>
-        <div id="cyclesEmpty" class="empty-state" style="display:none;">No completed cycles yet — finish 20 trades or start a new cycle manually to complete your first one.</div>
+        <div id="cyclesEmpty" class="empty-state" style="display:none;">No cycles yet — log your first trade to start Cycle 1.</div>
     </main>
 </div>
 
@@ -176,12 +176,12 @@ const isCurrentComplete = (cycles[currentCycleNum] || []).length >= 20;
 const displayCurrentNum = isCurrentComplete ? currentCycleNum + 1 : currentCycleNum;
 const currentTrades = isCurrentComplete ? [] : (cycles[currentCycleNum] || []);
 
-// Load manually completed cycles from localStorage
-let manualCompletedCycles = [];
+// Load manually created cycles from localStorage
+let manualCycles = [];
 try {
     const cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-    if (cycleData.completedCycles) {
-        manualCompletedCycles = cycleData.completedCycles;
+    if (cycleData.manualCycles) {
+        manualCycles = cycleData.manualCycles;
     }
 } catch(e) {}
 
@@ -221,7 +221,7 @@ document.getElementById('curCycleNameSave').addEventListener('click', () => {
     document.getElementById('curCycleTitle').textContent = val ? `Cycle ${displayCurrentNum} · ${val}` : `Cycle ${displayCurrentNum}`;
 });
 
-// ── Start New Cycle ──────────────────────────────────────────────────────
+// ── Start New Cycle (FORK) ──────────────────────────────────────────────
 document.getElementById('startNewCycleBtn').addEventListener('click', async () => {
     if (currentTrades.length === 0) {
         showToast('Cycle is already empty — start trading first.', 'info');
@@ -229,30 +229,35 @@ document.getElementById('startNewCycleBtn').addEventListener('click', async () =
     }
     
     // Ask for confirmation
-    if (!confirm(`Start a new cycle? Current cycle (${displayCurrentNum}) will be saved as completed with ${currentTrades.length} trades.`)) return;
+    if (!confirm(`Start a new parallel cycle? 
     
-    // Save current cycle as completed
+Current cycle (${displayCurrentNum}) with ${currentTrades.length} trades will remain active.
+New trades will be assigned to Cycle ${displayCurrentNum + 1}.`)) return;
+    
+    // Create a new parallel cycle (fork)
     const newCycleNum = displayCurrentNum + 1;
     
     // Update cycles data structure
-    const completedCycle = {
-        cycleNumber: displayCurrentNum,
-        completedAt: new Date().toISOString(),
-        name: names[displayCurrentNum] || '',
-        trades: currentTrades.map(t => t.tradeId)
+    const newManualCycle = {
+        cycleNumber: newCycleNum,
+        createdAt: new Date().toISOString(),
+        name: '',
+        trades: [] // Will be filled as new trades come in
     };
     
-    // Get existing completed cycles from localStorage
+    // Get existing cycle data from localStorage
     let cycleData = {};
     try {
         cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
     } catch(e) {}
     
-    if (!cycleData.completedCycles) cycleData.completedCycles = [];
-    cycleData.completedCycles.push(completedCycle);
+    if (!cycleData.manualCycles) cycleData.manualCycles = [];
+    // Add the new cycle to manual cycles
+    cycleData.manualCycles.push(newManualCycle);
+    
+    // Update the active cycle pointer
     cycleData.currentCycle = newCycleNum;
     cycleData.tradesInCurrentCycle = 0;
-    cycleData.allTrades = cycleData.allTrades || [];
     
     // Save to localStorage
     localStorage.setItem('xX_cycle_data', JSON.stringify(cycleData));
@@ -264,62 +269,70 @@ document.getElementById('startNewCycleBtn').addEventListener('click', async () =
         console.warn('Cloud save failed for cycles:', e);
     }
     
-    showToast(`Cycle ${displayCurrentNum} completed! Starting Cycle ${newCycleNum}`, 'success');
+    showToast(`Started Cycle ${newCycleNum} (parallel). Cycle ${displayCurrentNum} remains active.`, 'success');
     
     // Reload page to show new cycle
     setTimeout(() => location.reload(), 800);
 });
 
-// ── Render completed cycles ──────────────────────────────────────────────
-// Combine auto-completed cycles from trades and manually completed cycles
-const allCompletedCycles = [];
+// ── Render all cycles ────────────────────────────────────────────────────
+// Combine auto-completed cycles from trades and manually created cycles
+const allCycleData = [];
 
-// Add auto-completed cycles from trades
-cycleNums.filter(n => cycles[n].length >= 20).forEach(num => {
-    allCompletedCycles.push({
-        cycleNumber: num,
-        trades: cycles[num].map(t => t.tradeId),
-        fromTrades: true
-    });
+// 1. Add all cycles from trades (both completed and in-progress)
+cycleNums.forEach(num => {
+    const cycleTrades = cycles[num];
+    if (cycleTrades && cycleTrades.length > 0) {
+        allCycleData.push({
+            cycleNumber: num,
+            trades: cycleTrades,
+            isCompleted: cycleTrades.length >= 20,
+            source: 'trades'
+        });
+    }
 });
 
-// Add manually completed cycles (avoid duplicates)
-manualCompletedCycles.forEach(mc => {
-    if (!allCompletedCycles.some(c => c.cycleNumber === mc.cycleNumber)) {
-        allCompletedCycles.push({
+// 2. Add manually created cycles (forked cycles)
+manualCycles.forEach(mc => {
+    // Check if this cycle already exists in the trades data
+    const exists = allCycleData.some(c => c.cycleNumber === mc.cycleNumber);
+    if (!exists) {
+        // Find trades assigned to this cycle number
+        const cycleTrades = trades.filter(t => t.cycleNumber === mc.cycleNumber);
+        allCycleData.push({
             cycleNumber: mc.cycleNumber,
-            trades: mc.trades || [],
-            fromTrades: false
+            trades: cycleTrades,
+            isCompleted: cycleTrades.length >= 20,
+            source: 'manual'
         });
     }
 });
 
 // Sort by cycle number descending (newest first)
-allCompletedCycles.sort((a, b) => b.cycleNumber - a.cycleNumber);
+allCycleData.sort((a, b) => b.cycleNumber - a.cycleNumber);
 
 const grid = document.getElementById('cyclesGrid');
 
-if (!allCompletedCycles.length) {
+if (!allCycleData.length) {
     document.getElementById('cyclesEmpty').style.display = 'block';
 } else {
-    allCompletedCycles.forEach(cycleData => {
-        const num = cycleData.cycleNumber;
-        const cycleTrades = cycleData.fromTrades 
-            ? cycles[num] // Get from trades array
-            : trades.filter(t => cycleData.trades.includes(t.tradeId)); // Get from trade IDs
+    allCycleData.forEach(cycleInfo => {
+        const num = cycleInfo.cycleNumber;
+        const cycleTrades = cycleInfo.trades;
         
         if (!cycleTrades || cycleTrades.length === 0) return;
         
         const first = cycleTrades[0], last = cycleTrades[cycleTrades.length - 1];
         const wr = winRate(cycleTrades);
         const { points } = levelSeries(cycleTrades);
+        const isComplete = cycleInfo.isCompleted;
 
         const el = document.createElement('div');
-        el.className = 'cycle-card-item completed';
+        el.className = 'cycle-card-item' + (isComplete ? ' completed' : '');
         el.innerHTML = `
             <div class="cci-head">
                 <span class="cci-num">CYCLE ${num}</span>
-                <span class="cci-status done">COMPLETE</span>
+                <span class="cci-status ${isComplete ? 'done' : 'active'}">${isComplete ? 'COMPLETE' : 'ACTIVE'}</span>
             </div>
             <input type="text" class="cci-name-input" placeholder="Name this cycle..." value="${(names[num]||'').replace(/"/g,'&quot;')}" data-cycle="${num}">
             <div class="cci-dates">${new Date(first.timestamp).toLocaleDateString()} — ${new Date(last.timestamp).toLocaleDateString()}</div>
@@ -344,8 +357,8 @@ if (!allCompletedCycles.length) {
                 labels: points.map((_, i) => `${i+1}`),
                 datasets: [{
                     data: points,
-                    borderColor: '#4A90E2',
-                    backgroundColor: 'rgba(74,144,226,0.08)',
+                    borderColor: isComplete ? '#4A90E2' : '#1DB954',
+                    backgroundColor: isComplete ? 'rgba(74,144,226,0.08)' : 'rgba(29,185,84,0.08)',
                     borderWidth: 1.5,
                     pointRadius: 0,
                     tension: 0.15,
