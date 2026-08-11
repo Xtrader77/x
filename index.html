@@ -71,7 +71,7 @@
         .progress-track { height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
         .progress-fill  { height:100%; background:linear-gradient(90deg,#1DB954,#4A90E2); border-radius:3px; transition:width 0.4s; }
 
-        .chart-wrap { position:relative; height:220px; }
+        .chart-wrap { position:relative; height:300px; /* INCREASED HEIGHT FOR BETTER SPACING */ }
         .empty-state { text-align:center; padding:30px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
         .chart-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-top:-10px; margin-bottom:14px; }
 
@@ -177,7 +177,7 @@
                     <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
                 </div>
 
-                <!-- Modern smooth line chart -->
+                <!-- Modern smooth line chart with BETTER Y-AXIS SPACING -->
                 <div class="card">
                     <div class="card-title">CYCLE PROGRESSION</div>
                     <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 11 for this cycle</div>
@@ -343,7 +343,7 @@ function renderStats() {
     renderCycleProgressionChart(trades, cycles.currentCycle || 1);
 }
 
-// MODERN SMOOTH LINE GRAPH 
+// MODERN SMOOTH LINE GRAPH with SPACED Y-AXIS
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
     const canvas = document.getElementById('homeEquityChart');
@@ -370,9 +370,9 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
 
     // Create a gradient for the fill
     const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
     gradient.addColorStop(0, 'rgba(29, 185, 84, 0.25)'); // Green at top
-    gradient.addColorStop(0.5, 'rgba(74, 144, 226, 0.12)'); // Blue in middle
+    gradient.addColorStop(0.4, 'rgba(74, 144, 226, 0.12)'); // Blue in middle
     gradient.addColorStop(1, 'rgba(74, 144, 226, 0.01)');   // Transparent at bottom
 
     new Chart(canvas, {
@@ -383,17 +383,17 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 data: points,
                 borderColor: '#1DB954',
                 backgroundColor: gradient,
-                borderWidth: 2.5,
-                pointRadius: 4,
+                borderWidth: 3, // Slightly thicker for better visibility
+                pointRadius: 5,
                 pointBackgroundColor: (ctx) => {
                     const v = ctx.raw;
                     if (v === null) return 'transparent';
                     return v >= 8 ? '#1DB954' : v <= 3 ? '#E22134' : '#ffd600';
                 },
                 pointBorderColor: '#000',
-                pointBorderWidth: 1.5,
-                pointHoverRadius: 6,
-                tension: 0.4, // <--- Smooth curve (0 = straight, 1 = ultra curved)
+                pointBorderWidth: 2,
+                pointHoverRadius: 7,
+                tension: 0.4, // Smooth curve
                 spanGaps: false,
                 fill: true
             }]
@@ -401,15 +401,23 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         options: {
             responsive: true, 
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 10,
+                    bottom: 10,
+                    left: 0,
+                    right: 10
+                }
+            },
             plugins: { 
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    backgroundColor: 'rgba(0,0,0,0.9)',
                     titleColor: '#fff',
                     bodyColor: '#1DB954',
-                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderColor: 'rgba(255,255,255,0.15)',
                     borderWidth: 1,
-                    padding: 10,
+                    padding: 12,
                     cornerRadius: 8,
                     callbacks: {
                         label: function(context) {
@@ -425,10 +433,25 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                     ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} }
                 },
                 y: {
-                    min:0, max:11,
+                    min: 0,
+                    max: 12, // Give a little headroom above level 11
                     title: { display:true, text:'Level', color:'rgba(255,255,255,0.3)', font:{size:10} },
-                    ticks: { stepSize:1, color:'rgba(255,255,255,0.4)', font:{size:10, weight:'600'} },
-                    grid: { color:(ctx) => ctx.tick.value === 1 ? 'rgba(29,185,84,0.2)' : 'rgba(255,255,255,0.06)' }
+                    ticks: { 
+                        stepSize: 1, 
+                        color: 'rgba(255,255,255,0.5)', 
+                        font: { size: 11, weight: '600' },
+                        padding: 8
+                    },
+                    grid: {
+                        color: (ctx) => {
+                            // Highlight level 1 with a bright green line
+                            if (ctx.tick.value === 1) return 'rgba(29,185,84,0.3)';
+                            // Highlight levels 5 and 10 with subtle lines
+                            if (ctx.tick.value === 5 || ctx.tick.value === 10) return 'rgba(255,255,255,0.1)';
+                            return 'rgba(255,255,255,0.04)';
+                        },
+                        drawBorder: false
+                    }
                 }
             }
         }
