@@ -120,6 +120,28 @@
         .empty-state { text-align:center; padding:30px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
         .chart-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-top:-10px; margin-bottom:14px; }
 
+        /* -- Level system: gauge + rank + dot track -- */
+        .level-header { display:flex; align-items:center; gap:22px; margin-bottom:20px; flex-wrap:wrap; }
+        .level-gauge { position:relative; width:100px; height:100px; flex-shrink:0; }
+        .level-gauge svg { width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+        .level-gauge-track { fill:none; stroke:rgba(255,255,255,0.07); stroke-width:8; }
+        .level-gauge-fill { fill:none; stroke-width:8; stroke-linecap:round; transition:stroke-dashoffset 0.9s cubic-bezier(.4,0,.2,1), stroke 0.5s; }
+        .level-gauge-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+        .level-gauge-num { font-size:28px; font-weight:900; line-height:1; transition:color 0.5s; }
+        .level-gauge-max { font-size:9px; color:rgba(255,255,255,0.35); font-weight:700; letter-spacing:1px; margin-top:3px; }
+
+        .level-info { flex:1; min-width:200px; }
+        .level-rank-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+        .level-rank-badge { display:inline-flex; align-items:center; gap:7px; padding:6px 14px; border-radius:20px; font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; border:1px solid; transition:all 0.5s; }
+        .level-rank-badge .dot { width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 6px currentColor; }
+        .level-streak-note { font-size:11px; color:rgba(255,255,255,0.4); font-weight:600; }
+        .level-dots { display:flex; gap:7px; flex-wrap:wrap; }
+        .level-dot { width:17px; height:17px; border-radius:50%; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.12); transition:all 0.4s; position:relative; }
+        .level-dot.filled { border-color:transparent; }
+        .level-dot.current { transform:scale(1.15); }
+        .level-dot.current::after { content:''; position:absolute; inset:-5px; border-radius:50%; border:1.5px solid currentColor; opacity:0.55; animation:pulseDot 1.7s ease-out infinite; }
+        @keyframes pulseDot { 0% { transform:scale(0.75); opacity:0.65; } 100% { transform:scale(1.7); opacity:0; } }
+
         /* -- Two-column: main content + Trader's Constitution side panel -- */
         .content-grid { display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start; }
         @media (max-width:1180px) { .content-grid { grid-template-columns:1fr; } }
@@ -236,10 +258,31 @@
                     <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
                 </div>
 
-                <!-- 20-Slot Chart with BOLD Y-AXIS -->
+                <!-- Level system: radial gauge + rank + dot track + 20-slot chart -->
                 <div class="card">
                     <div class="card-title">CYCLE PROGRESSION</div>
                     <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 11 for this cycle</div>
+
+                    <div class="level-header" id="levelHeader" style="display:none;">
+                        <div class="level-gauge">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="level-gauge-track" cx="50" cy="50" r="42"></circle>
+                                <circle class="level-gauge-fill" id="levelGaugeFill" cx="50" cy="50" r="42"></circle>
+                            </svg>
+                            <div class="level-gauge-center">
+                                <div class="level-gauge-num" id="levelGaugeNum">1</div>
+                                <div class="level-gauge-max">OF 11</div>
+                            </div>
+                        </div>
+                        <div class="level-info">
+                            <div class="level-rank-row">
+                                <span class="level-rank-badge" id="levelRankBadge"><span class="dot"></span><span id="levelRankText">REBUILDING</span></span>
+                                <span class="level-streak-note" id="levelStreakNote"></span>
+                            </div>
+                            <div class="level-dots" id="levelDots"></div>
+                        </div>
+                    </div>
+
                     <div class="chart-wrap"><canvas id="homeEquityChart"></canvas></div>
                 </div>
 
@@ -401,47 +444,94 @@ function renderStats() {
     renderCycleProgressionChart(trades, cycles.currentCycle || 1);
 }
 
-// 20-SLOT CHART with BOLD, FIXED 0-11 Y-AXIS
+// -- Level tiers: rank name + color per level band (1-11) --
+const LEVEL_TIERS = [
+    { max: 3,  name: 'REBUILDING',  color: '#E22134' },
+    { max: 7,  name: 'IN CONTROL',  color: '#4A90E2' },
+    { max: 10, name: 'DIALED IN',   color: '#1DB954' },
+    { max: 11, name: 'PEAK STATE',  color: '#FFD600' }
+];
+function tierFor(level) {
+    return LEVEL_TIERS.find(t => level <= t.max) || LEVEL_TIERS[LEVEL_TIERS.length - 1];
+}
+
+// 20-SLOT CHART + radial level gauge, rank badge and dot track
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
     const canvas = document.getElementById('homeEquityChart');
 
     if (!cycleTrades.length) {
         canvas.parentElement.innerHTML = '<div class="empty-state">No trades in this cycle yet — your level will move here as you win or lose</div>';
+        document.getElementById('levelHeader').style.display = 'none';
         return;
     }
 
     const CYCLE_LENGTH = 20;
     let level = 1;
-    
+
     // Start with nulls for all 20 slots, then fill in the actual trades
     const points = new Array(CYCLE_LENGTH).fill(null);
-    
+
     // Trade #1 starts at level 1
     points[0] = 1;
-    
+
+    // Track streak of consecutive moves in the same direction (for the note under the badge)
+    let lastMove = null, moveStreak = 0;
+
     // Calculate levels for each trade
     for (let i = 0; i < cycleTrades.length; i++) {
         const t = cycleTrades[i];
-        if (t.outcome === 'WIN') level = Math.min(level + 1, 11);
-        else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
-        // BE holds — level unchanged
-        
+        let move = null;
+        if (t.outcome === 'WIN') { level = Math.min(level + 1, 11); move = 'WIN'; }
+        else if (t.outcome === 'LOSS') { level = Math.max(level - 1, 1); move = 'LOSS'; }
+        // BE holds — level unchanged, streak untouched
+
+        if (move) {
+            if (move === lastMove) moveStreak++;
+            else { lastMove = move; moveStreak = 1; }
+        }
+
         // Only update the point if we haven't exceeded the cycle length
         if (i + 1 < CYCLE_LENGTH) {
             points[i + 1] = level;
         }
     }
 
+    renderLevelHeader(level, lastMove, moveStreak);
+
     // Labels: 1 through 20
     const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
+    const tier = tierFor(level);
 
-    // Create a gradient for the fill
+    // Create a gradient for the fill, tinted to the current tier
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(29, 185, 84, 0.25)');
-    gradient.addColorStop(0.4, 'rgba(74, 144, 226, 0.12)');
-    gradient.addColorStop(1, 'rgba(74, 144, 226, 0.01)');
+    gradient.addColorStop(0, hexToRgba(tier.color, 0.28));
+    gradient.addColorStop(0.5, hexToRgba(tier.color, 0.10));
+    gradient.addColorStop(1, hexToRgba(tier.color, 0.01));
+
+    // Background tier bands (danger / neutral / mastery / peak zones) drawn behind the line
+    const tierBandsPlugin = {
+        id: 'tierBands',
+        beforeDraw(chart) {
+            const { ctx, chartArea, scales: { y } } = chart;
+            if (!chartArea) return;
+            const bands = [
+                [0, 3, 'rgba(226,33,52,0.05)'],
+                [3, 7, 'rgba(74,144,226,0.045)'],
+                [7, 10, 'rgba(29,185,84,0.05)'],
+                [10, 11, 'rgba(255,214,0,0.06)']
+            ];
+            ctx.save();
+            bands.forEach(([from, to, color]) => {
+                const yTop = y.getPixelForValue(to);
+                const yBot = y.getPixelForValue(from);
+                ctx.fillStyle = color;
+                ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+            });
+            ctx.restore();
+        }
+    };
 
     new Chart(canvas, {
         type: 'line',
@@ -449,40 +539,37 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             labels,
             datasets: [{
                 data: points,
-                borderColor: '#1DB954',
+                borderColor: tier.color,
                 backgroundColor: gradient,
                 borderWidth: 3,
-                pointRadius: 5,
-                pointBackgroundColor: (ctx) => {
-                    const v = ctx.raw;
+                pointRadius: (c) => (c.raw !== null && c.dataIndex === lastFilledIndex(points)) ? 7 : 4,
+                pointBackgroundColor: (c) => {
+                    const v = c.raw;
                     if (v === null) return 'transparent';
-                    return v >= 8 ? '#1DB954' : v <= 3 ? '#E22134' : '#ffd600';
+                    return tierFor(v).color;
                 },
                 pointBorderColor: '#000',
                 pointBorderWidth: 2,
-                pointHoverRadius: 7,
+                pointHoverRadius: 8,
                 tension: 0.4,
                 spanGaps: false,
                 fill: true
             }]
         },
+        plugins: [tierBandsPlugin],
         options: {
-            responsive: true, 
+            responsive: true,
             maintainAspectRatio: false,
+            animation: { duration: 900, easing: 'easeOutCubic' },
             layout: {
-                padding: {
-                    top: 10,
-                    bottom: 10,
-                    left: 0,
-                    right: 10
-                }
+                padding: { top: 10, bottom: 10, left: 0, right: 10 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(0,0,0,0.9)',
                     titleColor: '#fff',
-                    bodyColor: '#1DB954',
+                    bodyColor: tier.color,
                     borderColor: 'rgba(255,255,255,0.15)',
                     borderWidth: 1,
                     padding: 12,
@@ -490,7 +577,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                     callbacks: {
                         label: function(context) {
                             if (context.raw === null) return 'No trade yet';
-                            return `Level: ${context.raw}`;
+                            return `Level ${context.raw} · ${tierFor(context.raw).name}`;
                         }
                     }
                 }
@@ -499,8 +586,8 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 x: {
                     title: { display:true, text:'Trade # in cycle', color:'#ffffff', font:{size:11, weight:'bold'} },
                     grid: { display:false },
-                    ticks: { 
-                        color: '#ffffff', 
+                    ticks: {
+                        color: '#ffffff',
                         font: { size: 10, weight: 'bold' },
                         maxTicksLimit: 20,
                         stepSize: 1
@@ -510,28 +597,85 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                     min: 0,
                     max: 11,
                     title: { display:true, text:'Level', color:'#ffffff', font:{size:11, weight:'bold'} },
-                    ticks: { 
-                        stepSize: 1, 
-                        color: '#ffffff', 
+                    ticks: {
+                        stepSize: 1,
+                        color: '#ffffff',
                         font: { size: 13, weight: 'bold' },
                         padding: 8
                     },
                     grid: {
                         color: (ctx) => {
-                            // ALL lines are visible now
-                            if (ctx.tick.value === 1) return 'rgba(29,185,84,0.5)'; // Bright green for level 1
-                            return 'rgba(255,255,255,0.15)'; // Visible white lines for all other levels
+                            if (ctx.tick.value === 1) return 'rgba(29,185,84,0.5)';
+                            return 'rgba(255,255,255,0.15)';
                         },
                         drawBorder: false,
-                        lineWidth: (ctx) => {
-                            // Make the Level 1 line thicker
-                            return ctx.tick.value === 1 ? 2 : 0.8;
-                        }
+                        lineWidth: (ctx) => ctx.tick.value === 1 ? 2 : 0.8
                     }
                 }
             }
         }
     });
+}
+
+function lastFilledIndex(points) {
+    for (let i = points.length - 1; i >= 0; i--) if (points[i] !== null) return i;
+    return -1;
+}
+
+function hexToRgba(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+}
+
+// Radial gauge + rank badge + 11-dot level track
+function renderLevelHeader(level, lastMove, moveStreak) {
+    const header = document.getElementById('levelHeader');
+    header.style.display = 'flex';
+    const tier = tierFor(level);
+
+    // Gauge
+    const r = 42, circumference = 2 * Math.PI * r;
+    const fill = document.getElementById('levelGaugeFill');
+    fill.setAttribute('stroke-dasharray', circumference);
+    fill.setAttribute('stroke-dashoffset', circumference * (1 - level / 11));
+    fill.style.stroke = tier.color;
+    fill.style.filter = `drop-shadow(0 0 6px ${hexToRgba(tier.color, 0.7)})`;
+    const num = document.getElementById('levelGaugeNum');
+    num.textContent = level;
+    num.style.color = tier.color;
+
+    // Rank badge
+    const badge = document.getElementById('levelRankBadge');
+    badge.style.color = tier.color;
+    badge.style.borderColor = hexToRgba(tier.color, 0.4);
+    badge.style.background = hexToRgba(tier.color, 0.1);
+    document.getElementById('levelRankText').textContent = tier.name;
+
+    // Streak note
+    const note = document.getElementById('levelStreakNote');
+    if (lastMove && moveStreak >= 2) {
+        note.textContent = lastMove === 'WIN' ? `${moveStreak} wins in a row` : `${moveStreak} losses in a row`;
+        note.style.color = lastMove === 'WIN' ? '#1DB954' : '#E22134';
+    } else {
+        note.textContent = '';
+    }
+
+    // 11-dot level track
+    const dotsWrap = document.getElementById('levelDots');
+    dotsWrap.innerHTML = '';
+    for (let i = 1; i <= 11; i++) {
+        const d = document.createElement('div');
+        d.className = 'level-dot';
+        if (i <= level) {
+            d.classList.add('filled');
+            d.style.background = tierFor(i).color;
+        }
+        if (i === level) {
+            d.classList.add('current');
+            d.style.color = tier.color;
+        }
+        dotsWrap.appendChild(d);
+    }
 }
 
 // Trader's Constitution — read-only, bold font
