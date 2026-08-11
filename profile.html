@@ -222,6 +222,23 @@
     </div>
 </div>
 
+<!-- Trader's Constitution — personal rules, shown read-only on Home -->
+<div class="card">
+    <div class="card-title">TRADER'S CONSTITUTION</div>
+    <p style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.6;">Your personal trading rules. These appear on your Home page so you see them before every session.</p>
+    <textarea id="constitutionText" placeholder="1. Only trade during my chosen session — no exceptions.
+2. Max 1 trade per day. If I miss it, I wait for tomorrow.
+3. No entry without the full checklist confirmed.
+4. No revenge trading after a loss.
+5. Never move my stop loss further away.
+6. Journal every trade honestly — wins and losses.
+7. Walk away after 2 losses in a row for the day." style="min-height:180px;line-height:1.7;"></textarea>
+    <div class="btn-row">
+        <button class="btn btn-primary" id="saveConstitutionBtn">Save Constitution</button>
+        <span id="constitutionStatus" style="font-size:12px;color:var(--green);align-self:center;"></span>
+    </div>
+</div>
+
 <!-- PIN Lock -->
 <div class="card">
     <div class="card-title">APP LOCK</div>
@@ -369,9 +386,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!currentUser) return;
     await requirePin();
     await loadCloudProfile();
+    loadConstitution();
     loadStats();
     setupHandlers();
 });
+
+function loadConstitution() {
+    const key = `xX_constitution_${currentUser.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) document.getElementById('constitutionText').value = saved;
+}
 
 async function loadCloudProfile() {
     document.getElementById('displayEmail').textContent = currentUser.email || '';
@@ -463,6 +487,17 @@ function setupHandlers() {
         } else {
             showToast('Save failed: ' + result.error, 'error');
         }
+    });
+
+    // Constitution save — stored locally, scoped to this trader
+    document.getElementById('saveConstitutionBtn').addEventListener('click', () => {
+        const key  = `xX_constitution_${currentUser.id}`;
+        const text = document.getElementById('constitutionText').value;
+        localStorage.setItem(key, text);
+        showToast('Constitution saved ✓', 'success');
+        const note = document.getElementById('constitutionStatus');
+        note.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        setTimeout(() => { note.textContent = ''; }, 4000);
     });
 
     // PIN input

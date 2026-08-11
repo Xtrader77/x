@@ -152,7 +152,16 @@ function _bgSync() {
     setTimeout(async () => {
         try {
             const { loadAllTrades, saveCycles } = await import('./db.js');
-            const result = await loadAllTrades();
+            // includeScreenshots=true: the merge logic below is written to prefer
+            // cloud data over local cache, but that only means anything if we
+            // actually fetch it — previously this called loadAllTrades() with no
+            // argument, so cloud screenshots were always empty and the "prefer
+            // cloud" branch never ran, silently trusting local cache forever
+            // even when it was missing screenshots (e.g. localStorage quota
+            // limits, a different device, a partial write). This is what let
+            // trades stay stuck showing fewer screenshots than were actually
+            // uploaded — now the cloud can genuinely fill those gaps back in.
+            const result = await loadAllTrades(true);
             if (!result?.journals) return;
 
             // Merge screenshots: prefer cloud data, fallback to local base64

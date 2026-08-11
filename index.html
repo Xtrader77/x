@@ -84,9 +84,8 @@
         .const-toggle { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.6); padding:5px 13px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; font-family:'Inter',sans-serif; transition:all 0.15s; }
         .const-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.3); }
         .const-toggle.saving { background:rgba(29,185,84,0.15); border-color:rgba(29,185,84,0.4); color:#1DB954; }
-        #constitutionText { width:100%; min-height:400px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:14px; color:#fff; font-size:13px; line-height:1.7; font-family:'Inter',sans-serif; resize:vertical; }
-        #constitutionText:disabled { background:transparent; border-color:transparent; padding:0; resize:none; color:rgba(255,255,255,0.75); }
-        #constitutionText:focus { outline:none; border-color:rgba(255,255,255,0.3); }
+        #constitutionDisplay { font-size:13px; line-height:1.9; color:rgba(255,255,255,0.75); white-space:pre-wrap; min-height:120px; }
+        #constitutionDisplay:empty::before { content:'No rules set yet — add yours in Profile.'; color:rgba(255,255,255,0.3); font-style:italic; }
         .const-saved-note { font-size:10.5px; color:rgba(255,255,255,0.25); margin-top:10px; text-align:right; }
 
         /* -- Quick action tiles -- */
@@ -229,16 +228,15 @@
 
             </div>
 
-            <!-- Trader's Constitution — personal rules, editable per trader -->
+            <!-- Trader's Constitution — read-only here; edited on Profile -->
             <div class="col-side">
                 <div class="constitution-card">
                     <div class="constitution-head">
                         <div class="card-title" style="margin-bottom:0;">TRADER'S CONSTITUTION</div>
-                        <button class="const-toggle" id="constToggle">EDIT</button>
+                        <a href="/profile.html" class="const-toggle" style="text-decoration:none;display:inline-block;">EDIT IN PROFILE</a>
                     </div>
                     <div class="constitution-sub">Your personal rules. Read them before every session.</div>
-                    <textarea id="constitutionText" disabled></textarea>
-                    <div class="const-saved-note" id="constSavedNote"></div>
+                    <div id="constitutionDisplay" class="constitution-display"></div>
                 </div>
             </div>
         </div>
@@ -247,8 +245,11 @@
 </div>
 
 <script type="module">
-import { requireAuth, requireAuthFast, requirePin, syncToLocalStorage } from '/shared.js';
-import { getCurrentUser, getProfile, loadAllTrades } from '/db.js';
+import { requireAuthFast, requirePin } from '/shared.js';
+import { getProfile } from '/db.js';
+
+let journals = { journals: {} };
+let cycles   = { currentCycle: 1, tradesInCurrentCycle: 0 };
 
 // PWA install prompt
 let deferredPrompt = null;
@@ -262,7 +263,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 document.getElementById('installBtn').addEventListener('click', async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    await deferredPrompt.userChoice;
     deferredPrompt = null;
     document.getElementById('installBanner').classList.remove('show');
 });
@@ -271,153 +272,79 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
     localStorage.setItem('xX_install_dismissed', '1');
 });
 
-
-// ── Trader's Constitution — bound immediately, independent of the auth/data
-// chain below. If anything in that chain stalls (slow network, auth hiccup),
-// this still works right away instead of silently having no click handler.
-const constEl   = document.getElementById('constitutionText');
-const constBtn  = document.getElementById('constToggle');
-const constNote = document.getElementById('constSavedNote');
-const DEFAULT_CONSTITUTION = `1. Only trade during my chosen session — no exceptions.
-2. Max 1 trade per day. If I miss it, I wait for tomorrow.
-3. No entry without the full checklist confirmed.
-4. No revenge trading after a loss.
-5. Never move my stop loss further away.
-6. Journal every trade honestly — wins and losses.
-7. Walk away after 2 losses in a row for the day.`;
-
-// Uses a generic key until we know who's logged in, then migrates to a
-// per-user key below once `user` resolves — so it still works instantly.
-let constKey = 'xX_constitution_anon';
-constEl.value = localStorage.getItem(constKey) || DEFAULT_CONSTITUTION;
-
-constBtn.addEventListener('click', () => {
-    const editing = !constEl.disabled;
-    if (editing) {
-        localStorage.setItem(constKey, constEl.value);
-        constEl.disabled = true;
-        constBtn.textContent = 'EDIT';
-        constBtn.classList.remove('saving');
-        constNote.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    } else {
-        constEl.disabled = false;
-        constEl.focus();
-        constBtn.textContent = 'SAVE';
-        constBtn.classList.add('saving');
-        constNote.textContent = '';
-    }
-});
-
+// Same init sequence as dashboard.html: auth -> pin -> read local cache -> render.
+// The background sync kicked off by requireAuthFast keeps that cache fresh;
+// this page never needs its own separate cloud-fetch logic.
+document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireAuthFast('/');
     if (!user) return;
     await requirePin();
 
-    // Greeting
+    loadLocal();
+    await renderGreeting(user);
+    renderCycle();
+    renderStats();
+    renderConstitution(user);
+});
+
+function loadLocal() {
+    try {
+        const j = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
+        if (j.journals) journals = j;
+        const c = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
+        if (c.currentCycle) cycles = c;
+    } catch(e) {}
+}
+
+async function renderGreeting(user) {
     try {
         const profile = await getProfile();
         const name = profile?.name?.split(' ')[0] || user.email?.split('@')[0] || 'Trader';
         const hour = new Date().getHours();
         const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
         document.getElementById('greeting').textContent = `${greet}, ${name}`;
-
         if (profile?.emoji) document.getElementById('profileBtn').textContent = profile.emoji;
-
-        localStorage.setItem('xX_trader_profile', JSON.stringify({ name, emoji: profile?.emoji || '👤' }));
     } catch(e) {
         document.getElementById('greeting').textContent = 'Ready to trade?';
     }
+}
 
-    // ── Fetch fresh trade data directly from the cloud before rendering ──────
-    // Previously this page only read the localStorage cache, which is written
-    // by a background sync that fires ~100ms after page load — so Home could
-    // render stale cycle/stat numbers on first paint. Awaiting the real fetch
-    // here means what you see is always correct, not last session's cache.
-    let trades = [];
-    try {
-        const result = await loadAllTrades();
-        if (result?.journals) {
-            trades = Object.values(result.journals).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+function renderCycle() {
+    const current  = cycles.currentCycle || 1;
+    const tradesIn = cycles.tradesInCurrentCycle || 0;
+    const pct = Math.min((tradesIn / 20) * 100, 100);
+    document.getElementById('cycleText').textContent = `Cycle ${current} · ${tradesIn} / 20 trades`;
+    document.getElementById('cycleFill').style.width  = pct + '%';
+    document.getElementById('homeCurrentCycle').textContent = current;
+    document.getElementById('cycleNumChip').textContent = current;
+    document.getElementById('cycleTradesChip').textContent = tradesIn;
+}
 
-            localStorage.setItem('xX_journal_data', JSON.stringify({
-                journals: result.journals,
-                tradeCounter: result.tradeCounter || 1
-            }));
+function renderStats() {
+    const trades = Object.values(journals.journals || {})
+        .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-            // Recalculate cycles from the real trade count — same logic used by
-            // the background sync, so Home and every other page always agree.
-            const total = trades.length;
-            const done  = Math.floor(total / 20);
-            const inCur = total % 20;
-            const freshCycles = {
-                currentCycle: done + 1,
-                tradesInCurrentCycle: inCur,
-                completedCycles: Array.from({length: done}, (_, i) => ({
-                    cycleNumber: i + 1,
-                    completedAt: trades[(i+1)*20 - 1]?.timestamp || new Date().toISOString()
-                })),
-                allTrades: trades.map(t => t.tradeId)
-            };
-            localStorage.setItem('xX_cycle_data', JSON.stringify(freshCycles));
-        } else {
-            // Cloud fetch returned nothing usable — fall back to cache rather than showing zeros
-            const cached = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
-            trades = Object.values(cached.journals || {}).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
-        }
-    } catch(e) {
-        const cached = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
-        trades = Object.values(cached.journals || {}).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
-    }
-
-    // Cycle bar + chip (now reading the just-refreshed cache, always in sync)
-    let currentCycleNum = 1;
-    try {
-        const cycles = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-        currentCycleNum = cycles.currentCycle || 1;
-        const tradesIn  = cycles.tradesInCurrentCycle || 0;
-        const pct = Math.min((tradesIn / 20) * 100, 100);
-        document.getElementById('cycleText').textContent  = `Cycle ${currentCycleNum} · ${tradesIn} / 20 trades`;
-        document.getElementById('cycleFill').style.width  = pct + '%';
-        document.getElementById('homeCurrentCycle').textContent = currentCycleNum;
-        document.getElementById('cycleNumChip').textContent = currentCycleNum;
-        document.getElementById('cycleTradesChip').textContent = tradesIn;
-    } catch(e) {}
-
-    // Stats + cycle progression chart
-    if (trades.length) {
-        const wins = trades.filter(t => t.outcome === 'WIN').length;
-        document.getElementById('homeTotalTrades').textContent = trades.length;
-        document.getElementById('homeWinRate').textContent = ((wins / trades.length) * 100).toFixed(1) + '%';
-
-        // Current streak (from most recent trade backwards)
-        let streak = 0, streakType = null;
-        for (let i = trades.length - 1; i >= 0; i--) {
-            const o = trades[i].outcome;
-            if (o === 'BREAKEVEN') break;
-            if (streakType === null) { streakType = o; streak = 1; }
-            else if (o === streakType) { streak++; }
-            else break;
-        }
-        document.getElementById('homeStreak').textContent = (streakType === 'LOSS' ? '-' : '') + streak;
-
-        renderCycleProgressionChart(trades, currentCycleNum);
-    } else {
+    if (!trades.length) {
         document.getElementById('homeEquityChart').parentElement.innerHTML = '<div class="empty-state">No trades yet — log your first in New Trade Entry</div>';
+        return;
     }
 
-    // Now that we know who's logged in, migrate the constitution to a
-    // per-user key so different traders on the same browser don't share one.
-    const userConstKey = `xX_constitution_${user.id}`;
-    if (userConstKey !== constKey) {
-        const existingUserValue = localStorage.getItem(userConstKey);
-        if (existingUserValue) {
-            constEl.value = existingUserValue;
-        } else if (localStorage.getItem(constKey)) {
-            // First time this user has loaded Home — carry over whatever was
-            // already typed under the generic key rather than losing it.
-            localStorage.setItem(userConstKey, localStorage.getItem(constKey));
-        }
-        constKey = userConstKey;
+    const wins = trades.filter(t => t.outcome === 'WIN').length;
+    document.getElementById('homeTotalTrades').textContent = trades.length;
+    document.getElementById('homeWinRate').textContent = ((wins / trades.length) * 100).toFixed(1) + '%';
+
+    let streak = 0, streakType = null;
+    for (let i = trades.length - 1; i >= 0; i--) {
+        const o = trades[i].outcome;
+        if (o === 'BREAKEVEN') break;
+        if (streakType === null) { streakType = o; streak = 1; }
+        else if (o === streakType) { streak++; }
+        else break;
     }
+    document.getElementById('homeStreak').textContent = (streakType === 'LOSS' ? '-' : '') + streak;
+
+    renderCycleProgressionChart(trades, cycles.currentCycle || 1);
+}
 
 // Level-progression chart for the CURRENT cycle: trade #1 starts at level 1,
 // WIN moves up (max 11), LOSS moves down (min 1), BE holds — mirrors the EA's
@@ -441,7 +368,6 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         // BE holds — level unchanged
     });
 
-    // Pad out to a fixed 20-slot cycle frame with nulls (renders as gaps, not zeros)
     const CYCLE_LENGTH = 20;
     while (points.length < CYCLE_LENGTH) points.push(null);
     const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
@@ -474,6 +400,13 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     });
 }
 
+// Trader's Constitution — read-only here, now set on Profile. Refreshed on
+// every Home load so edits made in Profile show up immediately.
+function renderConstitution(user) {
+    const key = `xX_constitution_${user.id}`;
+    const text = localStorage.getItem(key) || '';
+    document.getElementById('constitutionDisplay').textContent = text;
+}
 </script>
 </body>
 </html>
