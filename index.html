@@ -272,9 +272,6 @@ document.getElementById('dismissInstall').addEventListener('click', () => {
     localStorage.setItem('xX_install_dismissed', '1');
 });
 
-// Same init sequence as dashboard.html: auth -> pin -> read local cache -> render.
-// The background sync kicked off by requireAuthFast keeps that cache fresh;
-// this page never needs its own separate cloud-fetch logic.
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireAuthFast('/');
     if (!user) return;
@@ -346,10 +343,7 @@ function renderStats() {
     renderCycleProgressionChart(trades, cycles.currentCycle || 1);
 }
 
-// Level-progression chart for the CURRENT cycle: trade #1 starts at level 1,
-// WIN moves up (max 11), LOSS moves down (min 1), BE holds — mirrors the EA's
-// level system. Fixed x-axis of 1–20 (a full cycle) so the frame is always
-// consistent regardless of how many trades have been logged so far.
+// FIXED: Level-progression chart 
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
     const canvas = document.getElementById('homeEquityChart');
@@ -360,8 +354,10 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     }
 
     let level = 1;
-    const points = [1]; // Start at level 1 before any trades
+    // Points array starts with the initial level (before any trades)
+    const points = [1]; 
     
+    // For each trade, we calculate the level AFTER the trade outcome
     cycleTrades.forEach(t => {
         if (t.outcome === 'WIN') level = Math.min(level + 1, 11);
         else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
@@ -369,8 +365,8 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         points.push(level);
     });
 
-    // Labels match the number of points we have (level before trade #1 + level after each trade)
-    const labels = Array.from({length: points.length}, (_, i) => `${i+1}`);
+    // Labels are exactly 1 more than the number of trades (Start + 1 per trade outcome)
+    const labels = points.map((_, i) => `#${i+1}`);
 
     new Chart(canvas, {
         type: 'line',
@@ -390,7 +386,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 pointBorderColor: '#000',
                 pointBorderWidth: 1.5,
                 pointHoverRadius: 6,
-                stepped: 'before',
+                stepped: 'after', // <--- KEY FIX: step occurs AFTER the data point
                 spanGaps: false,
                 fill: true
             }]
