@@ -62,6 +62,10 @@
         .mini-stat-val { font-size:20px; font-weight:800; }
         .mini-stat-label { font-size:10px; color:rgba(255,255,255,0.4); font-weight:600; letter-spacing:0.5px; margin-top:2px; }
 
+        /* New Cycle button */
+        .new-cycle-btn { width:100%; background:rgba(74,144,226,0.12); border:1px solid rgba(74,144,226,0.3); color:#4A90E2; border-radius:8px; padding:12px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s; margin-top:12px; }
+        .new-cycle-btn:hover { background:rgba(74,144,226,0.2); border-color:rgba(74,144,226,0.5); }
+
         /* Cycles list */
         .cycles-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px,1fr)); gap:14px; }
         .cycle-card-item { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; }
@@ -125,18 +129,19 @@
                 <div class="mini-stat"><div class="mini-stat-val" id="curCycleLevel">1</div><div class="mini-stat-label">CURRENT LEVEL</div></div>
                 <div class="mini-stat"><div class="mini-stat-val" id="curCycleTrades">0</div><div class="mini-stat-label">TRADES LOGGED</div></div>
             </div>
+            <button class="new-cycle-btn" id="startNewCycleBtn">🔄 START NEW CYCLE</button>
         </div>
 
         <!-- Completed cycles -->
         <div class="card-title" style="margin:22px 0 12px;font-size:13px;">COMPLETED CYCLES</div>
         <div id="cyclesGrid" class="cycles-grid"></div>
-        <div id="cyclesEmpty" class="empty-state" style="display:none;">No completed cycles yet — finish 20 trades to complete your first one.</div>
+        <div id="cyclesEmpty" class="empty-state" style="display:none;">No completed cycles yet — finish 20 trades or start a new cycle manually to complete your first one.</div>
     </main>
 </div>
 
 <script type="module">
-import { requireAuthFast, requirePin } from '/shared.js';
-import { loadAllTrades } from '/db.js';
+import { requireAuthFast, requirePin, showToast } from '/shared.js';
+import { loadAllTrades, saveCycles } from '/db.js';
 
 const user = await requireAuthFast('/cycles.html');
 if (!user) throw new Error('not authed');
@@ -205,6 +210,55 @@ document.getElementById('curCycleNameSave').addEventListener('click', () => {
     if (val) n[displayCurrentNum] = val; else delete n[displayCurrentNum];
     saveNames(n);
     document.getElementById('curCycleTitle').textContent = val ? `Cycle ${displayCurrentNum} · ${val}` : `Cycle ${displayCurrentNum}`;
+});
+
+// ── Start New Cycle ──────────────────────────────────────────────────────
+document.getElementById('startNewCycleBtn').addEventListener('click', async () => {
+    if (currentTrades.length === 0) {
+        showToast('Cycle is already empty — start trading first.', 'info');
+        return;
+    }
+    
+    // Ask for confirmation
+    if (!confirm(`Start a new cycle? Current cycle (${displayCurrentNum}) will be saved as completed with ${currentTrades.length} trades.`)) return;
+    
+    // Save current cycle as completed
+    const newCycleNum = displayCurrentNum + 1;
+    
+    // Update cycles data structure
+    const completedCycle = {
+        cycleNumber: displayCurrentNum,
+        completedAt: new Date().toISOString(),
+        name: names[displayCurrentNum] || '',
+        trades: currentTrades.map(t => t.tradeId)
+    };
+    
+    // Get existing completed cycles from localStorage
+    let cycleData = {};
+    try {
+        cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
+    } catch(e) {}
+    
+    if (!cycleData.completedCycles) cycleData.completedCycles = [];
+    cycleData.completedCycles.push(completedCycle);
+    cycleData.currentCycle = newCycleNum;
+    cycleData.tradesInCurrentCycle = 0;
+    cycleData.allTrades = cycleData.allTrades || [];
+    
+    // Save to localStorage
+    localStorage.setItem('xX_cycle_data', JSON.stringify(cycleData));
+    
+    // Save to cloud
+    try {
+        await saveCycles(cycleData);
+    } catch(e) {
+        console.warn('Cloud save failed for cycles:', e);
+    }
+    
+    showToast(`Cycle ${displayCurrentNum} completed! Starting Cycle ${newCycleNum}`, 'success');
+    
+    // Reload page to show new cycle
+    setTimeout(() => location.reload(), 800);
 });
 
 // ── Render completed cycles ──────────────────────────────────────────────
