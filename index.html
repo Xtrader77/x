@@ -81,12 +81,22 @@
         .constitution-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; position:sticky; top:26px; }
         .constitution-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
         .constitution-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-bottom:14px; }
-        .const-toggle { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.6); padding:5px 13px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; font-family:'Inter',sans-serif; transition:all 0.15s; }
-        .const-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.3); }
-        .const-toggle.saving { background:rgba(29,185,84,0.15); border-color:rgba(29,185,84,0.4); color:#1DB954; }
-        #constitutionDisplay { font-size:13px; line-height:1.9; color:rgba(255,255,255,0.75); white-space:pre-wrap; min-height:120px; }
-        #constitutionDisplay:empty::before { content:'No rules set yet — add yours in Profile.'; color:rgba(255,255,255,0.3); font-style:italic; }
-        .const-saved-note { font-size:10.5px; color:rgba(255,255,255,0.25); margin-top:10px; text-align:right; }
+        #constitutionDisplay { 
+            font-size: 15px; 
+            line-height: 2; 
+            color: #ffffff; 
+            font-weight: 700; 
+            white-space: pre-wrap; 
+            min-height: 120px; 
+            letter-spacing: 0.3px;
+        }
+        #constitutionDisplay:empty::before { 
+            content: 'No rules set yet — add yours in Profile.'; 
+            color: rgba(255,255,255,0.3); 
+            font-style: italic; 
+            font-weight: 400;
+        }
+        .constitution-card .card-title { margin-bottom:0; }
 
         /* -- Quick action tiles -- */
         .tiles-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
@@ -228,12 +238,11 @@
 
             </div>
 
-            <!-- Trader's Constitution — read-only here; edited on Profile -->
+            <!-- Trader's Constitution — read-only with bold font -->
             <div class="col-side">
                 <div class="constitution-card">
                     <div class="constitution-head">
                         <div class="card-title" style="margin-bottom:0;">TRADER'S CONSTITUTION</div>
-                        <a href="/profile.html" class="const-toggle" style="text-decoration:none;display:inline-block;">EDIT IN PROFILE</a>
                     </div>
                     <div class="constitution-sub">Your personal rules. Read them before every session.</div>
                     <div id="constitutionDisplay" class="constitution-display"></div>
@@ -476,8 +485,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     });
 }
 
-// Trader's Constitution — read-only here, now set on Profile. Refreshed on
-// every Home load so edits made in Profile show up immediately.
+// Trader's Constitution — read-only, bold font
 function renderConstitution(user) {
     const key = `xX_constitution_${user.id}`;
     const text = localStorage.getItem(key) || '';
