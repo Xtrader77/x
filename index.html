@@ -177,7 +177,7 @@
                     <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
                 </div>
 
-                <!-- 20-Slot Chart -->
+                <!-- 20-Slot Chart with BOLD Y-AXIS -->
                 <div class="card">
                     <div class="card-title">CYCLE PROGRESSION</div>
                     <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 11 for this cycle</div>
@@ -343,7 +343,7 @@ function renderStats() {
     renderCycleProgressionChart(trades, cycles.currentCycle || 1);
 }
 
-// 20-SLOT CHART with correct trade numbering
+// 20-SLOT CHART with BOLD, FIXED 0-11 Y-AXIS
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
     const canvas = document.getElementById('homeEquityChart');
@@ -439,32 +439,36 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             },
             scales: {
                 x: {
-                    title: { display:true, text:'Trade # in cycle', color:'rgba(255,255,255,0.3)', font:{size:10} },
+                    title: { display:true, text:'Trade # in cycle', color:'#ffffff', font:{size:11, weight:'bold'} },
                     grid: { display:false },
                     ticks: { 
-                        color: 'rgba(255,255,255,0.35)', 
-                        font: { size: 10 },
+                        color: '#ffffff', 
+                        font: { size: 10, weight: 'bold' },
                         maxTicksLimit: 20,
                         stepSize: 1
                     }
                 },
                 y: {
                     min: 0,
-                    max: 12,
-                    title: { display:true, text:'Level', color:'rgba(255,255,255,0.3)', font:{size:10} },
+                    max: 11,
+                    title: { display:true, text:'Level', color:'#ffffff', font:{size:11, weight:'bold'} },
                     ticks: { 
                         stepSize: 1, 
-                        color: 'rgba(255,255,255,0.5)', 
-                        font: { size: 11, weight: '600' },
+                        color: '#ffffff', 
+                        font: { size: 13, weight: 'bold' },
                         padding: 8
                     },
                     grid: {
                         color: (ctx) => {
-                            if (ctx.tick.value === 1) return 'rgba(29,185,84,0.3)';
-                            if (ctx.tick.value === 5 || ctx.tick.value === 10) return 'rgba(255,255,255,0.1)';
-                            return 'rgba(255,255,255,0.04)';
+                            // ALL lines are visible now
+                            if (ctx.tick.value === 1) return 'rgba(29,185,84,0.5)'; // Bright green for level 1
+                            return 'rgba(255,255,255,0.15)'; // Visible white lines for all other levels
                         },
-                        drawBorder: false
+                        drawBorder: false,
+                        lineWidth: (ctx) => {
+                            // Make the Level 1 line thicker
+                            return ctx.tick.value === 1 ? 2 : 0.8;
+                        }
                     }
                 }
             }
