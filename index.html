@@ -71,7 +71,7 @@
         .progress-track { height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
         .progress-fill  { height:100%; background:linear-gradient(90deg,#1DB954,#4A90E2); border-radius:3px; transition:width 0.4s; }
 
-        .chart-wrap { position:relative; height:300px; /* INCREASED HEIGHT FOR BETTER SPACING */ }
+        .chart-wrap { position:relative; height:300px; }
         .empty-state { text-align:center; padding:30px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
         .chart-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-top:-10px; margin-bottom:14px; }
 
@@ -177,7 +177,7 @@
                     <div class="progress-track"><div class="progress-fill" id="cycleFill" style="width:0%"></div></div>
                 </div>
 
-                <!-- Modern smooth line chart with BETTER Y-AXIS SPACING -->
+                <!-- 20-Slot Chart -->
                 <div class="card">
                     <div class="card-title">CYCLE PROGRESSION</div>
                     <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 11 for this cycle</div>
@@ -343,7 +343,7 @@ function renderStats() {
     renderCycleProgressionChart(trades, cycles.currentCycle || 1);
 }
 
-// MODERN SMOOTH LINE GRAPH with SPACED Y-AXIS
+// 20-SLOT CHART with correct trade numbering
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
     const canvas = document.getElementById('homeEquityChart');
@@ -353,27 +353,37 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         return;
     }
 
+    const CYCLE_LENGTH = 20;
     let level = 1;
-    // Points array starts with the initial level (before any trades)
-    const points = [1]; 
     
-    // For each trade, we calculate the level AFTER the trade outcome
-    cycleTrades.forEach(t => {
+    // Start with nulls for all 20 slots, then fill in the actual trades
+    const points = new Array(CYCLE_LENGTH).fill(null);
+    
+    // Trade #1 starts at level 1
+    points[0] = 1;
+    
+    // Calculate levels for each trade
+    for (let i = 0; i < cycleTrades.length; i++) {
+        const t = cycleTrades[i];
         if (t.outcome === 'WIN') level = Math.min(level + 1, 11);
         else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
         // BE holds — level unchanged
-        points.push(level);
-    });
+        
+        // Only update the point if we haven't exceeded the cycle length
+        if (i + 1 < CYCLE_LENGTH) {
+            points[i + 1] = level;
+        }
+    }
 
-    // Labels are exactly 1 more than the number of trades (Start + 1 per trade outcome)
-    const labels = points.map((_, i) => `#${i+1}`);
+    // Labels: 1 through 20
+    const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
 
     // Create a gradient for the fill
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(29, 185, 84, 0.25)'); // Green at top
-    gradient.addColorStop(0.4, 'rgba(74, 144, 226, 0.12)'); // Blue in middle
-    gradient.addColorStop(1, 'rgba(74, 144, 226, 0.01)');   // Transparent at bottom
+    gradient.addColorStop(0, 'rgba(29, 185, 84, 0.25)');
+    gradient.addColorStop(0.4, 'rgba(74, 144, 226, 0.12)');
+    gradient.addColorStop(1, 'rgba(74, 144, 226, 0.01)');
 
     new Chart(canvas, {
         type: 'line',
@@ -383,7 +393,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 data: points,
                 borderColor: '#1DB954',
                 backgroundColor: gradient,
-                borderWidth: 3, // Slightly thicker for better visibility
+                borderWidth: 3,
                 pointRadius: 5,
                 pointBackgroundColor: (ctx) => {
                     const v = ctx.raw;
@@ -393,7 +403,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 pointBorderColor: '#000',
                 pointBorderWidth: 2,
                 pointHoverRadius: 7,
-                tension: 0.4, // Smooth curve
+                tension: 0.4,
                 spanGaps: false,
                 fill: true
             }]
@@ -421,6 +431,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                     cornerRadius: 8,
                     callbacks: {
                         label: function(context) {
+                            if (context.raw === null) return 'No trade yet';
                             return `Level: ${context.raw}`;
                         }
                     }
@@ -430,11 +441,16 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 x: {
                     title: { display:true, text:'Trade # in cycle', color:'rgba(255,255,255,0.3)', font:{size:10} },
                     grid: { display:false },
-                    ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} }
+                    ticks: { 
+                        color: 'rgba(255,255,255,0.35)', 
+                        font: { size: 10 },
+                        maxTicksLimit: 20,
+                        stepSize: 1
+                    }
                 },
                 y: {
                     min: 0,
-                    max: 12, // Give a little headroom above level 11
+                    max: 12,
                     title: { display:true, text:'Level', color:'rgba(255,255,255,0.3)', font:{size:10} },
                     ticks: { 
                         stepSize: 1, 
@@ -444,9 +460,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                     },
                     grid: {
                         color: (ctx) => {
-                            // Highlight level 1 with a bright green line
                             if (ctx.tick.value === 1) return 'rgba(29,185,84,0.3)';
-                            // Highlight levels 5 and 10 with subtle lines
                             if (ctx.tick.value === 5 || ctx.tick.value === 10) return 'rgba(255,255,255,0.1)';
                             return 'rgba(255,255,255,0.04)';
                         },
