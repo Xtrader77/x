@@ -68,13 +68,16 @@
 
         /* Cycles list */
         .cycles-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px,1fr)); gap:14px; }
-        .cycle-card-item { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; }
+        .cycle-card-item { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; cursor:pointer; transition:all 0.2s; }
+        .cycle-card-item:hover { border-color:rgba(255,255,255,0.25); transform:translateY(-2px); }
         .cycle-card-item.completed { border-color:rgba(255,255,255,0.08); }
+        .cycle-card-item.active-cycle { border-color:#1DB954; box-shadow:0 0 20px rgba(29,185,84,0.1); }
         .cci-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
         .cci-num { font-size:11px; font-weight:700; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
         .cci-status { font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px; letter-spacing:0.5px; }
         .cci-status.done { background:rgba(29,185,84,0.12); border:1px solid rgba(29,185,84,0.3); color:#1DB954; }
         .cci-status.active { background:rgba(255,214,0,0.1); border:1px solid rgba(255,214,0,0.3); color:#ffd600; }
+        .cci-status.current { background:rgba(29,185,84,0.2); border:1px solid rgba(29,185,84,0.5); color:#1DB954; }
         .cci-name-input { width:100%; background:transparent; border:none; border-bottom:1px dashed rgba(255,255,255,0.15); color:#fff; font-size:15px; font-weight:700; padding:4px 0 8px; font-family:'Inter',sans-serif; margin-bottom:10px; }
         .cci-name-input:focus { outline:none; border-bottom-color:rgba(255,255,255,0.4); }
         .cci-name-input::placeholder { color:rgba(255,255,255,0.25); font-weight:600; }
@@ -83,6 +86,11 @@
         .cci-stat-val { font-size:16px; font-weight:800; }
         .cci-stat-label { font-size:9.5px; color:rgba(255,255,255,0.4); font-weight:600; }
         .cci-chart { height:120px; position:relative; }
+
+        /* Switch hint */
+        .switch-hint { font-size:10px; color:rgba(74,144,226,0.4); text-align:center; margin-top:8px; letter-spacing:0.5px; font-weight:600; display:none; }
+        .cycle-card-item:hover .switch-hint { display:block; }
+        .cycle-card-item.active-cycle .switch-hint { display:block; color:rgba(29,185,84,0.6); }
 
         .empty-state { text-align:center; padding:40px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
     </style>
@@ -132,7 +140,7 @@
             <button class="new-cycle-btn" id="startNewCycleBtn">🔄 START NEW CYCLE</button>
         </div>
 
-        <!-- Completed cycles -->
+        <!-- All cycles -->
         <div class="card-title" style="margin:22px 0 12px;font-size:13px;">ALL CYCLES</div>
         <div id="cyclesGrid" class="cycles-grid"></div>
         <div id="cyclesEmpty" class="empty-state" style="display:none;">No cycles yet — log your first trade to start Cycle 1.</div>
@@ -164,10 +172,12 @@ try {
 
 // Group trades into cycles of 20, in trade order (mirrors the save-time cycleNumber logic)
 const cycles = {};
+let maxCycleFromTrades = 0;
 trades.forEach((t, i) => {
     const cycleNum = Math.floor(i / 20) + 1;
     if (!cycles[cycleNum]) cycles[cycleNum] = [];
     cycles[cycleNum].push(t);
+    if (cycleNum > maxCycleFromTrades) maxCycleFromTrades = cycleNum;
 });
 
 const cycleNums = Object.keys(cycles).map(Number).sort((a,b) => a - b);
@@ -178,12 +188,44 @@ const currentTrades = isCurrentComplete ? [] : (cycles[currentCycleNum] || []);
 
 // Load manually created cycles from localStorage
 let manualCycles = [];
+let savedCurrentCycle = 1;
 try {
     const cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
     if (cycleData.manualCycles) {
         manualCycles = cycleData.manualCycles;
     }
+    if (cycleData.currentCycle) {
+        savedCurrentCycle = cycleData.currentCycle;
+    }
 } catch(e) {}
+
+// IMPORTANT: Override the displayed current cycle with the saved one from localStorage
+// This ensures that when you start a new cycle (e.g., Cycle 3), it shows 0 trades even though 
+// the trades array might still be grouping into Cycle 2.
+let actualCurrentNum = savedCurrentCycle;
+let actualCurrentTrades = trades.filter(t => (t.cycleNumber || 1) === actualCurrentNum);
+
+// If the saved cycle has no trades yet, it's a fresh new cycle
+if (actualCurrentTrades.length === 0) {
+    // This is a fresh cycle - start at Level 1, 0 trades
+    document.getElementById('curCycleTitle').textContent = names[actualCurrentNum] ? `Cycle ${actualCurrentNum} · ${names[actualCurrentNum]}` : `Cycle ${actualCurrentNum}`;
+    document.getElementById('curCycleSub').textContent = `0 / 20 trades`;
+    document.getElementById('curCycleFill').style.width = '0%';
+    document.getElementById('curCycleNameInput').value = names[actualCurrentNum] || '';
+    document.getElementById('curCycleWinRate').textContent = '0%';
+    document.getElementById('curCycleTrades').textContent = '0';
+    document.getElementById('curCycleLevel').textContent = '1';
+} else {
+    // Render the cycle with its existing trades
+    const curPct = Math.min((actualCurrentTrades.length / 20) * 100, 100);
+    document.getElementById('curCycleTitle').textContent = names[actualCurrentNum] ? `Cycle ${actualCurrentNum} · ${names[actualCurrentNum]}` : `Cycle ${actualCurrentNum}`;
+    document.getElementById('curCycleSub').textContent = `${actualCurrentTrades.length} / 20 trades`;
+    document.getElementById('curCycleFill').style.width = curPct + '%';
+    document.getElementById('curCycleNameInput').value = names[actualCurrentNum] || '';
+    document.getElementById('curCycleWinRate').textContent = winRate(actualCurrentTrades).toFixed(1) + '%';
+    document.getElementById('curCycleTrades').textContent = actualCurrentTrades.length;
+    document.getElementById('curCycleLevel').textContent = actualCurrentTrades.length ? levelSeries(actualCurrentTrades).endLevel : 1;
+}
 
 function levelSeries(cycleTrades) {
     let level = 1;
@@ -204,76 +246,85 @@ function winRate(cycleTrades) {
 
 // ── Render current cycle card ────────────────────────────────────────────
 const names = getNames();
-const curPct = Math.min((currentTrades.length / 20) * 100, 100);
-document.getElementById('curCycleTitle').textContent = names[displayCurrentNum] ? `Cycle ${displayCurrentNum} · ${names[displayCurrentNum]}` : `Cycle ${displayCurrentNum}`;
-document.getElementById('curCycleSub').textContent = `${currentTrades.length} / 20 trades`;
-document.getElementById('curCycleFill').style.width = curPct + '%';
-document.getElementById('curCycleNameInput').value = names[displayCurrentNum] || '';
-document.getElementById('curCycleWinRate').textContent = winRate(currentTrades).toFixed(1) + '%';
-document.getElementById('curCycleTrades').textContent = currentTrades.length;
-document.getElementById('curCycleLevel').textContent = currentTrades.length ? levelSeries(currentTrades).endLevel : 1;
 
 document.getElementById('curCycleNameSave').addEventListener('click', () => {
     const val = document.getElementById('curCycleNameInput').value.trim();
     const n = getNames();
-    if (val) n[displayCurrentNum] = val; else delete n[displayCurrentNum];
+    if (val) n[actualCurrentNum] = val; else delete n[actualCurrentNum];
     saveNames(n);
-    document.getElementById('curCycleTitle').textContent = val ? `Cycle ${displayCurrentNum} · ${val}` : `Cycle ${displayCurrentNum}`;
+    document.getElementById('curCycleTitle').textContent = val ? `Cycle ${actualCurrentNum} · ${val}` : `Cycle ${actualCurrentNum}`;
 });
 
-// ── Start New Cycle (FORK) ──────────────────────────────────────────────
+// ── Start New Cycle (FORK + HARD RESET) ──────────────────────────────────
 document.getElementById('startNewCycleBtn').addEventListener('click', async () => {
-    if (currentTrades.length === 0) {
-        showToast('Cycle is already empty — start trading first.', 'info');
+    if (actualCurrentTrades.length === 0 && actualCurrentNum > 1) {
+        showToast('This cycle is already empty. Log a trade to start it.', 'info');
         return;
     }
     
-    // Ask for confirmation
-    if (!confirm(`Start a new parallel cycle? 
+    // Calculate the next cycle number (one higher than the highest existing cycle)
+    const highestCycle = Math.max(
+        ...cycleNums,
+        ...manualCycles.map(mc => mc.cycleNumber),
+        actualCurrentNum
+    );
+    const newCycleNum = highestCycle + 1;
     
-Current cycle (${displayCurrentNum}) with ${currentTrades.length} trades will remain active.
-New trades will be assigned to Cycle ${displayCurrentNum + 1}.`)) return;
+    if (!confirm(`Start a fresh new cycle? 
+    
+Current cycle (${actualCurrentNum}) will remain active with ${actualCurrentTrades.length} trades.
+New Cycle ${newCycleNum} will start fresh with 0 trades and Level 1.`)) return;
     
     // Create a new parallel cycle (fork)
-    const newCycleNum = displayCurrentNum + 1;
-    
-    // Update cycles data structure
     const newManualCycle = {
         cycleNumber: newCycleNum,
         createdAt: new Date().toISOString(),
         name: '',
-        trades: [] // Will be filled as new trades come in
+        trades: [] // Empty array - this is a fresh start
     };
     
-    // Get existing cycle data from localStorage
     let cycleData = {};
     try {
         cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
     } catch(e) {}
     
     if (!cycleData.manualCycles) cycleData.manualCycles = [];
-    // Add the new cycle to manual cycles
     cycleData.manualCycles.push(newManualCycle);
-    
-    // Update the active cycle pointer
     cycleData.currentCycle = newCycleNum;
-    cycleData.tradesInCurrentCycle = 0;
+    cycleData.tradesInCurrentCycle = 0; // Explicitly set to 0
     
-    // Save to localStorage
     localStorage.setItem('xX_cycle_data', JSON.stringify(cycleData));
     
-    // Save to cloud
     try {
         await saveCycles(cycleData);
     } catch(e) {
         console.warn('Cloud save failed for cycles:', e);
     }
     
-    showToast(`Started Cycle ${newCycleNum} (parallel). Cycle ${displayCurrentNum} remains active.`, 'success');
-    
-    // Reload page to show new cycle
+    showToast(`Started fresh Cycle ${newCycleNum} with 0 trades!`, 'success');
     setTimeout(() => location.reload(), 800);
 });
+
+// ── Switch to a different cycle ──────────────────────────────────────────
+async function switchToCycle(cycleNum) {
+    const currentCycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
+    currentCycleData.currentCycle = cycleNum;
+    
+    // Recalculate trades in current cycle
+    const cycleTrades = trades.filter(t => (t.cycleNumber || 1) === cycleNum);
+    currentCycleData.tradesInCurrentCycle = cycleTrades.length;
+    
+    localStorage.setItem('xX_cycle_data', JSON.stringify(currentCycleData));
+    
+    try {
+        await saveCycles(currentCycleData);
+    } catch(e) {
+        console.warn('Cloud save failed for cycles:', e);
+    }
+    
+    showToast(`Switched to Cycle ${cycleNum}`, 'success');
+    setTimeout(() => location.reload(), 800);
+}
 
 // ── Render all cycles ────────────────────────────────────────────────────
 // Combine auto-completed cycles from trades and manually created cycles
@@ -294,10 +345,8 @@ cycleNums.forEach(num => {
 
 // 2. Add manually created cycles (forked cycles)
 manualCycles.forEach(mc => {
-    // Check if this cycle already exists in the trades data
     const exists = allCycleData.some(c => c.cycleNumber === mc.cycleNumber);
     if (!exists) {
-        // Find trades assigned to this cycle number
         const cycleTrades = trades.filter(t => t.cycleNumber === mc.cycleNumber);
         allCycleData.push({
             cycleNumber: mc.cycleNumber,
@@ -326,13 +375,14 @@ if (!allCycleData.length) {
         const wr = winRate(cycleTrades);
         const { points } = levelSeries(cycleTrades);
         const isComplete = cycleInfo.isCompleted;
+        const isCurrent = num === actualCurrentNum;
 
         const el = document.createElement('div');
-        el.className = 'cycle-card-item' + (isComplete ? ' completed' : '');
+        el.className = 'cycle-card-item' + (isComplete ? ' completed' : '') + (isCurrent ? ' active-cycle' : '');
         el.innerHTML = `
             <div class="cci-head">
                 <span class="cci-num">CYCLE ${num}</span>
-                <span class="cci-status ${isComplete ? 'done' : 'active'}">${isComplete ? 'COMPLETE' : 'ACTIVE'}</span>
+                <span class="cci-status ${isCurrent ? 'current' : isComplete ? 'done' : 'active'}">${isCurrent ? 'CURRENT' : isComplete ? 'COMPLETE' : 'ACTIVE'}</span>
             </div>
             <input type="text" class="cci-name-input" placeholder="Name this cycle..." value="${(names[num]||'').replace(/"/g,'&quot;')}" data-cycle="${num}">
             <div class="cci-dates">${new Date(first.timestamp).toLocaleDateString()} — ${new Date(last.timestamp).toLocaleDateString()}</div>
@@ -341,8 +391,18 @@ if (!allCycleData.length) {
                 <div><div class="cci-stat-val">${cycleTrades.length}</div><div class="cci-stat-label">TRADES</div></div>
             </div>
             <div class="cci-chart"><canvas id="cycleChart${num}"></canvas></div>
+            <div class="switch-hint">${isCurrent ? '✓ Currently active' : 'Click to switch to this cycle'}</div>
         `;
         grid.appendChild(el);
+
+        // Make the card clickable to switch cycles (only if it's not already current)
+        if (!isCurrent) {
+            el.addEventListener('click', (e) => {
+                // Don't trigger if clicking on the name input
+                if (e.target.tagName === 'INPUT') return;
+                switchToCycle(num);
+            });
+        }
 
         el.querySelector('.cci-name-input').addEventListener('change', (e) => {
             const n = getNames();
@@ -357,9 +417,9 @@ if (!allCycleData.length) {
                 labels: points.map((_, i) => `${i+1}`),
                 datasets: [{
                     data: points,
-                    borderColor: isComplete ? '#4A90E2' : '#1DB954',
-                    backgroundColor: isComplete ? 'rgba(74,144,226,0.08)' : 'rgba(29,185,84,0.08)',
-                    borderWidth: 1.5,
+                    borderColor: isCurrent ? '#1DB954' : isComplete ? '#4A90E2' : '#FFD700',
+                    backgroundColor: isCurrent ? 'rgba(29,185,84,0.12)' : isComplete ? 'rgba(74,144,226,0.08)' : 'rgba(255,215,0,0.08)',
+                    borderWidth: isCurrent ? 2.5 : 1.5,
                     pointRadius: 0,
                     tension: 0.15,
                     fill: true
