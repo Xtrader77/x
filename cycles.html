@@ -176,6 +176,15 @@ const isCurrentComplete = (cycles[currentCycleNum] || []).length >= 20;
 const displayCurrentNum = isCurrentComplete ? currentCycleNum + 1 : currentCycleNum;
 const currentTrades = isCurrentComplete ? [] : (cycles[currentCycleNum] || []);
 
+// Load manually completed cycles from localStorage
+let manualCompletedCycles = [];
+try {
+    const cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
+    if (cycleData.completedCycles) {
+        manualCompletedCycles = cycleData.completedCycles;
+    }
+} catch(e) {}
+
 function levelSeries(cycleTrades) {
     let level = 1;
     const points = [];
@@ -262,14 +271,45 @@ document.getElementById('startNewCycleBtn').addEventListener('click', async () =
 });
 
 // ── Render completed cycles ──────────────────────────────────────────────
-const completedNums = cycleNums.filter(n => cycles[n].length >= 20);
+// Combine auto-completed cycles from trades and manually completed cycles
+const allCompletedCycles = [];
+
+// Add auto-completed cycles from trades
+cycleNums.filter(n => cycles[n].length >= 20).forEach(num => {
+    allCompletedCycles.push({
+        cycleNumber: num,
+        trades: cycles[num].map(t => t.tradeId),
+        fromTrades: true
+    });
+});
+
+// Add manually completed cycles (avoid duplicates)
+manualCompletedCycles.forEach(mc => {
+    if (!allCompletedCycles.some(c => c.cycleNumber === mc.cycleNumber)) {
+        allCompletedCycles.push({
+            cycleNumber: mc.cycleNumber,
+            trades: mc.trades || [],
+            fromTrades: false
+        });
+    }
+});
+
+// Sort by cycle number descending (newest first)
+allCompletedCycles.sort((a, b) => b.cycleNumber - a.cycleNumber);
+
 const grid = document.getElementById('cyclesGrid');
 
-if (!completedNums.length) {
+if (!allCompletedCycles.length) {
     document.getElementById('cyclesEmpty').style.display = 'block';
 } else {
-    completedNums.slice().reverse().forEach(num => {
-        const cycleTrades = cycles[num];
+    allCompletedCycles.forEach(cycleData => {
+        const num = cycleData.cycleNumber;
+        const cycleTrades = cycleData.fromTrades 
+            ? cycles[num] // Get from trades array
+            : trades.filter(t => cycleData.trades.includes(t.tradeId)); // Get from trade IDs
+        
+        if (!cycleTrades || cycleTrades.length === 0) return;
+        
         const first = cycleTrades[0], last = cycleTrades[cycleTrades.length - 1];
         const wr = winRate(cycleTrades);
         const { points } = levelSeries(cycleTrades);
