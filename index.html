@@ -120,34 +120,46 @@
         .empty-state { text-align:center; padding:30px 20px; color:rgba(255,255,255,0.3); font-size:13px; }
         .chart-sub { font-size:11px; color:rgba(255,255,255,0.35); margin-top:-10px; margin-bottom:14px; }
 
-        /* -- Climber: little figure that scales the step chart -- */
+        /* -- Climber: little SVG figure that scales the step chart -- */
         .climber {
             position:absolute;
-            font-size:22px;
-            line-height:1;
+            width:26px;
+            height:34px;
+            line-height:0;
             transform:translate(-50%,-100%);
             transition:left 0.7s cubic-bezier(.34,1.4,.64,1), top 0.7s cubic-bezier(.34,1.4,.64,1), opacity 0.3s;
             pointer-events:none;
             z-index:5;
             opacity:0;
             filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));
-            animation:climberBob 1.1s ease-in-out infinite alternate;
+            animation:climberBob 0.6s ease-in-out infinite alternate;
         }
         .climber::after {
             content:'';
             position:absolute;
             left:50%; bottom:-3px;
-            width:16px; height:5px;
+            width:14px; height:4px;
             transform:translateX(-50%);
             border-radius:50%;
             background:currentColor;
             opacity:0.35;
             filter:blur(1.5px);
-            animation:climberShadowPulse 1.1s ease-in-out infinite alternate;
+            animation:climberShadowPulse 0.6s ease-in-out infinite alternate;
         }
+        .climber-svg { width:100%; height:100%; overflow:visible; display:block; }
+        .climber-svg .c-head { fill:currentColor; }
+        .climber-svg .c-body,
+        .climber-svg .c-leg,
+        .climber-svg .c-arm { stroke:currentColor; stroke-width:3.4; stroke-linecap:round; fill:none; }
+        .climber-svg .c-leg-l { transform-origin:20px 32px; animation:legSwingA 0.6s ease-in-out infinite alternate; }
+        .climber-svg .c-leg-r { transform-origin:20px 32px; animation:legSwingB 0.6s ease-in-out infinite alternate; }
+        .climber-svg .c-arm-l { transform-origin:20px 17px; animation:legSwingB 0.6s ease-in-out infinite alternate; }
+        .climber-svg .c-arm-r { transform-origin:20px 17px; animation:legSwingA 0.6s ease-in-out infinite alternate; }
+        @keyframes legSwingA { 0% { transform:rotate(-20deg); } 100% { transform:rotate(20deg); } }
+        @keyframes legSwingB { 0% { transform:rotate(20deg); } 100% { transform:rotate(-20deg); } }
         @keyframes climberBob {
             0%   { margin-top:0px; }
-            100% { margin-top:-5px; }
+            100% { margin-top:-3px; }
         }
         @keyframes climberShadowPulse {
             0%   { opacity:0.35; width:16px; }
@@ -508,7 +520,15 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         climber.id = 'chartClimber';
         climber.className = 'climber';
         climber.setAttribute('aria-hidden', 'true');
-        climber.textContent = '🧗';
+        climber.innerHTML = `
+            <svg class="climber-svg" viewBox="0 0 40 52">
+                <circle class="c-head" cx="20" cy="8" r="6.5"></circle>
+                <line class="c-body" x1="20" y1="15" x2="20" y2="32"></line>
+                <line class="c-arm c-arm-l" x1="20" y1="17" x2="10" y2="27"></line>
+                <line class="c-arm c-arm-r" x1="20" y1="17" x2="30" y2="27"></line>
+                <line class="c-leg c-leg-l" x1="20" y1="32" x2="10" y2="48"></line>
+                <line class="c-leg c-leg-r" x1="20" y1="32" x2="30" y2="48"></line>
+            </svg>`;
         canvas.parentElement.appendChild(climber);
     }
 
