@@ -533,6 +533,22 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         }
     };
 
+    // Soft glow behind the step line for a more modern feel
+    const stepGlowPlugin = {
+        id: 'stepGlow',
+        beforeDatasetsDraw(chart) {
+            const { ctx } = chart;
+            ctx.save();
+            ctx.shadowColor = hexToRgba(tier.color, 0.55);
+            ctx.shadowBlur = 14;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+        },
+        afterDatasetsDraw(chart) {
+            chart.ctx.restore();
+        }
+    };
+
     new Chart(canvas, {
         type: 'line',
         data: {
@@ -542,7 +558,10 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 borderColor: tier.color,
                 backgroundColor: gradient,
                 borderWidth: 3,
+                borderCapStyle: 'round',
+                borderJoinStyle: 'round',
                 pointRadius: (c) => (c.raw !== null && c.dataIndex === lastFilledIndex(points)) ? 7 : 4,
+                pointStyle: (c) => (c.raw !== null && c.dataIndex === lastFilledIndex(points)) ? 'circle' : 'rectRounded',
                 pointBackgroundColor: (c) => {
                     const v = c.raw;
                     if (v === null) return 'transparent';
@@ -551,12 +570,12 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 pointBorderColor: '#000',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
-                tension: 0.4,
+                stepped: 'after',
                 spanGaps: false,
                 fill: true
             }]
         },
-        plugins: [tierBandsPlugin],
+        plugins: [tierBandsPlugin, stepGlowPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
