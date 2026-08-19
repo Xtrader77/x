@@ -147,6 +147,36 @@
             animation:climberShadowPulse 0.6s ease-in-out infinite alternate;
         }
         .climber-svg { width:100%; height:100%; overflow:visible; display:block; }
+        .climber-inner { width:100%; height:100%; transform-origin:50% 100%; }
+        .climber-inner.anim-win  { animation:climberJump 0.7s cubic-bezier(.34,1.56,.64,1) 1; }
+        .climber-inner.anim-loss { animation:climberFall 0.6s cubic-bezier(.55,.06,.68,.19) 1; }
+        .climber-inner.anim-be   { animation:climberWobble 0.9s ease-in-out 1; }
+        @keyframes climberJump {
+            0%   { transform:scale(1,1) translateY(0); }
+            20%  { transform:scale(1.2,0.75) translateY(3px); }
+            50%  { transform:scale(0.82,1.22) translateY(-16px) rotate(0deg); }
+            75%  { transform:scale(1.1,0.9) translateY(-2px); }
+            100% { transform:scale(1,1) translateY(0); }
+        }
+        @keyframes climberFall {
+            0%   { transform:scale(1,1) translateY(0) rotate(0deg); }
+            25%  { transform:scale(0.9,1.1) translateY(-6px) rotate(-10deg); }
+            55%  { transform:scale(1.22,0.78) translateY(5px) rotate(12deg); }
+            75%  { transform:scale(0.94,1.06) translateY(-2px) rotate(-4deg); }
+            100% { transform:scale(1,1) translateY(0) rotate(0deg); }
+        }
+        @keyframes climberWobble {
+            0%, 100% { transform:translateX(0) rotate(0deg); }
+            10% { transform:translateX(-4px) rotate(-8deg); }
+            20% { transform:translateX(4px) rotate(8deg); }
+            30% { transform:translateX(-4px) rotate(-7deg); }
+            40% { transform:translateX(4px) rotate(7deg); }
+            50% { transform:translateX(-3px) rotate(-5deg); }
+            60% { transform:translateX(3px) rotate(5deg); }
+            70% { transform:translateX(-2px) rotate(-2deg); }
+            80% { transform:translateX(2px) rotate(2deg); }
+            90% { transform:translateX(-1px) rotate(0deg); }
+        }
         .climber-svg .c-head { fill:currentColor; }
         .climber-svg .c-body,
         .climber-svg .c-leg,
@@ -521,14 +551,16 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         climber.className = 'climber';
         climber.setAttribute('aria-hidden', 'true');
         climber.innerHTML = `
-            <svg class="climber-svg" viewBox="0 0 40 52">
-                <circle class="c-head" cx="20" cy="8" r="6.5"></circle>
-                <line class="c-body" x1="20" y1="15" x2="20" y2="32"></line>
-                <line class="c-arm c-arm-l" x1="20" y1="17" x2="10" y2="27"></line>
-                <line class="c-arm c-arm-r" x1="20" y1="17" x2="30" y2="27"></line>
-                <line class="c-leg c-leg-l" x1="20" y1="32" x2="10" y2="48"></line>
-                <line class="c-leg c-leg-r" x1="20" y1="32" x2="30" y2="48"></line>
-            </svg>`;
+            <div class="climber-inner" id="climberInner">
+                <svg class="climber-svg" viewBox="0 0 40 52">
+                    <circle class="c-head" cx="20" cy="8" r="6.5"></circle>
+                    <line class="c-body" x1="20" y1="15" x2="20" y2="32"></line>
+                    <line class="c-arm c-arm-l" x1="20" y1="17" x2="10" y2="27"></line>
+                    <line class="c-arm c-arm-r" x1="20" y1="17" x2="30" y2="27"></line>
+                    <line class="c-leg c-leg-l" x1="20" y1="32" x2="10" y2="48"></line>
+                    <line class="c-leg c-leg-r" x1="20" y1="32" x2="30" y2="48"></line>
+                </svg>
+            </div>`;
         canvas.parentElement.appendChild(climber);
     }
 
@@ -621,6 +653,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
 
     const lastIdx = lastFilledIndex(points);
     const finalLevel = level;
+    const lastOutcome = cycleTrades[cycleTrades.length - 1]?.outcome || null;
 
     const progressionChart = new Chart(canvas, {
         type: 'line',
@@ -655,9 +688,9 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             animation: {
                 duration: 900,
                 easing: 'easeOutCubic',
-                onComplete: (context) => positionClimber(context.chart, lastIdx, finalLevel)
+                onComplete: (context) => positionClimber(context.chart, lastIdx, finalLevel, lastOutcome, true)
             },
-            onResize: (chart) => positionClimber(chart, lastIdx, finalLevel),
+            onResize: (chart) => positionClimber(chart, lastIdx, finalLevel, lastOutcome, false),
             layout: {
                 padding: { top: 10, bottom: 10, left: 0, right: 10 }
             },
@@ -715,19 +748,51 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
 
     // Nudge the climber into place right away too, in case animations
     // are disabled (e.g. reduced-motion) and onComplete never fires.
-    positionClimber(progressionChart, lastIdx, finalLevel);
+    positionClimber(progressionChart, lastIdx, finalLevel, lastOutcome, false);
 }
 
-// Move the little climbing figure to sit on top of the current step
-function positionClimber(chart, index, level) {
+// Move the little climbing figure to sit on top of the current step.
+// outcome ('WIN' | 'LOSS' | 'BREAKEVEN' | null) drives the move's feel:
+// wins leap up, losses drop hard, breakevens hold and shake in tension.
+// triggerReaction gates the celebratory/dramatic animation so resize
+// events just reposition without replaying it.
+function positionClimber(chart, index, level, outcome, triggerReaction) {
     const climber = document.getElementById('chartClimber');
     if (!climber || index < 0 || !chart.scales?.x || !chart.scales?.y) return;
     const xPix = chart.scales.x.getPixelForValue(index);
     const yPix = chart.scales.y.getPixelForValue(level);
+
+    if (outcome === 'WIN') {
+        climber.style.transitionDuration = '0.7s';
+        climber.style.transitionTimingFunction = 'cubic-bezier(.34,1.56,.64,1)';
+    } else if (outcome === 'LOSS') {
+        climber.style.transitionDuration = '0.5s';
+        climber.style.transitionTimingFunction = 'cubic-bezier(.55,.06,.68,.19)';
+    } else {
+        climber.style.transitionDuration = '0.5s';
+        climber.style.transitionTimingFunction = 'cubic-bezier(.34,1.4,.64,1)';
+    }
+
     climber.style.left = `${xPix}px`;
     climber.style.top = `${yPix}px`;
     climber.style.color = tierFor(level).color;
     climber.style.opacity = '1';
+
+    if (triggerReaction) triggerClimberReaction(outcome);
+}
+
+// Plays the win-jump / loss-fall / breakeven-wobble flourish on the climber
+function triggerClimberReaction(outcome) {
+    const inner = document.getElementById('climberInner');
+    if (!inner || !outcome) return;
+    const animClass = outcome === 'WIN' ? 'anim-win' : outcome === 'LOSS' ? 'anim-loss' : 'anim-be';
+
+    inner.classList.remove('anim-win', 'anim-loss', 'anim-be');
+    void inner.offsetWidth; // force reflow so the animation restarts every time
+    inner.classList.add(animClass);
+    inner.addEventListener('animationend', () => {
+        inner.classList.remove(animClass);
+    }, { once: true });
 }
 
 function lastFilledIndex(points) {
