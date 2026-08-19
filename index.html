@@ -151,12 +151,21 @@
         .climber-inner.anim-win  { animation:climberJump 0.7s cubic-bezier(.34,1.56,.64,1) 1; }
         .climber-inner.anim-loss { animation:climberFall 0.6s cubic-bezier(.55,.06,.68,.19) 1; }
         .climber-inner.anim-be   { animation:climberWobble 0.9s ease-in-out 1; }
+        .climber-inner.anim-peak { animation:climberPeakJump 1.1s cubic-bezier(.34,1.8,.4,1) 1; }
         @keyframes climberJump {
             0%   { transform:scale(1,1) translateY(0); }
             20%  { transform:scale(1.2,0.75) translateY(3px); }
             50%  { transform:scale(0.82,1.22) translateY(-16px) rotate(0deg); }
             75%  { transform:scale(1.1,0.9) translateY(-2px); }
             100% { transform:scale(1,1) translateY(0); }
+        }
+        @keyframes climberPeakJump {
+            0%   { transform:scale(1,1) translateY(0) rotate(0deg); }
+            15%  { transform:scale(1.3,0.65) translateY(5px) rotate(-6deg); }
+            45%  { transform:scale(0.75,1.32) translateY(-30px) rotate(190deg); }
+            70%  { transform:scale(1.18,0.85) translateY(-6px) rotate(360deg); }
+            85%  { transform:scale(0.94,1.08) translateY(1px) rotate(360deg); }
+            100% { transform:scale(1,1) translateY(0) rotate(360deg); }
         }
         @keyframes climberFall {
             0%   { transform:scale(1,1) translateY(0) rotate(0deg); }
@@ -194,6 +203,48 @@
         @keyframes climberShadowPulse {
             0%   { opacity:0.35; width:16px; }
             100% { opacity:0.15; width:10px; }
+        }
+
+        /* -- Celebration effects: confetti burst + floating badge for big wins -- */
+        .confetti-particle {
+            position:absolute;
+            top:0; left:0;
+            width:6px; height:6px;
+            border-radius:1px;
+            pointer-events:none;
+            z-index:6;
+            opacity:1;
+            animation-name:confettiBurst;
+            animation-timing-function:cubic-bezier(.15,.8,.3,1);
+            animation-fill-mode:forwards;
+        }
+        @keyframes confettiBurst {
+            0%   { transform:translate(-50%,-50%) rotate(0deg) scale(1); opacity:1; }
+            100% { transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(0.4); opacity:0; }
+        }
+        .celebrate-badge {
+            position:absolute;
+            top:0; left:0;
+            transform:translate(-50%, 4px) scale(0.6);
+            white-space:nowrap;
+            font-size:12px;
+            font-weight:900;
+            letter-spacing:0.4px;
+            padding:6px 12px;
+            border-radius:20px;
+            background:rgba(0,0,0,0.88);
+            border:1px solid rgba(255,214,0,0.5);
+            pointer-events:none;
+            z-index:7;
+            opacity:0;
+            animation:badgePop 1.8s ease-out forwards;
+        }
+        @keyframes badgePop {
+            0%   { opacity:0;   transform:translate(-50%, 4px)   scale(0.6); }
+            15%  { opacity:1;   transform:translate(-50%, -30px) scale(1.1); }
+            25%  { opacity:1;   transform:translate(-50%, -30px) scale(1); }
+            80%  { opacity:1;   transform:translate(-50%, -38px) scale(1); }
+            100% { opacity:0;   transform:translate(-50%, -48px) scale(0.9); }
         }
 
         /* -- Level system: gauge + rank + dot track -- */
@@ -337,7 +388,7 @@
                 <!-- Level system: radial gauge + rank + dot track + 20-slot chart -->
                 <div class="card">
                     <div class="card-title">CYCLE PROGRESSION</div>
-                    <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 11 for this cycle</div>
+                    <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 10 for this cycle</div>
 
                     <div class="level-header" id="levelHeader" style="display:none;">
                         <div class="level-gauge">
@@ -347,7 +398,7 @@
                             </svg>
                             <div class="level-gauge-center">
                                 <div class="level-gauge-num" id="levelGaugeNum">1</div>
-                                <div class="level-gauge-max">OF 11</div>
+                                <div class="level-gauge-max">OF 10</div>
                             </div>
                         </div>
                         <div class="level-info">
@@ -520,12 +571,13 @@ function renderStats() {
     renderCycleProgressionChart(trades, cycles.currentCycle || 1);
 }
 
-// -- Level tiers: rank name + color per level band (1-11) --
+// -- Level tiers: rank name + color per level band (1-10) --
+const MAX_LEVEL = 10;
 const LEVEL_TIERS = [
     { max: 3,  name: 'REBUILDING',  color: '#E22134' },
-    { max: 7,  name: 'IN CONTROL',  color: '#4A90E2' },
-    { max: 10, name: 'DIALED IN',   color: '#1DB954' },
-    { max: 11, name: 'PEAK STATE',  color: '#FFD600' }
+    { max: 6,  name: 'IN CONTROL',  color: '#4A90E2' },
+    { max: 9,  name: 'DIALED IN',   color: '#1DB954' },
+    { max: 10, name: 'PEAK STATE',  color: '#FFD600' }
 ];
 function tierFor(level) {
     return LEVEL_TIERS.find(t => level <= t.max) || LEVEL_TIERS[LEVEL_TIERS.length - 1];
@@ -580,7 +632,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     for (let i = 0; i < cycleTrades.length; i++) {
         const t = cycleTrades[i];
         let move = null;
-        if (t.outcome === 'WIN') { level = Math.min(level + 1, 11); move = 'WIN'; }
+        if (t.outcome === 'WIN') { level = Math.min(level + 1, MAX_LEVEL); move = 'WIN'; }
         else if (t.outcome === 'LOSS') { level = Math.max(level - 1, 1); move = 'LOSS'; }
         // BE holds — level unchanged, streak untouched
 
@@ -616,9 +668,9 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             if (!chartArea) return;
             const bands = [
                 [0, 3, 'rgba(226,33,52,0.05)'],
-                [3, 7, 'rgba(74,144,226,0.045)'],
-                [7, 10, 'rgba(29,185,84,0.05)'],
-                [10, 11, 'rgba(255,214,0,0.06)']
+                [3, 6, 'rgba(74,144,226,0.045)'],
+                [6, 9, 'rgba(29,185,84,0.05)'],
+                [9, 10, 'rgba(255,214,0,0.06)']
             ];
             ctx.save();
             bands.forEach(([from, to, color]) => {
@@ -725,7 +777,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 },
                 y: {
                     min: 0,
-                    max: 11,
+                    max: MAX_LEVEL,
                     title: { display:true, text:'Level', color:'#ffffff', font:{size:11, weight:'bold'} },
                     ticks: {
                         stepSize: 1,
@@ -762,7 +814,10 @@ function positionClimber(chart, index, level, outcome, triggerReaction) {
     const xPix = chart.scales.x.getPixelForValue(index);
     const yPix = chart.scales.y.getPixelForValue(level);
 
-    if (outcome === 'WIN') {
+    if (outcome === 'WIN' && level === MAX_LEVEL) {
+        climber.style.transitionDuration = '1s';
+        climber.style.transitionTimingFunction = 'cubic-bezier(.34,1.8,.4,1)';
+    } else if (outcome === 'WIN') {
         climber.style.transitionDuration = '0.7s';
         climber.style.transitionTimingFunction = 'cubic-bezier(.34,1.56,.64,1)';
     } else if (outcome === 'LOSS') {
@@ -778,21 +833,75 @@ function positionClimber(chart, index, level, outcome, triggerReaction) {
     climber.style.color = tierFor(level).color;
     climber.style.opacity = '1';
 
-    if (triggerReaction) triggerClimberReaction(outcome);
+    if (triggerReaction) triggerClimberReaction(outcome, level);
 }
 
-// Plays the win-jump / loss-fall / breakeven-wobble flourish on the climber
-function triggerClimberReaction(outcome) {
+// Plays the win-jump / loss-fall / breakeven-wobble flourish on the climber.
+// Celebration scales with how high the level is — a plain win at a low
+// level just gets the normal jump, a win into DIALED IN throws a few
+// sparks, and hitting MAX_LEVEL (the top of the cycle) goes full send:
+// a bigger spin-jump, a confetti burst, and a floating badge.
+function triggerClimberReaction(outcome, level) {
+    const climber = document.getElementById('chartClimber');
     const inner = document.getElementById('climberInner');
-    if (!inner || !outcome) return;
-    const animClass = outcome === 'WIN' ? 'anim-win' : outcome === 'LOSS' ? 'anim-loss' : 'anim-be';
+    if (!climber || !inner || !outcome) return;
 
-    inner.classList.remove('anim-win', 'anim-loss', 'anim-be');
+    const tier = tierFor(level);
+    let animClass = outcome === 'WIN' ? 'anim-win' : outcome === 'LOSS' ? 'anim-loss' : 'anim-be';
+
+    if (outcome === 'WIN' && level === MAX_LEVEL) {
+        animClass = 'anim-peak';
+        spawnConfetti(climber, 26, ['#FFD600', '#FFFFFF', '#4A90E2', '#1DB954']);
+        spawnBadge(climber, "🏆 PEAK STATE — YOU'RE LOADED, ABBA!", '#FFD600');
+    } else if (outcome === 'WIN' && tier.name === 'DIALED IN') {
+        spawnConfetti(climber, 10, [tier.color, '#FFFFFF']);
+    }
+
+    inner.classList.remove('anim-win', 'anim-loss', 'anim-be', 'anim-peak');
     void inner.offsetWidth; // force reflow so the animation restarts every time
     inner.classList.add(animClass);
     inner.addEventListener('animationend', () => {
         inner.classList.remove(animClass);
     }, { once: true });
+}
+
+// Bursts small colored particles outward from the climber's current spot
+function spawnConfetti(climber, count, colors) {
+    const wrap = climber.parentElement;
+    if (!wrap) return;
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'confetti-particle';
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 26 + Math.random() * 54;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist - 24; // bias the burst upward
+        p.style.left = climber.style.left;
+        p.style.top = climber.style.top;
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.setProperty('--dx', `${dx}px`);
+        p.style.setProperty('--dy', `${dy}px`);
+        p.style.setProperty('--rot', `${Math.round(Math.random() * 480 - 240)}deg`);
+        p.style.animationDuration = `${0.7 + Math.random() * 0.5}s`;
+        wrap.appendChild(p);
+        p.addEventListener('animationend', () => p.remove());
+    }
+}
+
+// Floats a short celebratory badge up and away from the climber
+function spawnBadge(climber, text, color) {
+    const wrap = climber.parentElement;
+    if (!wrap) return;
+    const badge = document.createElement('div');
+    badge.className = 'celebrate-badge';
+    badge.textContent = text;
+    badge.style.left = climber.style.left;
+    badge.style.top = climber.style.top;
+    badge.style.color = color;
+    badge.style.borderColor = hexToRgba(color, 0.5);
+    badge.style.boxShadow = `0 0 14px ${hexToRgba(color, 0.55)}`;
+    wrap.appendChild(badge);
+    badge.addEventListener('animationend', () => badge.remove());
 }
 
 function lastFilledIndex(points) {
@@ -805,7 +914,7 @@ function hexToRgba(hex, alpha) {
     return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
-// Radial gauge + rank badge + 11-dot level track
+// Radial gauge + rank badge + 10-dot level track
 function renderLevelHeader(level, lastMove, moveStreak) {
     const header = document.getElementById('levelHeader');
     header.style.display = 'flex';
@@ -815,7 +924,7 @@ function renderLevelHeader(level, lastMove, moveStreak) {
     const r = 42, circumference = 2 * Math.PI * r;
     const fill = document.getElementById('levelGaugeFill');
     fill.setAttribute('stroke-dasharray', circumference);
-    fill.setAttribute('stroke-dashoffset', circumference * (1 - level / 11));
+    fill.setAttribute('stroke-dashoffset', circumference * (1 - level / MAX_LEVEL));
     fill.style.stroke = tier.color;
     fill.style.filter = `drop-shadow(0 0 6px ${hexToRgba(tier.color, 0.7)})`;
     const num = document.getElementById('levelGaugeNum');
@@ -838,10 +947,10 @@ function renderLevelHeader(level, lastMove, moveStreak) {
         note.textContent = '';
     }
 
-    // 11-dot level track
+    // 10-dot level track
     const dotsWrap = document.getElementById('levelDots');
     dotsWrap.innerHTML = '';
-    for (let i = 1; i <= 11; i++) {
+    for (let i = 1; i <= MAX_LEVEL; i++) {
         const d = document.createElement('div');
         d.className = 'level-dot';
         if (i <= level) {
