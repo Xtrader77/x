@@ -752,8 +752,10 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
 
     renderLevelHeader(level, lastMove, moveStreak);
 
-    // Labels: 1 through however many trades this cycle has had
-    const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
+    // Labels: 0 (starting point, before any trade) through however many
+    // trades this cycle has had — starting at 0 keeps the start flag's
+    // marker from sitting on top of trade #1's own data point.
+    const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i}`);
     const tier = tierFor(level);
 
     // Create a gradient for the fill, tinted to the current tier
