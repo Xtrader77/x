@@ -146,6 +146,24 @@
             filter:blur(1.5px);
             animation:climberShadowPulse 0.6s ease-in-out infinite alternate;
         }
+        /* Ongoing ambient glow while parked at MAX_LEVEL — loops forever,
+           independent of the one-off jump/confetti/badge flourishes */
+        .climber.is-peak::before {
+            content:'';
+            position:absolute;
+            left:50%; top:40%;
+            width:44px; height:44px;
+            transform:translate(-50%,-50%);
+            border-radius:50%;
+            background:radial-gradient(circle, rgba(255,214,0,0.5) 0%, rgba(255,214,0,0) 70%);
+            z-index:-1;
+            pointer-events:none;
+            animation:peakAuraPulse 1.8s ease-in-out infinite;
+        }
+        @keyframes peakAuraPulse {
+            0%, 100% { opacity:0.5; transform:translate(-50%,-50%) scale(0.85); }
+            50%      { opacity:1;   transform:translate(-50%,-50%) scale(1.3); }
+        }
         .climber-svg { width:100%; height:100%; overflow:visible; display:block; }
         .climber-inner { width:100%; height:100%; transform-origin:50% 100%; }
         .climber-inner.anim-win  { animation:climberJump 0.7s cubic-bezier(.34,1.56,.64,1) 1; }
@@ -203,6 +221,32 @@
         @keyframes climberShadowPulse {
             0%   { opacity:0.35; width:16px; }
             100% { opacity:0.15; width:10px; }
+        }
+
+        /* -- Race flags: start line (level 1) and finish/winning line (MAX_LEVEL) -- */
+        .race-flag {
+            position:absolute;
+            width:26px;
+            height:26px;
+            transform:translate(-100%,-50%);
+            margin-left:-6px;
+            pointer-events:none;
+            z-index:4;
+            opacity:0;
+            transition:left 0.4s ease, top 0.4s ease, opacity 0.5s;
+        }
+        .race-flag svg { width:100%; height:100%; overflow:visible; display:block; }
+        .flag-wave { transform-origin:5px 8px; animation:flagWave 2.2s ease-in-out infinite; }
+        @keyframes flagWave {
+            0%, 100% { transform:skewY(0deg) scaleX(1); }
+            50%      { transform:skewY(-7deg) scaleX(0.94); }
+        }
+        .race-flag.finish.is-lit .flag-wave {
+            animation:flagWave 2.2s ease-in-out infinite, finishGlowPulse 1.8s ease-in-out infinite;
+        }
+        @keyframes finishGlowPulse {
+            0%, 100% { filter:drop-shadow(0 0 3px rgba(255,214,0,0.5)); }
+            50%      { filter:drop-shadow(0 0 9px rgba(255,214,0,1)); }
         }
 
         /* -- Celebration effects: confetti burst + floating badge for big wins -- */
@@ -579,6 +623,17 @@ const LEVEL_TIERS = [
     { max: 9,  name: 'DIALED IN',   color: '#1DB954' },
     { max: 10, name: 'PEAK STATE',  color: '#FFD600' }
 ];
+// Rotating flavor text for the ongoing peak-state badge pops
+const PEAK_MESSAGES = [
+    "🏆 PEAK STATE — YOU'RE LOADED, ABBA!",
+    "💰 STILL UP HERE, ABBA!",
+    "🔥 PEAK STATE HOLDING!",
+    "🚀 ABBA THE GOAT!"
+];
+// Keeps the peak-state celebration running (confetti + badge pops) on a
+// timer for as long as the climber sits at MAX_LEVEL — not just once.
+let peakCelebrationTimer = null;
+let peakCelebrationClimberRef = null;
 function tierFor(level) {
     return LEVEL_TIERS.find(t => level <= t.max) || LEVEL_TIERS[LEVEL_TIERS.length - 1];
 }
@@ -589,6 +644,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     const canvas = document.getElementById('homeEquityChart');
 
     if (!cycleTrades.length) {
+        stopPeakCelebration();
         canvas.parentElement.innerHTML = '<div class="empty-state">No trades in this cycle yet — your level will move here as you win or lose</div>';
         document.getElementById('levelHeader').style.display = 'none';
         return;
@@ -616,10 +672,60 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
         canvas.parentElement.appendChild(climber);
     }
 
-    const CYCLE_LENGTH = 20;
+    // Start (level 1) and finish (level MAX_LEVEL) flags — recreated the
+    // same way as the climber if a prior empty-state render wiped them out.
+    let startFlag = document.getElementById('raceFlagStart');
+    if (!startFlag) {
+        startFlag = document.createElement('div');
+        startFlag.id = 'raceFlagStart';
+        startFlag.className = 'race-flag';
+        startFlag.setAttribute('aria-hidden', 'true');
+        startFlag.innerHTML = `
+            <svg viewBox="0 0 30 30">
+                <line x1="5" y1="2" x2="5" y2="28" stroke="#c8ccd4" stroke-width="2" stroke-linecap="round"></line>
+                <path class="flag-wave" d="M5 3 L26 8 L5 14 Z" fill="#2ECC71"></path>
+            </svg>`;
+        canvas.parentElement.appendChild(startFlag);
+    }
+
+    let finishFlag = document.getElementById('raceFlagFinish');
+    if (!finishFlag) {
+        finishFlag = document.createElement('div');
+        finishFlag.id = 'raceFlagFinish';
+        finishFlag.className = 'race-flag finish';
+        finishFlag.setAttribute('aria-hidden', 'true');
+        finishFlag.innerHTML = `
+            <svg viewBox="0 0 30 30">
+                <line x1="5" y1="2" x2="5" y2="28" stroke="#c8ccd4" stroke-width="2" stroke-linecap="round"></line>
+                <g class="flag-wave">
+                    <clipPath id="finishFlagClip">
+                        <path d="M5 3 L26 8 L5 14 Z"></path>
+                    </clipPath>
+                    <g clip-path="url(#finishFlagClip)">
+                        <rect x="5" y="3" width="22" height="11" fill="#f2f2f2"></rect>
+                        <rect x="5"  y="3"  width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="12.4" y="3"  width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="19.8" y="3"  width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="8.7"  y="6.7" width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="16.1" y="6.7" width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="23.5" y="6.7" width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="5"  y="10.4" width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="12.4" y="10.4" width="3.7" height="3.7" fill="#141414"></rect>
+                        <rect x="19.8" y="10.4" width="3.7" height="3.7" fill="#141414"></rect>
+                    </g>
+                </g>
+            </svg>`;
+        canvas.parentElement.appendChild(finishFlag);
+    }
+
+    // The chart used to hard-cap at 20 plotted slots, which meant trading
+    // past 20 trades in one cycle silently dropped off the graph — e.g. a
+    // loss right after finally reaching level 10 wouldn't show. Size the
+    // array to the actual number of trades so the flow always continues.
+    const CYCLE_LENGTH = Math.max(20, cycleTrades.length + 1);
     let level = 1;
 
-    // Start with nulls for all 20 slots, then fill in the actual trades
+    // Start with nulls for all slots, then fill in the actual trades
     const points = new Array(CYCLE_LENGTH).fill(null);
 
     // Trade #1 starts at level 1
@@ -641,15 +747,12 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             else { lastMove = move; moveStreak = 1; }
         }
 
-        // Only update the point if we haven't exceeded the cycle length
-        if (i + 1 < CYCLE_LENGTH) {
-            points[i + 1] = level;
-        }
+        points[i + 1] = level;
     }
 
     renderLevelHeader(level, lastMove, moveStreak);
 
-    // Labels: 1 through 20
+    // Labels: 1 through however many trades this cycle has had
     const labels = Array.from({length: CYCLE_LENGTH}, (_, i) => `${i+1}`);
     const tier = tierFor(level);
 
@@ -740,9 +843,15 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
             animation: {
                 duration: 900,
                 easing: 'easeOutCubic',
-                onComplete: (context) => positionClimber(context.chart, lastIdx, finalLevel, lastOutcome, true)
+                onComplete: (context) => {
+                    positionClimber(context.chart, lastIdx, finalLevel, lastOutcome, true);
+                    positionRaceFlags(context.chart);
+                }
             },
-            onResize: (chart) => positionClimber(chart, lastIdx, finalLevel, lastOutcome, false),
+            onResize: (chart) => {
+                positionClimber(chart, lastIdx, finalLevel, lastOutcome, false);
+                positionRaceFlags(chart);
+            },
             layout: {
                 padding: { top: 10, bottom: 10, left: 0, right: 10 }
             },
@@ -801,6 +910,15 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     // Nudge the climber into place right away too, in case animations
     // are disabled (e.g. reduced-motion) and onComplete never fires.
     positionClimber(progressionChart, lastIdx, finalLevel, lastOutcome, false);
+    positionRaceFlags(progressionChart);
+
+    // Keep celebrating for as long as the climber is sitting at the top —
+    // this runs on a timer, not just once when it first arrives.
+    if (finalLevel === MAX_LEVEL) {
+        startPeakCelebration(climber);
+    } else {
+        stopPeakCelebration();
+    }
 }
 
 // Move the little climbing figure to sit on top of the current step.
@@ -834,6 +952,27 @@ function positionClimber(chart, index, level, outcome, triggerReaction) {
     climber.style.opacity = '1';
 
     if (triggerReaction) triggerClimberReaction(outcome, level);
+}
+
+// Pins the start (level 1) and finish (MAX_LEVEL) flags to the left edge
+// of the chart, at the trade-#0 x position, vertically aligned to their
+// respective level lines. They don't move once the axes are set — only
+// resize needs to reposition them.
+function positionRaceFlags(chart) {
+    if (!chart.scales?.x || !chart.scales?.y) return;
+    const xPix = chart.scales.x.getPixelForValue(0);
+    const startFlag = document.getElementById('raceFlagStart');
+    if (startFlag) {
+        startFlag.style.left = `${xPix}px`;
+        startFlag.style.top = `${chart.scales.y.getPixelForValue(1)}px`;
+        startFlag.style.opacity = '1';
+    }
+    const finishFlag = document.getElementById('raceFlagFinish');
+    if (finishFlag) {
+        finishFlag.style.left = `${xPix}px`;
+        finishFlag.style.top = `${chart.scales.y.getPixelForValue(MAX_LEVEL)}px`;
+        finishFlag.style.opacity = '1';
+    }
 }
 
 // Plays the win-jump / loss-fall / breakeven-wobble flourish on the climber.
@@ -902,6 +1041,44 @@ function spawnBadge(climber, text, color) {
     badge.style.boxShadow = `0 0 14px ${hexToRgba(color, 0.55)}`;
     wrap.appendChild(badge);
     badge.addEventListener('animationend', () => badge.remove());
+}
+
+// Starts (or restarts, on the current climber element) a repeating
+// celebration while the climber is parked at MAX_LEVEL: a golden pulsing
+// aura the whole time, plus a small confetti burst every few seconds and
+// an occasional rotating badge pop. Keeps going until stopPeakCelebration
+// is called — it does NOT need the page to be refreshed or a new trade
+// to be logged to keep firing.
+function startPeakCelebration(climber) {
+    stopPeakCelebration();
+    if (!climber) return;
+    peakCelebrationClimberRef = climber;
+    climber.classList.add('is-peak');
+    document.getElementById('raceFlagFinish')?.classList.add('is-lit');
+
+    let tick = 0;
+    peakCelebrationTimer = setInterval(() => {
+        if (!climber.isConnected) { stopPeakCelebration(); return; }
+        spawnConfetti(climber, 8, ['#FFD600', '#FFFFFF', '#4A90E2', '#1DB954']);
+        tick++;
+        if (tick % 4 === 0) {
+            const msg = PEAK_MESSAGES[Math.floor(Math.random() * PEAK_MESSAGES.length)];
+            spawnBadge(climber, msg, '#FFD600');
+        }
+    }, 3000);
+}
+
+// Stops the repeating peak celebration and removes the ambient glow
+function stopPeakCelebration() {
+    if (peakCelebrationTimer) {
+        clearInterval(peakCelebrationTimer);
+        peakCelebrationTimer = null;
+    }
+    if (peakCelebrationClimberRef) {
+        peakCelebrationClimberRef.classList.remove('is-peak');
+        peakCelebrationClimberRef = null;
+    }
+    document.getElementById('raceFlagFinish')?.classList.remove('is-lit');
 }
 
 function lastFilledIndex(points) {
