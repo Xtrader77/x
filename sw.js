@@ -1,5 +1,5 @@
-// xX Trading Journal — Service Worker v3 (cache-first, fast)
-const CACHE = 'xx-v3';
+// xX Trading Journal — Service Worker v4 (cache-first, fast)
+const CACHE = 'xx-v4';
 const PRECACHE = [
     '/',
     '/index.html',

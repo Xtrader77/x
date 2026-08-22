@@ -346,7 +346,13 @@ export async function loadLabEntries() {
         .eq('user_id', user.id)
         .order('timestamp', { ascending: false });
 
-    if (error || !data) return [];
+    // Throw on a real fetch/query error instead of silently returning [] —
+    // callers that "trust the cloud" need to be able to tell a genuine
+    // empty result apart from a failed request, or a transient network
+    // error can look identical to "you deleted everything" and wipe local
+    // caches that were actually fine.
+    if (error) throw new Error(error.message);
+    if (!data) return [];
 
     return data.map(e => ({
         id: e.id,
@@ -427,7 +433,11 @@ export async function loadReviews() {
         .eq('user_id', user.id)
         .order('timestamp', { ascending: false });
 
-    if (error || !data) return [];
+    // Same reasoning as loadLabEntries: a real error must not look like a
+    // legitimately empty review list, or a transient failure here would
+    // wipe the local review cache that improvement.html relies on.
+    if (error) throw new Error(error.message);
+    if (!data) return [];
 
     return data.map(r => ({
         id: r.id,
