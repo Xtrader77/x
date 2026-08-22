@@ -390,11 +390,7 @@ textarea{min-height:80px;resize:vertical;}
 
 <script type="module">
 import { requireAuthFast, requirePin, showToast } from '/shared.js';
-<<<<<<< HEAD
-import { saveReview as cloudSaveReview, loadReviews as cloudLoadReviews, deleteReview as cloudDeleteReview } from '/db.js';
-=======
 import { saveReview as dbSaveReview, loadReviews as dbLoadReviews, deleteReview as dbDeleteReview } from '/db.js';
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
 
 const IMP_KEY = 'xX_improvement_engine';
 const JNL_KEY = 'xX_journal_data';
@@ -415,13 +411,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
   await requirePin();
 
-<<<<<<< HEAD
-  // Load local cache first for instant paint, then refresh from cloud
-  loadData();
-  render();
-  wireEvents();
-  await syncFromCloud();
-=======
   // Render instantly from local cache so the page never looks empty on load...
   loadData();
   render();
@@ -432,7 +421,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // logging out and back in: the cloud copy is fetched and trusted here
   // instead of only ever reading whatever survived in localStorage.
   await syncReviewsFromCloud();
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
 });
 
 function loadData() {
@@ -440,17 +428,6 @@ function loadData() {
   try { const j = JSON.parse(localStorage.getItem(JNL_KEY) || '{}'); trades = Object.values(j.journals || {}); } catch { trades = []; }
 }
 
-<<<<<<< HEAD
-// Pull the authoritative review list from Supabase and refresh the UI + cache
-async function syncFromCloud() {
-  try {
-    const cloudReviews = await cloudLoadReviews();
-    reviews = cloudReviews;
-    localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
-    render();
-  } catch (e) {
-    console.error('Failed to load reviews from cloud:', e);
-=======
 // Pull the authoritative review list from Supabase and use it to replace
 // whatever's in memory/localStorage. Reviews are only ever written by this
 // device/user, so "cloud wins" is safe and also self-heals any local cache
@@ -467,7 +444,6 @@ async function syncReviewsFromCloud() {
     cloudSynced = 'error';
     render();
     // Keep whatever loaded from local cache; user can retry with Sync button.
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
   }
 }
 
@@ -495,12 +471,7 @@ function initTabs() {
 // ── Wire all events ───────────────────────────────────────
 function wireEvents() {
   document.getElementById('syncBtn').addEventListener('click', async () => {
-<<<<<<< HEAD
-    loadData();
-    await syncFromCloud();
-=======
     await syncReviewsFromCloud();
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
     showToast('Synced ✓', 'success');
   });
 
@@ -845,37 +816,17 @@ async function saveReview() {
     tradeDirection:t?.direction||'N/A', tradeOutcome:t?.outcome||'N/A'
   };
 
-<<<<<<< HEAD
   if (existIdx>-1) reviews[existIdx] = review;
   else reviews.unshift(review);
-=======
-  const existIdx = reviews.findIndex(r => r.tradeId===tradeId);
-  let saved;
-  if (existIdx>-1) {
-    if (!confirm('Already reviewed. Update?')) return;
-    saved = {...review, id:reviews[existIdx].id, resolved:reviews[existIdx].resolved};
-    reviews[existIdx] = saved;
-  } else {
-    saved = review;
-    reviews.unshift(saved);
-  }
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
 
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
   render(); clearForm();
 
-<<<<<<< HEAD
   const saveBtn = document.getElementById('saveBtn');
   if (saveBtn) saveBtn.disabled = true;
-  const result = await cloudSaveReview(review.id, review);
+  const result = await dbSaveReview(review.id, review);
   if (saveBtn) saveBtn.disabled = false;
 
-  if (result.success) {
-    showToast('Review saved ✓','success');
-  } else {
-    showToast('Saved locally, but cloud sync failed: ' + (result.error||'unknown error'), 'error');
-=======
-  const result = await dbSaveReview(saved);
   if (result.success) {
     showToast('Review saved ✓','success');
   } else {
@@ -883,7 +834,6 @@ async function saveReview() {
     // reached the cloud yet — otherwise it'll vanish again on next logout.
     cloudSynced = 'error'; renderOverview();
     showToast(`Saved locally only — ${result.error}`,'error');
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
   }
 }
 
@@ -934,20 +884,12 @@ window.toggleRes = async id => {
   r.resolved = !r.resolved;
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
   renderOverview(); renderTracker();
-<<<<<<< HEAD
-  const result = await cloudSaveReview(r.id, r);
-  if (result.success) {
-    showToast(r.resolved?'Resolved ✓':'Marked active','success');
-  } else {
-    showToast('Saved locally, but cloud sync failed: ' + (result.error||'unknown error'), 'error');
-=======
   showToast(r.resolved?'Resolved ✓':'Marked active','success');
 
-  const result = await dbSaveReview(r);
+  const result = await dbSaveReview(r.id, r);
   if (!result.success) {
     cloudSynced = 'error'; renderOverview();
     showToast(`Status saved locally only — ${result.error}`,'error');
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
   }
 };
 window.delRev = async id => {
@@ -955,17 +897,11 @@ window.delRev = async id => {
   reviews = reviews.filter(x=>x.id!==id);
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
   render(); showToast('Deleted','success');
-<<<<<<< HEAD
-  const result = await cloudDeleteReview(id);
-  if (!result.success) {
-    showToast('Deleted locally, but cloud delete failed: ' + (result.error||'unknown error'), 'error');
-=======
 
   const result = await dbDeleteReview(id);
   if (!result.success) {
     cloudSynced = 'error'; renderOverview();
     showToast(`Deleted locally only — ${result.error}`,'error');
->>>>>>> fabe6ff2c603d1e0db3115bf6e430113bfef7614
   }
 };
 
