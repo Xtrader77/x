@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
@@ -266,6 +267,7 @@ textarea{min-height:80px;resize:vertical;}
     <div class="exp-row">
       <button class="exp-btn" id="csvBtn">📋 CSV</button>
       <button class="exp-btn" id="xlsxBtn">📊 Excel</button>
+      <button class="exp-btn" id="pdfBtn">🧾 PDF Report</button>
     </div>
   </div>
 </div>
@@ -388,6 +390,7 @@ textarea{min-height:80px;resize:vertical;}
 
 <script type="module">
 import { requireAuthFast, requirePin, showToast } from '/shared.js';
+import { saveReview as dbSaveReview, loadReviews as dbLoadReviews, deleteReview as dbDeleteReview } from '/db.js';
 
 const IMP_KEY = 'xX_improvement_engine';
 const JNL_KEY = 'xX_journal_data';
@@ -395,6 +398,7 @@ const JNL_KEY = 'xX_journal_data';
 let reviews = [], trades = [], tradeOpts = [];
 let curFilter = 'all', wkOffset = 0;
 let catCh = null, execCh = null, mindCh = null;
+let cloudSynced = false; // true once we've confirmed reviews against Supabase this session
 
 // ── Boot ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -407,15 +411,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
   await requirePin();
 
-  // Load data and render
+  // Render instantly from local cache so the page never looks empty on load...
   loadData();
   render();
   wireEvents();
+
+  // ...then reconcile against the cloud, which is now the source of truth.
+  // This is what actually fixes reviews reverting to "unreviewed" after
+  // logging out and back in: the cloud copy is fetched and trusted here
+  // instead of only ever reading whatever survived in localStorage.
+  await syncReviewsFromCloud();
 });
 
 function loadData() {
   try { reviews = JSON.parse(localStorage.getItem(IMP_KEY) || '[]'); if (!Array.isArray(reviews)) reviews = []; } catch { reviews = []; }
   try { const j = JSON.parse(localStorage.getItem(JNL_KEY) || '{}'); trades = Object.values(j.journals || {}); } catch { trades = []; }
+}
+
+// Pull the authoritative review list from Supabase and use it to replace
+// whatever's in memory/localStorage. Reviews are only ever written by this
+// device/user, so "cloud wins" is safe and also self-heals any local cache
+// that got wiped by logout.
+async function syncReviewsFromCloud() {
+  try {
+    const cloud = await dbLoadReviews();
+    reviews = cloud; // cloud is authoritative — including resolved/active status
+    localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
+    cloudSynced = true;
+    render();
+  } catch (e) {
+    console.warn('[reviews sync]', e);
+    cloudSynced = 'error';
+    render();
+    // Keep whatever loaded from local cache; user can retry with Sync button.
+  }
 }
 
 function render() {
@@ -441,8 +470,9 @@ function initTabs() {
 
 // ── Wire all events ───────────────────────────────────────
 function wireEvents() {
-  document.getElementById('syncBtn').addEventListener('click', () => {
-    loadData(); render(); showToast('Synced ✓', 'success');
+  document.getElementById('syncBtn').addEventListener('click', async () => {
+    await syncReviewsFromCloud();
+    showToast('Synced ✓', 'success');
   });
 
   // Form
@@ -468,6 +498,7 @@ function wireEvents() {
   // Exports
   document.getElementById('csvBtn').addEventListener('click', expCSV);
   document.getElementById('xlsxBtn').addEventListener('click', expXLSX);
+  document.getElementById('pdfBtn').addEventListener('click', expPDF);
 
   // Init form state
   initFormOptions();
@@ -512,7 +543,12 @@ function renderOverview() {
   setStyle('p2-fill','width', p2pct+'%');
 
   document.getElementById('statusBar').innerHTML =
-    `${total} trades · ${wins}W ${losses}L · ${wr}% win rate · ${reviews.length} reviews logged`;
+    `${total} trades · ${wins}W ${losses}L · ${wr}% win rate · ${reviews.length} reviews logged` +
+    (cloudSynced===true
+      ? ` · <span style="color:var(--green)">☁ synced</span>`
+      : cloudSynced==='error'
+        ? ` · <span style="color:var(--red)">☁ sync failed — tap Sync</span>`
+        : ` · <span style="color:var(--gold)">☁ syncing…</span>`);
 
   const twEl = document.getElementById('ov-top-win');
   twEl.innerHTML = topWin
@@ -751,7 +787,7 @@ function updateFormLabels() {
   }
 }
 
-function saveReview() {
+async function saveReview() {
   const tradeId    = document.getElementById('tradePicker').value;
   const reviewType = document.getElementById('reviewType').value;
   const category   = document.getElementById('mistakeCat').value||'';
@@ -778,16 +814,28 @@ function saveReview() {
   };
 
   const existIdx = reviews.findIndex(r => r.tradeId===tradeId);
+  let saved;
   if (existIdx>-1) {
     if (!confirm('Already reviewed. Update?')) return;
-    reviews[existIdx] = {...review, id:reviews[existIdx].id, resolved:reviews[existIdx].resolved};
+    saved = {...review, id:reviews[existIdx].id, resolved:reviews[existIdx].resolved};
+    reviews[existIdx] = saved;
   } else {
-    reviews.unshift(review);
+    saved = review;
+    reviews.unshift(saved);
   }
 
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
-  showToast('Review saved ✓','success');
-  loadData(); render(); clearForm();
+  render(); clearForm();
+
+  const result = await dbSaveReview(saved);
+  if (result.success) {
+    showToast('Review saved ✓','success');
+  } else {
+    // Kept locally so the user doesn't lose it, but flag that it hasn't
+    // reached the cloud yet — otherwise it'll vanish again on next logout.
+    cloudSynced = 'error'; renderOverview();
+    showToast(`Saved locally only — ${result.error}`,'error');
+  }
 }
 
 function clearForm() {
@@ -831,19 +879,31 @@ function renderTracker() {
   }).join('');
 }
 
-window.toggleRes = id => {
+window.toggleRes = async id => {
   const r = reviews.find(x=>x.id===id);
   if (!r) return;
   r.resolved = !r.resolved;
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
   renderOverview(); renderTracker();
   showToast(r.resolved?'Resolved ✓':'Marked active','success');
+
+  const result = await dbSaveReview(r);
+  if (!result.success) {
+    cloudSynced = 'error'; renderOverview();
+    showToast(`Status saved locally only — ${result.error}`,'error');
+  }
 };
-window.delRev = id => {
+window.delRev = async id => {
   if (!confirm('Delete this review?')) return;
   reviews = reviews.filter(x=>x.id!==id);
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
-  loadData(); render(); showToast('Deleted','success');
+  render(); showToast('Deleted','success');
+
+  const result = await dbDeleteReview(id);
+  if (!result.success) {
+    cloudSynced = 'error'; renderOverview();
+    showToast(`Deleted locally only — ${result.error}`,'error');
+  }
 };
 
 // ── Weekly ────────────────────────────────────────────────
@@ -950,12 +1010,55 @@ function setStyle(id,p,v){ const e=document.getElementById(id); if(e) e.style[p]
 function esc(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
 // ── Exports ───────────────────────────────────────────────
-function buildRows(){
-  const rtL={mistake:'Mistake',good:'Good Trade',mixed:'Mixed',be:'Breakeven'};
-  return reviews.map(r=>({'Review ID':r.id,'Trade ID':r.tradeId,'Date':r.date,'Type':rtL[r.reviewType]||r.reviewType,'Pair':r.tradePair,'Direction':r.tradeDirection,'Outcome':r.tradeOutcome,'Trade Reason':r.tradeReason,'Category':r.category,'Severity':r.severity,'Status':r.resolved?'Resolved':'Active','Notes':r.description,'Action Plan':r.action}));
+// Column layout mirrors the "Trading Journal Report" write-up format
+// (Trade Direction / Result / Trade Summary / Key Mistake / Lesson Learned /
+// Improvement Action / Trade Reason) so CSV/Excel rows read the same way
+// the PDF report reads, just flattened into a table.
+const RESULT_LBL   = {WIN:'Win', LOSS:'Loss', BREAKEVEN:'Breakeven'};
+const REVIEW_TYPE_LBL = {mistake:'Mistake', good:'Good Trade', mixed:'Mixed', be:'Breakeven'};
+
+function keyFieldLabel(r){
+  return r.reviewType==='good' ? 'Key Strength'
+       : r.reviewType==='be'   ? 'What Happened'
+       : 'Key Mistake';
+}
+function keyFieldValue(r){
+  if (r.category && r.category!=='N/A') return r.category;
+  return r.reviewType==='good' ? 'Clean execution' : 'N/A';
+}
+// The form only captures one freeform "what to do next time" field, so for
+// export/report purposes it's presented both as a short Lesson Learned line
+// and broken into an Improvement Action checklist — matching the sample
+// report's structure without asking the user to type the same thing twice.
+function actionChecklistLines(text){
+  if (!text) return [];
+  let parts = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if (parts.length<=1) parts = text.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+  return parts;
+}
+function actionChecklistText(text){
+  return actionChecklistLines(text).map(p=>`[ ] ${p}`).join('\n');
+}
+
+// Excel/CSV rows can have different "Key Mistake"/"Key Strength" fields
+// depending on review type — normalized to one fixed header
+// ("Key Mistake / Strength") so every row lines up in the same table
+// instead of columns shifting per-row.
+function normalizedRows(){
+  return reviews.map(r=>({
+    'Trade ID': r.tradeId, 'Date': r.date, 'Pair': r.tradePair,
+    'Trade Direction': r.tradeDirection, 'Result': RESULT_LBL[r.tradeOutcome]||r.tradeOutcome,
+    'Review Type': REVIEW_TYPE_LBL[r.reviewType]||r.reviewType,
+    'Trade Summary': r.description,
+    'Key Mistake / Strength': keyFieldValue(r),
+    'Lesson Learned': r.action,
+    'Improvement Action': actionChecklistText(r.action),
+    'Trade Reason': r.tradeReason, 'Severity': r.severity,
+    'Status': r.resolved?'Resolved':'Active'
+  }));
 }
 function expCSV(){
-  const rows=buildRows(); if(!rows.length){showToast('No reviews','error');return;}
+  const rows=normalizedRows(); if(!rows.length){showToast('No reviews','error');return;}
   const h=Object.keys(rows[0]);
   const csv=[h.join(','),...rows.map(r=>h.map(k=>`"${String(r[k]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
   dl(new Blob([csv],{type:'text/csv'}),`xX_Improvement_${new Date().toISOString().split('T')[0]}.csv`);
@@ -963,11 +1066,83 @@ function expCSV(){
 }
 function expXLSX(){
   if(!window.XLSX){showToast('Loading...','info');return;}
-  const rows=buildRows(); if(!rows.length){showToast('No reviews','error');return;}
+  const rows=normalizedRows(); if(!rows.length){showToast('No reviews','error');return;}
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Reviews');
   XLSX.writeFile(wb,`xX_Improvement_${new Date().toISOString().split('T')[0]}.xlsx`);
   showToast('Excel exported ✓','success');
 }
+
+// Full narrative PDF report — one page per review, formatted like a
+// "Trading Journal Report" write-up: Trade Direction, Result, Trade
+// Summary, Key Mistake/Strength, Lesson Learned, Improvement Action
+// checklist, and Trade Reason.
+function expPDF(){
+  if(!window.jspdf){showToast('PDF library loading...','error');return;}
+  if(!reviews.length){showToast('No reviews','error');return;}
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const marginL = 14, pageW = 210, textW = pageW - marginL*2;
+  let y;
+
+  const heading = (txt) => { doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.text(txt, marginL, y); y += 6; doc.setFont(undefined,'normal'); doc.setFontSize(10.5); };
+  const paragraph = (txt) => {
+    const lines = doc.splitTextToSize(txt || 'N/A', textW);
+    lines.forEach(line => {
+      if (y > 280) { doc.addPage(); y = 20; }
+      doc.text(line, marginL, y); y += 5.5;
+    });
+    y += 3;
+  };
+
+  reviews.forEach((r, i) => {
+    if (i>0) doc.addPage();
+    y = 20;
+
+    doc.setFont(undefined,'bold'); doc.setFontSize(16);
+    doc.text(`Trading Journal Report – ${r.tradePair||'N/A'}`, marginL, y); y += 9;
+
+    doc.setFont(undefined,'normal'); doc.setFontSize(10);
+    doc.setTextColor(110);
+    doc.text(`${r.tradeId||''}  ·  ${r.date||''}  ·  ${REVIEW_TYPE_LBL[r.reviewType]||r.reviewType}${r.resolved?'  ·  Resolved':'  ·  Active'}`, marginL, y);
+    doc.setTextColor(0);
+    y += 9;
+
+    doc.setFontSize(11);
+    doc.text(`Trade Direction: ${r.tradeDirection||'N/A'}`, marginL, y); y += 6;
+    doc.text(`Result: ${RESULT_LBL[r.tradeOutcome]||r.tradeOutcome||'N/A'}`, marginL, y); y += 9;
+
+    heading('Trade Summary');
+    paragraph(r.description);
+
+    heading(keyFieldLabel(r));
+    paragraph(keyFieldValue(r));
+
+    heading('Lesson Learned');
+    paragraph(r.action);
+
+    heading('Improvement Action');
+    const items = actionChecklistLines(r.action);
+    if (!items.length) { paragraph('N/A'); }
+    else items.forEach(item => {
+      const lines = doc.splitTextToSize(item, textW - 6);
+      lines.forEach((line, li) => {
+        if (y > 280) { doc.addPage(); y = 20; }
+        doc.text((li===0?'[ ] ':'     ') + line, marginL, y); y += 5.5;
+      });
+    });
+    y += 3;
+
+    if (r.tradeReason && r.tradeReason!=='N/A') {
+      doc.setFont(undefined,'italic');
+      paragraph(`Trade Reason: ${r.tradeReason}`);
+      doc.setFont(undefined,'normal');
+    }
+  });
+
+  doc.save(`xX_Improvement_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  showToast('PDF exported ✓','success');
+}
+
 function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
 </script>
 </body>

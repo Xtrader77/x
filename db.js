@@ -378,3 +378,79 @@ export async function deleteLabEntry(entryId) {
     if (error) return { success: false, error: error.message };
     return { success: true };
 }
+
+// ── Improvement Reviews ──────────────────────────────────────────────────────
+// Cloud-backed so reviews survive logout/login and switching devices — the
+// Improvement page previously stored reviews (and their resolved/active
+// status) in localStorage only, which is wiped on every sign-out, making
+// reviewed trades look "un-reviewed" again after logging back in.
+export async function saveReview(review) {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Not logged in — please sign out and sign back in' };
+
+    const row = {
+        id: review.id,
+        user_id: user.id,
+        trade_id: review.tradeId || null,
+        review_type: review.reviewType || null,
+        category: review.category || null,
+        severity: review.severity || null,
+        description: review.description || null,
+        action: review.action || null,
+        resolved: !!review.resolved,
+        trade_reason: review.tradeReason || null,
+        trade_pair: review.tradePair || null,
+        trade_direction: review.tradeDirection || null,
+        trade_outcome: review.tradeOutcome || null,
+        date_label: review.date || null,
+        timestamp: review.timestamp || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('reviews').upsert(row);
+    if (error) {
+        const msg = error.code === '42501'
+            ? 'RLS error on reviews table — run the SQL fix in Supabase dashboard'
+            : error.message;
+        return { success: false, error: msg };
+    }
+    return { success: true };
+}
+
+export async function loadReviews() {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map(r => ({
+        id: r.id,
+        tradeId: r.trade_id,
+        reviewType: r.review_type,
+        category: r.category,
+        severity: r.severity,
+        description: r.description,
+        action: r.action,
+        resolved: !!r.resolved,
+        tradeReason: r.trade_reason,
+        tradePair: r.trade_pair,
+        tradeDirection: r.trade_direction,
+        tradeOutcome: r.trade_outcome,
+        date: r.date_label,
+        timestamp: r.timestamp
+    }));
+}
+
+export async function deleteReview(reviewId) {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Not logged in' };
+    const { error } = await supabase.from('reviews').delete().eq('id', reviewId).eq('user_id', user.id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
