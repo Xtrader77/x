@@ -291,6 +291,78 @@ export async function loadCycles() {
     };
 }
 
+// ── Improvement Reviews ───────────────────────────────────────────────────────
+// Trade reviews logged on the Improvement page (root-cause tags, action plans)
+export async function saveReview(reviewId, data) {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Not logged in — please sign out and sign back in' };
+
+    const row = {
+        id: reviewId,
+        user_id: user.id,
+        trade_id: data.tradeId || null,
+        review_type: data.reviewType || null,
+        category: data.category || null,
+        severity: data.severity || null,
+        description: data.description || null,
+        action: data.action || null,
+        resolved: !!data.resolved,
+        timestamp: data.timestamp || new Date().toISOString(),
+        trade_reason: data.tradeReason || null,
+        trade_pair: data.tradePair || null,
+        trade_direction: data.tradeDirection || null,
+        trade_outcome: data.tradeOutcome || null,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('reviews').upsert(row);
+    if (error) {
+        const msg = error.code === '42501'
+            ? 'RLS error on reviews table — run the SQL fix'
+            : error.message;
+        return { success: false, error: msg };
+    }
+    return { success: true };
+}
+
+export async function loadReviews() {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map(r => ({
+        id: r.id,
+        tradeId: r.trade_id,
+        reviewType: r.review_type,
+        category: r.category,
+        severity: r.severity,
+        description: r.description,
+        action: r.action,
+        resolved: r.resolved,
+        timestamp: r.timestamp,
+        date: r.timestamp ? new Date(r.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
+        tradeReason: r.trade_reason,
+        tradePair: r.trade_pair,
+        tradeDirection: r.trade_direction,
+        tradeOutcome: r.trade_outcome
+    }));
+}
+
+export async function deleteReview(reviewId) {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Not logged in' };
+    const { error } = await supabase.from('reviews').delete().eq('id', reviewId).eq('user_id', user.id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
 function safeJSON(val, fallback) {
     if (val === null || val === undefined) return fallback;
     if (typeof val === 'object') return val;

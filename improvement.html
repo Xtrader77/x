@@ -388,6 +388,7 @@ textarea{min-height:80px;resize:vertical;}
 
 <script type="module">
 import { requireAuthFast, requirePin, showToast } from '/shared.js';
+import { saveReview as cloudSaveReview, loadReviews as cloudLoadReviews, deleteReview as cloudDeleteReview } from '/db.js';
 
 const IMP_KEY = 'xX_improvement_engine';
 const JNL_KEY = 'xX_journal_data';
@@ -407,15 +408,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
   await requirePin();
 
-  // Load data and render
+  // Load local cache first for instant paint, then refresh from cloud
   loadData();
   render();
   wireEvents();
+  await syncFromCloud();
 });
 
 function loadData() {
   try { reviews = JSON.parse(localStorage.getItem(IMP_KEY) || '[]'); if (!Array.isArray(reviews)) reviews = []; } catch { reviews = []; }
   try { const j = JSON.parse(localStorage.getItem(JNL_KEY) || '{}'); trades = Object.values(j.journals || {}); } catch { trades = []; }
+}
+
+// Pull the authoritative review list from Supabase and refresh the UI + cache
+async function syncFromCloud() {
+  try {
+    const cloudReviews = await cloudLoadReviews();
+    reviews = cloudReviews;
+    localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
+    render();
+  } catch (e) {
+    console.error('Failed to load reviews from cloud:', e);
+  }
 }
 
 function render() {
@@ -441,8 +455,10 @@ function initTabs() {
 
 // ── Wire all events ───────────────────────────────────────
 function wireEvents() {
-  document.getElementById('syncBtn').addEventListener('click', () => {
-    loadData(); render(); showToast('Synced ✓', 'success');
+  document.getElementById('syncBtn').addEventListener('click', async () => {
+    loadData();
+    await syncFromCloud();
+    showToast('Synced ✓', 'success');
   });
 
   // Form
@@ -751,7 +767,7 @@ function updateFormLabels() {
   }
 }
 
-function saveReview() {
+async function saveReview() {
   const tradeId    = document.getElementById('tradePicker').value;
   const reviewType = document.getElementById('reviewType').value;
   const category   = document.getElementById('mistakeCat').value||'';
@@ -768,26 +784,34 @@ function saveReview() {
   if (t?.outcome==='WIN'  && reviewType==='mistake') { showToast('WIN trades cannot be logged as mistakes','error'); return; }
   if (t?.outcome==='LOSS' && reviewType==='good')    { showToast('LOSS trades cannot be logged as good trades','error'); return; }
 
+  const existIdx = reviews.findIndex(r => r.tradeId===tradeId);
+  if (existIdx>-1 && !confirm('Already reviewed. Update?')) return;
+
   const review = {
-    id:`REV_${Date.now()}`, tradeId, reviewType,
+    id: existIdx>-1 ? reviews[existIdx].id : `REV_${Date.now()}`, tradeId, reviewType,
     category:category||'N/A', severity, description:desc, action,
-    resolved:false, timestamp:new Date().toISOString(),
+    resolved: existIdx>-1 ? reviews[existIdx].resolved : false, timestamp:new Date().toISOString(),
     date:new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
     tradeReason:t?.reason||'N/A', tradePair:t?.pair||'N/A',
     tradeDirection:t?.direction||'N/A', tradeOutcome:t?.outcome||'N/A'
   };
 
-  const existIdx = reviews.findIndex(r => r.tradeId===tradeId);
-  if (existIdx>-1) {
-    if (!confirm('Already reviewed. Update?')) return;
-    reviews[existIdx] = {...review, id:reviews[existIdx].id, resolved:reviews[existIdx].resolved};
-  } else {
-    reviews.unshift(review);
-  }
+  if (existIdx>-1) reviews[existIdx] = review;
+  else reviews.unshift(review);
 
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
-  showToast('Review saved ✓','success');
-  loadData(); render(); clearForm();
+  render(); clearForm();
+
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.disabled = true;
+  const result = await cloudSaveReview(review.id, review);
+  if (saveBtn) saveBtn.disabled = false;
+
+  if (result.success) {
+    showToast('Review saved ✓','success');
+  } else {
+    showToast('Saved locally, but cloud sync failed: ' + (result.error||'unknown error'), 'error');
+  }
 }
 
 function clearForm() {
@@ -831,19 +855,28 @@ function renderTracker() {
   }).join('');
 }
 
-window.toggleRes = id => {
+window.toggleRes = async id => {
   const r = reviews.find(x=>x.id===id);
   if (!r) return;
   r.resolved = !r.resolved;
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
   renderOverview(); renderTracker();
-  showToast(r.resolved?'Resolved ✓':'Marked active','success');
+  const result = await cloudSaveReview(r.id, r);
+  if (result.success) {
+    showToast(r.resolved?'Resolved ✓':'Marked active','success');
+  } else {
+    showToast('Saved locally, but cloud sync failed: ' + (result.error||'unknown error'), 'error');
+  }
 };
-window.delRev = id => {
+window.delRev = async id => {
   if (!confirm('Delete this review?')) return;
   reviews = reviews.filter(x=>x.id!==id);
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
-  loadData(); render(); showToast('Deleted','success');
+  render(); showToast('Deleted','success');
+  const result = await cloudDeleteReview(id);
+  if (!result.success) {
+    showToast('Deleted locally, but cloud delete failed: ' + (result.error||'unknown error'), 'error');
+  }
 };
 
 // ── Weekly ────────────────────────────────────────────────
