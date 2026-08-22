@@ -394,6 +394,7 @@ import { saveReview as dbSaveReview, loadReviews as dbLoadReviews, deleteReview 
 
 const IMP_KEY = 'xX_improvement_engine';
 const JNL_KEY = 'xX_journal_data';
+const PENDING_DEL_KEY = 'xX_improvement_pending_deletes';
 
 let reviews = [], trades = [], tradeOpts = [];
 let curFilter = 'all', wkOffset = 0;
@@ -416,11 +417,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   render();
   wireEvents();
 
-  // ...then reconcile against the cloud, which is now the source of truth.
-  // This is what actually fixes reviews reverting to "unreviewed" after
-  // logging out and back in: the cloud copy is fetched and trusted here
-  // instead of only ever reading whatever survived in localStorage.
+  // ...then reconcile against the cloud, which is now the source of truth
+  // for anything already confirmed synced. Anything still pending a cloud
+  // write survives this and gets retried — see syncReviewsFromCloud below.
   await syncReviewsFromCloud();
+
+  // Also retry automatically whenever the connection comes back, so a
+  // review saved while offline/flaky doesn't just sit there until the
+  // user remembers to tap Sync.
+  window.addEventListener('online', () => syncReviewsFromCloud());
 });
 
 function loadData() {
@@ -428,16 +433,47 @@ function loadData() {
   try { const j = JSON.parse(localStorage.getItem(JNL_KEY) || '{}'); trades = Object.values(j.journals || {}); } catch { trades = []; }
 }
 
-// Pull the authoritative review list from Supabase and use it to replace
-// whatever's in memory/localStorage. Reviews are only ever written by this
-// device/user, so "cloud wins" is safe and also self-heals any local cache
-// that got wiped by logout.
+// Pull the authoritative review list from Supabase and reconcile it against
+// local state — WITHOUT ever dropping a review that hasn't been confirmed
+// saved to the cloud yet. Each review carries a `synced` flag: true once
+// its write to Supabase has actually succeeded. On sync:
+//   - any local review still marked unsynced is kept no matter what the
+//     cloud says, and its save is retried
+//   - everything else defers to the cloud copy (source of truth for
+//     resolved/active status, edits made on other devices, etc.)
+// This is what actually fixes reviews vanishing: previously a successful
+// cloud *fetch* would blindly replace the whole local list, so a review
+// whose *save* silently failed (or just hadn't landed yet) got wiped out
+// the next time this page loaded.
 async function syncReviewsFromCloud() {
   try {
-    const cloud = await dbLoadReviews();
-    reviews = cloud; // cloud is authoritative — including resolved/active status
+    // Retry any deletes that failed to reach the cloud before fetching,
+    // so a stale server-side row can't resurrect below.
+    const pendingDeletes = getPendingDeletes();
+    for (const id of pendingDeletes) {
+      const result = await dbDeleteReview(id);
+      if (result.success) removePendingDelete(id);
+    }
+    const stillPendingDeletes = new Set(getPendingDeletes());
+
+    const cloud = (await dbLoadReviews()).filter(r => !stillPendingDeletes.has(r.id));
+    const cloudIds = new Set(cloud.map(r => r.id));
+    const pending = reviews.filter(r => r.synced === false && !cloudIds.has(r.id));
+
+    reviews = [...pending, ...cloud.map(r => ({ ...r, synced: true }))];
     localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
-    cloudSynced = true;
+    cloudSynced = (pending.length || stillPendingDeletes.size) ? 'error' : true;
+    render();
+
+    // Retry pushing whatever's still pending
+    for (const r of pending) {
+      const result = await dbSaveReview(r.id, r);
+      if (result.success) {
+        r.synced = true;
+        localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
+      }
+    }
+    cloudSynced = (reviews.some(r => r.synced === false) || getPendingDeletes().length) ? 'error' : true;
     render();
   } catch (e) {
     console.warn('[reviews sync]', e);
@@ -813,7 +849,8 @@ async function saveReview() {
     resolved: existIdx>-1 ? reviews[existIdx].resolved : false, timestamp:new Date().toISOString(),
     date:new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
     tradeReason:t?.reason||'N/A', tradePair:t?.pair||'N/A',
-    tradeDirection:t?.direction||'N/A', tradeOutcome:t?.outcome||'N/A'
+    tradeDirection:t?.direction||'N/A', tradeOutcome:t?.outcome||'N/A',
+    synced:false // not yet confirmed saved to Supabase — cleared to true below on success
   };
 
   if (existIdx>-1) reviews[existIdx] = review;
@@ -828,10 +865,13 @@ async function saveReview() {
   if (saveBtn) saveBtn.disabled = false;
 
   if (result.success) {
+    review.synced = true;
+    localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
     showToast('Review saved ✓','success');
   } else {
-    // Kept locally so the user doesn't lose it, but flag that it hasn't
-    // reached the cloud yet — otherwise it'll vanish again on next logout.
+    // Kept locally (and marked unsynced) so the outbox retry in
+    // syncReviewsFromCloud picks it up and pushes it again later instead
+    // of it silently vanishing on the next cloud reconcile.
     cloudSynced = 'error'; renderOverview();
     showToast(`Saved locally only — ${result.error}`,'error');
   }
@@ -882,12 +922,16 @@ window.toggleRes = async id => {
   const r = reviews.find(x=>x.id===id);
   if (!r) return;
   r.resolved = !r.resolved;
+  r.synced = false;
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
   renderOverview(); renderTracker();
   showToast(r.resolved?'Resolved ✓':'Marked active','success');
 
   const result = await dbSaveReview(r.id, r);
-  if (!result.success) {
+  if (result.success) {
+    r.synced = true;
+    localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
+  } else {
     cloudSynced = 'error'; renderOverview();
     showToast(`Status saved locally only — ${result.error}`,'error');
   }
@@ -896,14 +940,32 @@ window.delRev = async id => {
   if (!confirm('Delete this review?')) return;
   reviews = reviews.filter(x=>x.id!==id);
   localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
+  addPendingDelete(id);
   render(); showToast('Deleted','success');
 
   const result = await dbDeleteReview(id);
-  if (!result.success) {
+  if (result.success) {
+    removePendingDelete(id);
+  } else {
+    // Left in the pending-deletes list so the next sync retries it —
+    // otherwise a failed cloud delete would resurrect this review the
+    // next time the cloud copy is fetched.
     cloudSynced = 'error'; renderOverview();
     showToast(`Deleted locally only — ${result.error}`,'error');
   }
 };
+
+function getPendingDeletes() {
+  try { const a = JSON.parse(localStorage.getItem(PENDING_DEL_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; }
+}
+function addPendingDelete(id) {
+  const list = getPendingDeletes();
+  if (!list.includes(id)) list.push(id);
+  localStorage.setItem(PENDING_DEL_KEY, JSON.stringify(list));
+}
+function removePendingDelete(id) {
+  localStorage.setItem(PENDING_DEL_KEY, JSON.stringify(getPendingDeletes().filter(x=>x!==id)));
+}
 
 // ── Weekly ────────────────────────────────────────────────
 function renderWeekly() {
