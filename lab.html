@@ -560,9 +560,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     render();
     wireForm();
 
-    // Background sync
+    // Background sync — trust the cloud whenever the fetch succeeds, even
+    // if it legitimately comes back empty (e.g. all entries were deleted,
+    // or this is a fresh device). Previously an empty cloud result was
+    // treated the same as a failed fetch, so deleted entries could
+    // silently reappear from stale local cache.
     loadLabEntries().then(cloud => {
-        if (cloud?.length) {
+        if (Array.isArray(cloud)) {
             entries = cloud;
             localStorage.setItem(LAB_KEY, JSON.stringify(entries));
             render();
