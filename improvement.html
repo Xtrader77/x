@@ -254,12 +254,12 @@ textarea{min-height:80px;resize:vertical;}
 
   <div class="card">
     <div class="card-hd">MISTAKE CATEGORIES</div>
-    <div class="chart-box"><canvas id="cat-chart"></canvas></div>
+    <div class="chart-box"><canvas id="cat-chart"></canvas><div id="cat-chart-empty" class="empty" style="display:none">No mistake categories logged yet</div></div>
   </div>
 
   <div class="card">
     <div class="card-hd">LOSSES BY EXECUTION</div>
-    <div class="chart-box"><canvas id="exec-chart"></canvas></div>
+    <div class="chart-box"><canvas id="exec-chart"></canvas><div id="exec-chart-empty" class="empty" style="display:none">No losses yet</div></div>
   </div>
 
   <div class="card">
@@ -372,7 +372,7 @@ textarea{min-height:80px;resize:vertical;}
   </div>
   <div class="card">
     <div class="card-hd">MINDSET vs WIN RATE</div>
-    <div class="chart-box"><canvas id="mind-chart"></canvas></div>
+    <div class="chart-box"><canvas id="mind-chart"></canvas><div id="mind-chart-empty" class="empty" style="display:none">No mindset data this week</div></div>
   </div>
   <div class="card">
     <div class="card-hd">CHECKLIST COMPLIANCE</div>
@@ -463,7 +463,6 @@ async function syncReviewsFromCloud() {
     reviews = [...pending, ...cloud.map(r => ({ ...r, synced: true }))];
     localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
     cloudSynced = (pending.length || stillPendingDeletes.size) ? 'error' : true;
-    render();
 
     // Retry pushing whatever's still pending
     for (const r of pending) {
@@ -474,13 +473,18 @@ async function syncReviewsFromCloud() {
       }
     }
     cloudSynced = (reviews.some(r => r.synced === false) || getPendingDeletes().length) ? 'error' : true;
-    render();
   } catch (e) {
+    // A genuine network/Supabase failure — keep whatever loaded from local
+    // cache and let the user retry with the Sync button.
     console.warn('[reviews sync]', e);
     cloudSynced = 'error';
-    render();
-    // Keep whatever loaded from local cache; user can retry with Sync button.
   }
+
+  // Rendering happens outside the sync try/catch on purpose: a bug in the
+  // UI layer must never get mislabeled as "cloud sync failed" — that sends
+  // people chasing Supabase/RLS issues that don't exist. If render() itself
+  // throws, that's a real rendering bug and should surface as one.
+  render();
 }
 
 function render() {
@@ -607,8 +611,11 @@ function renderOvCharts(mRevs) {
   mRevs.forEach(r => { if (r.category && r.category !== 'N/A') catCounts[r.category] = (catCounts[r.category]||0)+1; });
   const cats = Object.keys(catCounts).sort((a,b) => catCounts[b]-catCounts[a]);
   const ccEl = document.getElementById('cat-chart');
+  const ccEmptyEl = document.getElementById('cat-chart-empty');
   if (catCh) { catCh.destroy(); catCh = null; }
-  if (cats.length) {
+  if (cats.length && ccEl) {
+    ccEl.style.display = '';
+    if (ccEmptyEl) ccEmptyEl.style.display = 'none';
     catCh = new Chart(ccEl, {
       type:'bar',
       data:{ labels:cats, datasets:[{ data:cats.map(c=>catCounts[c]), backgroundColor:cats.map((_,i)=>`hsl(${i*45},65%,55%)`), borderWidth:0, borderRadius:4 }] },
@@ -616,13 +623,19 @@ function renderOvCharts(mRevs) {
         scales:{ y:{beginAtZero:true,ticks:{color:'rgba(255,255,255,0.45)',stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}},
                  x:{ticks:{color:'rgba(255,255,255,0.55)',maxRotation:40,font:{size:9}},grid:{display:false}} } }
     });
-  } else { ccEl.parentElement.innerHTML = '<div class="empty">No mistake categories logged yet</div>'; }
+  } else {
+    if (ccEl) ccEl.style.display = 'none';
+    if (ccEmptyEl) ccEmptyEl.style.display = '';
+  }
 
   // Exec doughnut
   const lss = trades.filter(t => t.outcome === 'LOSS');
   const exEl = document.getElementById('exec-chart');
+  const exEmptyEl = document.getElementById('exec-chart-empty');
   if (execCh) { execCh.destroy(); execCh = null; }
-  if (lss.length) {
+  if (lss.length && exEl) {
+    exEl.style.display = '';
+    if (exEmptyEl) exEmptyEl.style.display = 'none';
     const lim = lss.filter(t=>t.execution==='limit').length;
     const ins = lss.filter(t=>t.execution==='instant').length;
     const oth = lss.length - lim - ins;
@@ -632,7 +645,10 @@ function renderOvCharts(mRevs) {
       options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
         plugins:{ legend:{ position:'bottom', labels:{ color:'rgba(255,255,255,0.65)', font:{size:11}, padding:14 } } } }
     });
-  } else { exEl.parentElement.innerHTML = '<div class="empty">No losses yet</div>'; }
+  } else {
+    if (exEl) exEl.style.display = 'none';
+    if (exEmptyEl) exEmptyEl.style.display = '';
+  }
 }
 
 // ── Wins ──────────────────────────────────────────────────
@@ -1005,8 +1021,11 @@ function renderWeekly() {
   wt.filter(t=>t.mindset).forEach(t=>mb[t.mindset].push(t.outcome==='WIN'?1:0));
   const mWRs=[1,2,3,4,5].map(m=>mb[m].length?Math.round((mb[m].reduce((a,b)=>a+b,0)/mb[m].length)*100):null);
   const mCtx=document.getElementById('mind-chart');
+  const mEmptyEl=document.getElementById('mind-chart-empty');
   if(mindCh){mindCh.destroy();mindCh=null;}
-  if([1,2,3,4,5].some(m=>mb[m].length)){
+  if([1,2,3,4,5].some(m=>mb[m].length) && mCtx){
+    mCtx.style.display = '';
+    if (mEmptyEl) mEmptyEl.style.display = 'none';
     mindCh=new Chart(mCtx,{
       type:'bar',
       data:{labels:['😤1','😟2','😐3','😊4','🔥5'],datasets:[
@@ -1020,7 +1039,10 @@ function renderWeekly() {
         },
         plugins:{legend:{labels:{color:'rgba(255,255,255,0.55)',font:{size:10},padding:12}}}}
     });
-  } else { mCtx.parentElement.innerHTML='<div class="empty">No mindset data this week</div>'; }
+  } else {
+    if (mCtx) mCtx.style.display = 'none';
+    if (mEmptyEl) mEmptyEl.style.display = '';
+  }
 
   // CL
   const clU={}; wt.forEach(t=>(t.checklist||[]).forEach(i=>{clU[i]=(clU[i]||0)+1;}));
