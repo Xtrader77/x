@@ -741,8 +741,28 @@ function simulateLazarus(cycleTrades, maxBuffer) {
         // dashboard self-correcting instead of silently drifting if an
         // earlier trade was missed, logged out of order, or the buffer-size
         // setting above doesn't match what the EA was actually running.
-        if (t.phase === 'QUALIFYING') state = 'QUALIFICATION';
-        else if (t.phase === 'BUFFER') state = 'BUFFERED';
+        // If this trade was explicitly tagged Qualifying, Legacy-Cushion, or
+        // Buffer/Confirmation (read straight off the EA's own STATE display
+        // at the time), trust that over whatever the simulation inferred so
+        // far. This makes the dashboard self-correcting instead of silently
+        // drifting if an earlier trade was missed, logged out of order, or
+        // the buffer-size setting above doesn't match what the EA was
+        // actually running.
+        //
+        // QUALIFYING and LEGACY both map to the EA's QUALIFICATION state —
+        // LEGACY additionally confirms a carried-over cushion is active, so
+        // if the running simulation had already dropped it to 0 (drift), a
+        // logged LEGACY loss nudges it back to at least 1 rather than being
+        // silently treated as a bare, unprotected retry.
+        if (t.phase === 'QUALIFYING' || t.phase === 'LEGACY') {
+            state = 'QUALIFICATION';
+            if (t.phase === 'LEGACY' && legacyBuffer === 0) {
+                legacyBuffer = 1;
+                legacyBufferCap = Math.max(legacyBufferCap, 1);
+            }
+        } else if (t.phase === 'BUFFER') {
+            state = 'BUFFERED';
+        }
 
         if (t.outcome === 'BREAKEVEN') {
             points.push(levelIdx + 1);
