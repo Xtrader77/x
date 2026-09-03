@@ -150,9 +150,16 @@
             <div id="execPerf"></div>
         </div>
     </div>
-    <div class="card">
-        <div class="card-title">SESSION BREAKDOWN</div>
-        <div id="sessPerf"></div>
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">SESSION BREAKDOWN</div>
+            <div id="sessPerf"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">MODEL PERFORMANCE (xY5/xY7/xY10)</div>
+            <div class="chart-wrap" style="height:180px;"><canvas id="modelChart"></canvas></div>
+            <div id="modelPerf" style="margin-top:10px;"></div>
+        </div>
     </div>
 
     <!-- HTF + Refined -->
@@ -218,6 +225,7 @@ function init() {
     renderExecChart();
     renderSessChart();
     renderTables();
+    renderModelPerf();
     renderHTFRefined();
     renderTCEntry();
     renderTCAlone();
@@ -372,6 +380,23 @@ function renderTables() {
         return { label, wins:t.filter(x=>x.outcome==='WIN').length, total:t.length };
     }).filter(x=>x.total);
     document.getElementById('sessPerf').innerHTML = perfHtml(sessItems);
+}
+
+// Model (xY5/xY7/xY10) performance — model is recorded per-trade from the
+// journal entry form (manually chosen, or auto-filled from an MT4 import).
+// Older trades logged before this field existed fall under "N/A".
+function renderModelPerf() {
+    const models = ['xY5', 'xY7', 'xY10'];
+    const items = models.map(m => {
+        const t = trades.filter(x => (x.model || x.mt4?.mode) === m);
+        return { label: m, wins: t.filter(x => x.outcome === 'WIN').length, total: t.length };
+    });
+    const naTotal = trades.filter(x => !models.includes(x.model || x.mt4?.mode)).length;
+    if (naTotal) items.push({ label: 'N/A', wins: trades.filter(x => !models.includes(x.model || x.mt4?.mode) && x.outcome === 'WIN').length, total: naTotal });
+
+    const withData = items.filter(i => i.total);
+    barChart('modelChart', withData.map(i => i.label), withData.map(i => wr(i.wins, i.total)), withData.map(i => color(wr(i.wins, i.total))));
+    document.getElementById('modelPerf').innerHTML = perfHtml(withData);
 }
 
 function renderHTFRefined() {

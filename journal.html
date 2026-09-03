@@ -72,6 +72,7 @@
         .section-title { font-size:12.5px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; }
 
         .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+        .grid-5 { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
         .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
         .form-group { margin-bottom:0; }
         label { display:block; font-size:11px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.4); margin-bottom:7px; }
@@ -159,6 +160,7 @@
             .main { padding:20px 16px 90px; }
             .workspace { grid-template-columns:1fr; }
             .grid-4 { grid-template-columns:1fr 1fr; }
+            .grid-5 { grid-template-columns:1fr 1fr; }
         }
     </style>
 </head>
@@ -216,7 +218,7 @@
 
                 <div class="section">
                     <div class="section-title">TRADE DETAILS</div>
-                    <div class="grid-4">
+                    <div class="grid-5">
                         <div class="form-group">
                             <label>PAIR</label>
                             <select id="pair">
@@ -230,6 +232,15 @@
                             <select id="direction">
                                 <option value="">Select</option>
                                 <option>BUY</option><option>SELL</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>MODEL <span style="font-size:9px;color:rgba(255,255,255,0.35);">(xY5/7/10)</span></label>
+                            <select id="model">
+                                <option value="">Select</option>
+                                <option value="xY5">xY5</option>
+                                <option value="xY7">xY7</option>
+                                <option value="xY10">xY10</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -500,6 +511,7 @@ function renderScreenshots() {
 function validate() {
     if (!document.getElementById('pair').value)      { showToast('Select a trading pair', 'error'); return false; }
     if (!document.getElementById('direction').value) { showToast('Select direction', 'error'); return false; }
+    if (!document.getElementById('model').value)      { showToast('Select the model used (xY5/xY7/xY10)', 'error'); return false; }
     if (!document.querySelector('[data-exec].selected'))    { showToast('Select execution type', 'error'); return false; }
     if (!document.querySelector('[data-session].selected')) { showToast('Select trading session', 'error'); return false; }
     if (!document.getElementById('tradeDate').value)  { showToast('Enter trade date', 'error'); return false; }
@@ -532,6 +544,7 @@ async function save(outcome) {
     const trade = {
         pair: document.getElementById('pair').value,
         direction: document.getElementById('direction').value,
+        model: document.getElementById('model').value || null,
         outcome, timestamp, tradeDate, tradeTime, isBackdated, tradeId,
         text: document.getElementById('notes').value,
         reason: document.getElementById('reason').value,
@@ -598,6 +611,7 @@ function prefill() {
         if (!t) return;
         if (t.pair) document.getElementById('pair').value = t.pair;
         if (t.direction) document.getElementById('direction').value = t.direction;
+        if (t.model || t.mt4?.mode) document.getElementById('model').value = t.model || t.mt4.mode;
         document.getElementById('tradeDate').value = TODAY;
         if (t.tradeSession?.time) document.getElementById('tradeTime').value = t.tradeSession.time;
         if (t.text)   document.getElementById('notes').value  = t.text;
@@ -621,6 +635,7 @@ function prefill() {
                 const [d, t] = datetime.split(' ');
                 document.getElementById('pair').value      = symbol || '';
                 document.getElementById('direction').value = dir || '';
+                if (mode && ['xY5','xY7','xY10'].includes(mode)) document.getElementById('model').value = mode;
                 if (d) { document.getElementById('tradeDate').value = d; document.getElementById('backdatedBadge').style.display = (d !== TODAY) ? 'inline-block' : 'none'; }
                 if (t) document.getElementById('tradeTime').value = t.substring(0,5);
                 document.getElementById('mt4Level').value = `Level ${level} (${mode})`;

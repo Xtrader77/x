@@ -313,6 +313,20 @@
         .level-dot.current::after { content:''; position:absolute; inset:-5px; border-radius:50%; border:1.5px solid currentColor; opacity:0.55; animation:pulseDot 1.7s ease-out infinite; }
         @keyframes pulseDot { 0% { transform:scale(0.75); opacity:0.65; } 100% { transform:scale(1.7); opacity:0; } }
 
+        /* -- Project Lazarus: buffered-progression state badge + buffer/legacy dots -- */
+        .level-state-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+        .level-state-badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:20px; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; border:1px solid; transition:all 0.5s; }
+        .level-state-badge .dot { width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 6px currentColor; }
+        .buffer-bar-row { display:flex; align-items:center; gap:8px; }
+        .buffer-bar-label { font-size:9.5px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.4); text-transform:uppercase; }
+        .buffer-dots { display:flex; gap:4px; }
+        .buffer-dot { width:11px; height:11px; border-radius:3px; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.14); transition:all 0.3s; }
+        .buffer-dot.filled { border-color:transparent; }
+        .card-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+        .card-title-row .card-title { margin-bottom:0; }
+        .buffer-settings-btn { background:none; border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.5); border-radius:6px; font-size:9.5px; font-weight:700; letter-spacing:0.5px; padding:4px 9px; cursor:pointer; }
+        .buffer-settings-btn:hover { border-color:rgba(255,255,255,0.3); color:rgba(255,255,255,0.8); }
+
         /* -- Two-column: main content + Trader's Constitution side panel -- */
         .content-grid { display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start; }
         @media (max-width:1180px) { .content-grid { grid-template-columns:1fr; } }
@@ -431,8 +445,11 @@
 
                 <!-- Level system: radial gauge + rank + dot track + 20-slot chart -->
                 <div class="card">
-                    <div class="card-title">CYCLE PROGRESSION</div>
-                    <div class="chart-sub">Level rises on WIN, drops on LOSS, holds on BE — levels 1 to 10 for this cycle</div>
+                    <div class="card-title-row">
+                        <div class="card-title">CYCLE PROGRESSION</div>
+                        <button class="buffer-settings-btn" id="bufferSettingsBtn" title="Must match the EA's InpLazarusBufferRetries input">BUFFER SIZE: <span id="bufferSettingVal">2</span></button>
+                    </div>
+                    <div class="chart-sub">Project Lazarus buffered progression — a qualifying win arms a buffer; a confirmed win before it runs out advances the level; BE always holds</div>
 
                     <div class="level-header" id="levelHeader" style="display:none;">
                         <div class="level-gauge">
@@ -449,6 +466,13 @@
                             <div class="level-rank-row">
                                 <span class="level-rank-badge" id="levelRankBadge"><span class="dot"></span><span id="levelRankText">REBUILDING</span></span>
                                 <span class="level-streak-note" id="levelStreakNote"></span>
+                            </div>
+                            <div class="level-state-row">
+                                <span class="level-state-badge" id="levelStateBadge"><span class="dot"></span><span id="levelStateText">QUALIFYING</span></span>
+                                <div class="buffer-bar-row" id="bufferBarRow" style="display:none;">
+                                    <span class="buffer-bar-label" id="bufferBarLabel">BUFFER</span>
+                                    <div class="buffer-dots" id="bufferDots"></div>
+                                </div>
                             </div>
                             <div class="level-dots" id="levelDots"></div>
                         </div>
@@ -542,6 +566,19 @@ document.getElementById('installBtn').addEventListener('click', async () => {
 document.getElementById('dismissInstall').addEventListener('click', () => {
     document.getElementById('installBanner').classList.remove('show');
     localStorage.setItem('xX_install_dismissed', '1');
+});
+
+document.getElementById('bufferSettingsBtn').addEventListener('click', () => {
+    const cur = getLazarusMaxBuffer();
+    const input = prompt('Lazarus buffer size — must match the EA\'s InpLazarusBufferRetries input (1-3):', cur);
+    if (input === null) return;
+    const n = parseInt(input, 10);
+    if (n >= 1 && n <= 3) {
+        localStorage.setItem(LAZARUS_BUFFER_KEY, String(n));
+        renderStats();
+    } else {
+        alert('Enter a number from 1 to 3.');
+    }
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -638,6 +675,116 @@ function tierFor(level) {
     return LEVEL_TIERS.find(t => level <= t.max) || LEVEL_TIERS[LEVEL_TIERS.length - 1];
 }
 
+// ── PROJECT LAZARUS — buffered progression simulation ──────────────────────
+// Mirrors the xTra X_EA's state machine so the dashboard reflects the buffer
+// mechanic instead of a naive "WIN=+1 level / LOSS=-1 level" step ladder.
+//
+// - A level's first (qualifying) win arms a buffer of BUFFER_MAX losses and
+//   repeats the level ("buffered confirmation").
+// - Any win while buffered advances the level, and carries forward a "legacy
+//   cushion" of qualification-phase losses at the new level, sized from the
+//   profit just banked (lot-size ratio between the cleared and new level).
+// - A buffered loss consumes one buffer slot; hitting 0 drops one level.
+// - A qualification loss with an active legacy cushion consumes one cushion
+//   slot instead of retrying immediately; exhausting it drops one level.
+// - Breakeven always just repeats the level with no state change.
+//
+// BUFFER SIZE must match the EA's InpLazarusBufferRetries input (1-3,
+// default 2) — editable via the gear button on the dashboard card since the
+// journal has no way to read it directly from the running EA.
+const LAZARUS_BUFFER_KEY = 'xX_lazarus_buffer_max';
+function getLazarusMaxBuffer() {
+    const v = parseInt(localStorage.getItem(LAZARUS_BUFFER_KEY), 10);
+    return (v >= 1 && v <= 3) ? v : 2;
+}
+
+// Lot tables per model, mirroring the EA's lotSizes_XY5/XY7/XY10 arrays —
+// used only to size the legacy cushion (a lot-size ratio between levels).
+const LOT_TABLES = {
+    xY5:  [0.07, 0.20, 0.56, 1.54, 4.34, 12.26, 33.60, 94.50, 269.50, 350.00],
+    xY7:  [0.05, 0.14, 0.40, 1.13, 3.14, 8.76,  24.00, 67.50, 192.50, 250.00],
+    xY10: [0.03, 0.10, 0.28, 0.79, 2.20, 6.13,  16.80, 47.25, 134.75, 175.00]
+};
+// Trades logged before the MODEL field existed (or missing it) fall back to
+// whichever model was last seen, or xY10 if none has been seen yet.
+const DEFAULT_MODEL = 'xY10';
+
+function computeLegacyCushion(model, clearedIdx, newIdx, lossesAbsorbed, maxBuffer) {
+    const table = LOT_TABLES[model] || LOT_TABLES[DEFAULT_MODEL];
+    const lotCleared = table[clearedIdx], lotNew = table[newIdx];
+    if (!lotNew) return 0;
+    const netProfitInRiskUnits = 6.0 - lossesAbsorbed; // 2 wins * 3R, minus losses spent
+    const cushion = Math.floor(netProfitInRiskUnits * lotCleared / lotNew);
+    return Math.max(0, Math.min(maxBuffer, cushion));
+}
+
+// Walks one cycle's trades through the Lazarus state machine.
+// Returns per-trade level points (1-indexed, for the chart) plus the final
+// state for the dashboard header (state/buffer/legacy cushion).
+function simulateLazarus(cycleTrades, maxBuffer) {
+    let levelIdx = 0; // 0-indexed internally; level shown to the user is levelIdx+1
+    let state = 'QUALIFICATION';
+    let buffer = 0;
+    let legacyBuffer = 0, legacyBufferCap = 0;
+    let lastModel = DEFAULT_MODEL;
+
+    const points = [levelIdx + 1];
+    const moves = [];
+
+    cycleTrades.forEach(t => {
+        const model = t.model || t.mt4?.mode || lastModel;
+        lastModel = model;
+
+        if (t.outcome === 'BREAKEVEN') {
+            points.push(levelIdx + 1);
+            moves.push(null);
+            return;
+        }
+
+        let move = null;
+        if (t.outcome === 'WIN') {
+            move = 'WIN';
+            if (state === 'QUALIFICATION') {
+                // Qualifying win — arm the buffer, repeat the level.
+                buffer = maxBuffer;
+                state = 'BUFFERED';
+                legacyBuffer = 0; legacyBufferCap = 0;
+            } else {
+                // Confirmation win — advance, carry forward a legacy cushion.
+                const lossesAbsorbed = maxBuffer - buffer;
+                const clearedIdx = levelIdx;
+                const newIdx = Math.min(levelIdx + 1, MAX_LEVEL - 1);
+                legacyBufferCap = computeLegacyCushion(model, clearedIdx, newIdx, lossesAbsorbed, maxBuffer);
+                legacyBuffer = legacyBufferCap;
+                levelIdx = newIdx;
+                state = 'QUALIFICATION';
+                buffer = 0;
+            }
+        } else if (t.outcome === 'LOSS') {
+            move = 'LOSS';
+            if (state === 'QUALIFICATION') {
+                if (legacyBuffer > 0) {
+                    legacyBuffer--;
+                    if (legacyBuffer === 0) { levelIdx = Math.max(levelIdx - 1, 0); legacyBufferCap = 0; }
+                }
+                // else: no cushion yet — just retry the level, nothing changes.
+            } else {
+                buffer--;
+                if (buffer <= 0) {
+                    levelIdx = Math.max(levelIdx - 1, 0);
+                    state = 'QUALIFICATION';
+                    buffer = 0; legacyBuffer = 0; legacyBufferCap = 0;
+                }
+            }
+        }
+
+        points.push(levelIdx + 1);
+        moves.push(move);
+    });
+
+    return { points, level: levelIdx + 1, state, buffer, legacyBuffer, legacyBufferCap, maxBuffer, moves };
+}
+
 // 20-SLOT CHART + radial level gauge, rank badge and dot track
 function renderCycleProgressionChart(allTrades, cycleNum) {
     const cycleTrades = allTrades.filter(t => (t.cycleNumber || 1) === cycleNum);
@@ -723,34 +870,27 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     // loss right after finally reaching level 10 wouldn't show. Size the
     // array to the actual number of trades so the flow always continues.
     const CYCLE_LENGTH = Math.max(20, cycleTrades.length + 1);
-    let level = 1;
+
+    // Run the actual Lazarus buffered-progression state machine over this
+    // cycle's trades, rather than a naive WIN=+1/LOSS=-1 step ladder.
+    const maxBuffer = getLazarusMaxBuffer();
+    const sim = simulateLazarus(cycleTrades, maxBuffer);
+    document.getElementById('bufferSettingVal').textContent = maxBuffer;
 
     // Start with nulls for all slots, then fill in the actual trades
     const points = new Array(CYCLE_LENGTH).fill(null);
-
-    // Trade #1 starts at level 1
-    points[0] = 1;
+    sim.points.forEach((lvl, i) => { points[i] = lvl; });
+    let level = sim.level;
 
     // Track streak of consecutive moves in the same direction (for the note under the badge)
     let lastMove = null, moveStreak = 0;
+    sim.moves.forEach(move => {
+        if (!move) return; // BE — streak untouched
+        if (move === lastMove) moveStreak++;
+        else { lastMove = move; moveStreak = 1; }
+    });
 
-    // Calculate levels for each trade
-    for (let i = 0; i < cycleTrades.length; i++) {
-        const t = cycleTrades[i];
-        let move = null;
-        if (t.outcome === 'WIN') { level = Math.min(level + 1, MAX_LEVEL); move = 'WIN'; }
-        else if (t.outcome === 'LOSS') { level = Math.max(level - 1, 1); move = 'LOSS'; }
-        // BE holds — level unchanged, streak untouched
-
-        if (move) {
-            if (move === lastMove) moveStreak++;
-            else { lastMove = move; moveStreak = 1; }
-        }
-
-        points[i + 1] = level;
-    }
-
-    renderLevelHeader(level, lastMove, moveStreak);
+    renderLevelHeader(level, lastMove, moveStreak, sim);
 
     // Labels: 0 (starting point, before any trade) through however many
     // trades this cycle has had — starting at 0 keeps the start flag's
@@ -1093,8 +1233,8 @@ function hexToRgba(hex, alpha) {
     return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
-// Radial gauge + rank badge + 10-dot level track
-function renderLevelHeader(level, lastMove, moveStreak) {
+// Radial gauge + rank badge + Lazarus state badge + buffer/legacy dots + 10-dot level track
+function renderLevelHeader(level, lastMove, moveStreak, sim) {
     const header = document.getElementById('levelHeader');
     header.style.display = 'flex';
     const tier = tierFor(level);
@@ -1124,6 +1264,44 @@ function renderLevelHeader(level, lastMove, moveStreak) {
         note.style.color = lastMove === 'WIN' ? '#1DB954' : '#E22134';
     } else {
         note.textContent = '';
+    }
+
+    // Lazarus state badge — QUALIFYING (waiting for the level's first win)
+    // vs BUFFERED — RETRY (first win banked, buffer active, repeating).
+    const isBuffered = sim && sim.state === 'BUFFERED';
+    const stateColor = isBuffered ? '#1DB954' : '#FFD700';
+    const stateBadge = document.getElementById('levelStateBadge');
+    stateBadge.style.color = stateColor;
+    stateBadge.style.borderColor = hexToRgba(stateColor, 0.4);
+    stateBadge.style.background = hexToRgba(stateColor, 0.1);
+    document.getElementById('levelStateText').textContent = isBuffered ? 'BUFFERED — RETRY' : 'QUALIFYING';
+
+    // Buffer dots (while BUFFERED) or legacy-cushion dots (inherited from the
+    // level just cleared, while QUALIFICATION) — mirrors the EA's on-chart
+    // dot bar. Hidden entirely when neither is active.
+    const bufferRow  = document.getElementById('bufferBarRow');
+    const bufferDots = document.getElementById('bufferDots');
+    bufferDots.innerHTML = '';
+    if (sim && isBuffered) {
+        document.getElementById('bufferBarLabel').textContent = 'BUFFER';
+        for (let i = 0; i < sim.maxBuffer; i++) {
+            const d = document.createElement('div');
+            d.className = 'buffer-dot' + (i < sim.buffer ? ' filled' : '');
+            if (i < sim.buffer) d.style.background = sim.buffer <= 1 ? '#E22134' : '#1DB954';
+            bufferDots.appendChild(d);
+        }
+        bufferRow.style.display = 'flex';
+    } else if (sim && sim.legacyBuffer > 0) {
+        document.getElementById('bufferBarLabel').textContent = 'LEGACY';
+        for (let i = 0; i < sim.legacyBufferCap; i++) {
+            const d = document.createElement('div');
+            d.className = 'buffer-dot' + (i < sim.legacyBuffer ? ' filled' : '');
+            if (i < sim.legacyBuffer) d.style.background = sim.legacyBuffer <= 1 ? '#E22134' : '#FFD700';
+            bufferDots.appendChild(d);
+        }
+        bufferRow.style.display = 'flex';
+    } else {
+        bufferRow.style.display = 'none';
     }
 
     // 10-dot level track

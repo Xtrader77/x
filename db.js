@@ -141,6 +141,7 @@ export async function saveTrade(tradeId, tradeData) {
     const row = {
         id: tradeId, user_id: user.id,
         pair: tradeData.pair || null, direction: tradeData.direction || null,
+        model: tradeData.model || tradeData.mt4?.mode || null,
         outcome: tradeData.outcome || null, trade_date: tradeData.tradeDate || null,
         trade_time: tradeData.tradeTime || null, is_backdated: tradeData.isBackdated || false,
         timestamp: tradeData.timestamp || new Date().toISOString(),
@@ -240,7 +241,7 @@ export async function loadAllTrades(includeScreenshots = false) {
             tradeSession: { session: t.session, time: t.trade_time },
             execution: t.execution, screenshots: ssByTrade[t.id] || localSS,
             pair: t.pair, direction: t.direction, reason: t.reason,
-            outcome: t.outcome, timestamp: t.timestamp,
+            model: t.model, outcome: t.outcome, timestamp: t.timestamp,
             tradeDate: t.trade_date, tradeTime: t.trade_time,
             isBackdated: t.is_backdated, tradeId: t.id,
             mindset: t.mindset, executionRating: t.execution_rating,
