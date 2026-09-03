@@ -735,6 +735,15 @@ function simulateLazarus(cycleTrades, maxBuffer) {
         const model = t.model || t.mt4?.mode || lastModel;
         lastModel = model;
 
+        // If this trade was explicitly tagged Qualifying or Buffer/Confirmation
+        // (read straight off the EA's own STATE display at the time), trust
+        // that over whatever the simulation inferred so far. This makes the
+        // dashboard self-correcting instead of silently drifting if an
+        // earlier trade was missed, logged out of order, or the buffer-size
+        // setting above doesn't match what the EA was actually running.
+        if (t.phase === 'QUALIFYING') state = 'QUALIFICATION';
+        else if (t.phase === 'BUFFER') state = 'BUFFERED';
+
         if (t.outcome === 'BREAKEVEN') {
             points.push(levelIdx + 1);
             moves.push(null);

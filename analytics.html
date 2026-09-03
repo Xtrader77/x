@@ -511,7 +511,7 @@ function buildRows() {
         const row = {
             'ID':t.tradeId, 'Date':new Date(t.timestamp).toLocaleDateString(),
             'Time':new Date(t.timestamp).toLocaleTimeString(),
-            'Pair':t.pair||'N/A', 'Direction':t.direction||'N/A', 'Outcome':t.outcome,
+            'Pair':t.pair||'N/A', 'Direction':t.direction||'N/A', 'Model':t.model||t.mt4?.mode||'N/A', 'Outcome':t.outcome,
             'Session':t.tradeSession?.session?.toUpperCase()||'N/A', 'Exec':t.execution||'N/A',
             'Mindset':mL(t.mindset), 'Exec Rating':rL(t.executionRating),
             'Rule Breaks':(t.ruleBreaks||[]).join(', ')||'None',
@@ -521,6 +521,19 @@ function buildRows() {
         allItems.forEach(item => { row[item] = (t.checklist||[]).includes(item)?'1':'0'; });
         return row;
     });
+}
+
+// Win-rate/trade-count per model (xY5/xY7/xY10), for the exports — same
+// grouping as the on-page MODEL PERFORMANCE card.
+function buildModelBreakdown() {
+    const models = ['xY5','xY7','xY10'];
+    const rows = models.map(m => {
+        const t = trades.filter(x => (x.model||x.mt4?.mode) === m);
+        return { Model:m, 'Win Rate':`${wr(t.filter(x=>x.outcome==='WIN').length,t.length)}%`, Trades:t.length };
+    });
+    const na = trades.filter(x => !models.includes(x.model||x.mt4?.mode));
+    if (na.length) rows.push({ Model:'N/A', 'Win Rate':`${wr(na.filter(x=>x.outcome==='WIN').length,na.length)}%`, Trades:na.length });
+    return rows.filter(r => r.Trades);
 }
 
 function exportCSV() {
@@ -541,6 +554,8 @@ function exportXLSX() {
     if (!rows.length) { showToast('No trades to export','error'); return; }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'All Trades');
+    const modelRows = buildModelBreakdown();
+    if (modelRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(modelRows), 'Model Breakdown');
     XLSX.writeFile(wb, `xX_Analytics_${new Date().toISOString().split('T')[0]}.xlsx`);
     showToast('Excel exported ✓','success');
 }
@@ -556,11 +571,25 @@ function exportPDF() {
     doc.text('xX Trading Journal — Analytics', 14, 20);
     doc.setFontSize(10); doc.setFont(undefined,'normal');
     doc.text(`Generated: ${new Date().toLocaleDateString()} | Trades: ${total} | Win Rate: ${total?((wins/total)*100).toFixed(1):0}%`, 14, 30);
+
+    let nextY = 36;
+    const modelRows = buildModelBreakdown();
+    if (modelRows.length) {
+        doc.autoTable({
+            startY: nextY, head: [['Model', 'Win Rate', 'Trades']],
+            body: modelRows.map(r => [r.Model, r['Win Rate'], r.Trades]),
+            theme: 'grid', tableWidth: 90,
+            headStyles: { fillColor: [74,144,226], textColor: 255, fontSize: 8 },
+            bodyStyles: { fontSize: 8 }
+        });
+        nextY = doc.lastAutoTable.finalY + 8;
+    }
+
     const rows = buildRows();
     if (rows.length) {
-        const cols = ['Date','Pair','Direction','Outcome','Session','Exec Rating','CL Score'];
+        const cols = ['Date','Pair','Direction','Model','Outcome','Session','Exec Rating','CL Score'];
         doc.autoTable({
-            startY:36, head:[cols], body:rows.map(r=>cols.map(c=>r[c]||'')),
+            startY:nextY, head:[cols], body:rows.map(r=>cols.map(c=>r[c]||'')),
             theme:'grid',
             headStyles:{fillColor:[10,10,10],textColor:255,fontSize:8},
             bodyStyles:{fontSize:8}

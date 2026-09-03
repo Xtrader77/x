@@ -267,6 +267,14 @@
                 </div>
 
                 <div class="section">
+                    <div class="section-title">LAZARUS PHASE <span style="font-size:9px;color:rgba(255,255,255,0.35);">(check the EA's STATE readout)</span></div>
+                    <div class="pill-row">
+                        <div class="pill" data-phase="QUALIFYING">🟡 QUALIFYING</div>
+                        <div class="pill" data-phase="BUFFER">🟢 BUFFER / CONFIRM</div>
+                    </div>
+                </div>
+
+                <div class="section">
                     <div class="section-title">TRADING SESSION</div>
                     <div class="pill-row">
                         <div class="pill" data-session="asia">🌏 ASIA</div>
@@ -425,6 +433,7 @@ function init() {
     });
 
     makeSingleSelect('[data-exec]');
+    makeSingleSelect('[data-phase]');
     makeSingleSelect('[data-session]');
     makeSingleSelect('[data-mindset]');
     makeSingleSelect('[data-rating]');
@@ -512,6 +521,7 @@ function validate() {
     if (!document.getElementById('pair').value)      { showToast('Select a trading pair', 'error'); return false; }
     if (!document.getElementById('direction').value) { showToast('Select direction', 'error'); return false; }
     if (!document.getElementById('model').value)      { showToast('Select the model used (xY5/xY7/xY10)', 'error'); return false; }
+    if (!document.querySelector('[data-phase].selected')) { showToast('Select the Lazarus phase (Qualifying / Buffer)', 'error'); return false; }
     if (!document.querySelector('[data-exec].selected'))    { showToast('Select execution type', 'error'); return false; }
     if (!document.querySelector('[data-session].selected')) { showToast('Select trading session', 'error'); return false; }
     if (!document.getElementById('tradeDate').value)  { showToast('Enter trade date', 'error'); return false; }
@@ -537,6 +547,7 @@ async function save(outcome) {
 
     const sess = document.querySelector('[data-session].selected')?.dataset.session || '';
     const exec = document.querySelector('[data-exec].selected')?.dataset.exec || '';
+    const phase = document.querySelector('[data-phase].selected')?.dataset.phase || null;
     const mind = document.querySelector('[data-mindset].selected')?.dataset.mindset;
     const rate = document.querySelector('[data-rating].selected')?.dataset.rating;
     const rules = Array.from(document.querySelectorAll('.rule-tag.selected')).map(t => t.dataset.rule);
@@ -545,6 +556,7 @@ async function save(outcome) {
         pair: document.getElementById('pair').value,
         direction: document.getElementById('direction').value,
         model: document.getElementById('model').value || null,
+        phase, // 'QUALIFYING' or 'BUFFER' — matches the EA's on-chart STATE readout at trade time
         outcome, timestamp, tradeDate, tradeTime, isBackdated, tradeId,
         text: document.getElementById('notes').value,
         reason: document.getElementById('reason').value,
