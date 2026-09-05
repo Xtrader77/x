@@ -144,6 +144,10 @@
         .trade-row-chevron { font-size: 18px; color: var(--text-tertiary); flex-shrink: 0; transition: transform 0.2s ease; }
         .trade-row:hover .trade-row-chevron { transform: translateX(4px); color: var(--text); }
         .back-dated { font-size: 10px; font-weight: 700; color: var(--gold); border: 1px solid rgba(255,215,0,0.35); background: rgba(255,215,0,0.08); border-radius: 20px; padding: 2px 9px; }
+        .trade-row-chip { font-size: 10px; font-weight: 700; border-radius: 20px; padding: 2px 9px; white-space: nowrap; }
+        .chip-blue  { color: var(--blue);  background: rgba(74,144,226,0.1);  border: 1px solid rgba(74,144,226,0.3); }
+        .chip-green { color: var(--green); background: rgba(29,185,84,0.1);  border: 1px solid rgba(29,185,84,0.3); }
+        .chip-red   { color: var(--red);   background: rgba(226,33,52,0.1);  border: 1px solid rgba(226,33,52,0.3); }
 
         /* Trade VIEW modal (read-only — journaled trades are locked once saved) */
         .tmodal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
@@ -177,6 +181,13 @@
         .tv-badge { background: rgba(74,144,226,0.12); border: 1px solid rgba(74,144,226,0.3); color: var(--blue); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
         .tv-tag { background: rgba(226,33,52,0.1); border: 1px solid rgba(226,33,52,0.28); color: #ff8a8a; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px; }
         .tv-tag.clean { background: rgba(29,185,84,0.1); border-color: rgba(29,185,84,0.28); color: var(--green); }
+
+        /* Full checklist (checked + unchecked), grouped by category */
+        .tv-cl-wrap { display: flex; flex-direction: column; gap: 12px; }
+        .tv-cl-cat-label { font-size: 10.5px; font-weight: 700; color: var(--blue); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px; }
+        .tv-cl-items { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tv-cl-item { font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-tertiary); }
+        .tv-cl-item.checked { background: rgba(29,185,84,0.12); border-color: rgba(29,185,84,0.3); color: var(--green); }
 
         /* Note / reason blocks */
         .tv-block { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 14px; line-height: 1.65; color: var(--text-secondary); white-space: pre-wrap; }
@@ -361,6 +372,28 @@ function loadLocal() {
         const c = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
         if (c.currentCycle) cycles = c;
     } catch(e) {}
+    normalizeTrades();
+}
+
+// Some sync paths can leave checklist/ruleBreaks/screenshots as a raw JSON
+// string instead of a parsed array (or missing entirely). If that goes
+// unhandled, calling .map()/.filter() on it throws and the whole trade
+// view silently fails to render — which looks like the data just vanished.
+// Coercing everything to a real array once, right after load, prevents that.
+function toArr(v) {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string' && v.trim()) {
+        try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch(e) { return []; }
+    }
+    return [];
+}
+
+function normalizeTrades() {
+    Object.values(journals.journals).forEach(t => {
+        t.checklist   = toArr(t.checklist);
+        t.ruleBreaks  = toArr(t.ruleBreaks);
+        t.screenshots = toArr(t.screenshots);
+    });
 }
 
 function init() {
@@ -499,7 +532,6 @@ function renderTrades() {
     const trades = Object.values(journals.journals)
         .sort((a,b) => new Date(b.timestamp)-new Date(a.timestamp))
         .slice(0,15);
-    trades.forEach(t => { if (!Array.isArray(t.screenshots)) t.screenshots = []; });
     const container = document.getElementById('tradesList');
     if (!trades.length) { container.innerHTML = '<div class="empty-state">No trades recorded yet</div>'; return; }
 
@@ -508,7 +540,10 @@ function renderTrades() {
         const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const timeStr = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
         const ocCls   = t.outcome==='WIN' ? 'win' : t.outcome==='LOSS' ? 'loss' : 'be';
-        const ssCount = t.screenshots?.filter(s => s.data).length || 0;
+        const ssCount = t.screenshots.filter(s => s.data).length;
+        const clCount = t.checklist.length;
+        const rb = t.ruleBreaks;
+        const rbClean = rb.length === 0 || rb.includes('No Rule Break');
         const noteStr = (t.text || '').trim();
         return `
             <div class="trade-row" data-trade="${t.tradeId}">
@@ -517,6 +552,8 @@ function renderTrades() {
                     <div class="trade-row-top">
                         <span class="trade-row-pair">${t.pair||'—'} ${t.direction||''}</span>
                         ${t.isBackdated ? '<span class="back-dated">BACKDATED</span>' : ''}
+                        ${clCount ? `<span class="trade-row-chip chip-blue">✓ ${clCount} checklist</span>` : ''}
+                        ${rb.length ? `<span class="trade-row-chip ${rbClean ? 'chip-green' : 'chip-red'}">${rbClean ? '✅ Clean' : '⚠ '+rb.length+' rule break'+(rb.length>1?'s':'')}</span>` : ''}
                     </div>
                     <div class="trade-row-sub">📅 ${dateStr} ${timeStr}${t.tradeSession?.session ? ' · 🕒 '+t.tradeSession.session.toUpperCase() : ''}</div>
                     ${noteStr ? `<div class="trade-row-sub" style="margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${esc(noteStr)}"</div>` : ''}
@@ -547,11 +584,17 @@ let tmActiveId = null;
 const CL_LABELS = {
     'H4': 'H4',
     'H1EF': 'H1 EF', 'H1EG': 'H1 EG',
-    'M30EF': 'M30 EF (Refined)', 'M30EG': 'M30 EG (Refined)',
+    'M30EF': 'M30 EF', 'M30EG': 'M30 EG',
     'M15EF': 'M15 EF', 'M15EG': 'M15 EG',
-    'M30EF2': 'M30 EF (Control)', 'M30EG2': 'M30 EG (Control)',
-    'ENTRY-M5EG': 'M5 EG (Entry)', 'ENTRY-M1EF': 'M1 EF (Entry)'
+    'M30EF2': 'M30 EF', 'M30EG2': 'M30 EG',
+    'ENTRY-M5EG': 'M5 EG', 'ENTRY-M1EF': 'M1 EF'
 };
+const CL_CATEGORIES = [
+    { label: 'HTF',            items: ['H4'] },
+    { label: 'REFINED',        items: ['H1EF','H1EG','M30EF','M30EG'] },
+    { label: 'TRADE CONTROL',  items: ['M15EF','M15EG','M30EF2','M30EG2'] },
+    { label: 'ENTRY TF',       items: ['ENTRY-M5EG','ENTRY-M1EF'] }
+];
 const MINDSET_LABELS = { 1:'😤 Frustrated', 2:'😟 Off', 3:'😐 Neutral', 4:'😊 Focused', 5:'🔥 In zone' };
 const SESSION_LABELS = { asia:'🌏 Asia', london:'🏛️ London', newyork:'🗽 New York' };
 const EXEC_LABELS    = { limit:'🎯 Limit', instant:'⚡ Instant' };
@@ -566,7 +609,14 @@ function openTradeModal(tradeId) {
 
     document.getElementById('tmodalPairTitle').textContent = `${t.pair||'Trade'} ${t.direction||''}`;
     document.getElementById('tmodalBackdated').style.display = t.isBackdated ? 'inline-block' : 'none';
-    document.getElementById('tmodalBody').innerHTML = renderTradeView(t);
+
+    try {
+        document.getElementById('tmodalBody').innerHTML = renderTradeView(t);
+    } catch (e) {
+        console.error('Failed to render trade view:', e);
+        document.getElementById('tmodalBody').innerHTML = '<div class="empty-state">Couldn\'t load this trade\'s details. Please try again or contact support.</div>';
+        showToast('Error loading trade details', 'error');
+    }
 
     // Wire screenshot zoom for this render
     document.querySelectorAll('#tmodalBody .tv-screen img').forEach(img => {
@@ -590,7 +640,14 @@ function renderTradeView(t) {
     const timeStr  = t.tradeSession?.time || t.tradeTime || (dt ? dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—');
     const ocCls    = t.outcome==='WIN' ? 'win' : t.outcome==='LOSS' ? 'loss' : 'be';
 
-    const checklist = (t.checklist||[]).map(k => `<span class="tv-badge">${esc(CL_LABELS[k]||k)}</span>`).join('');
+    const checked = new Set(t.checklist);
+    const clHtml = CL_CATEGORIES.map(cat => `
+        <div class="tv-cl-cat">
+            <div class="tv-cl-cat-label">${esc(cat.label)}</div>
+            <div class="tv-cl-items">
+                ${cat.items.map(k => `<span class="tv-cl-item ${checked.has(k) ? 'checked' : ''}">${checked.has(k) ? '✓' : '—'} ${esc(CL_LABELS[k]||k)}</span>`).join('')}
+            </div>
+        </div>`).join('');
     const ruleBreaks = t.ruleBreaks||[];
     const isClean = ruleBreaks.includes('No Rule Break') || ruleBreaks.length === 0;
     const ruleHtml = isClean
@@ -632,8 +689,8 @@ function renderTradeView(t) {
         </div>
 
         <div>
-            <div class="tv-section-title">Checklist Confirmed</div>
-            ${checklist ? `<div class="tv-badges">${checklist}</div>` : `<div class="tv-block empty">No checklist items were marked</div>`}
+            <div class="tv-section-title">Checklist</div>
+            <div class="tv-cl-wrap">${clHtml}</div>
         </div>
 
         <div>
