@@ -41,17 +41,16 @@
         .sidebar-brand .mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--green), var(--blue)); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; box-shadow: 0 0 15px rgba(74,144,226,0.3); }
         .sidebar-brand .name { font-size: 15px; font-weight: 800; }
         .sidebar-brand .sub  { font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.5px; }
-        
+
         .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--text-tertiary); font-size: 14px; font-weight: 600; transition: all 0.2s ease; margin-bottom: 4px; }
         .nav-link .ic { font-size: 18px; width: 24px; text-align: center; }
         .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
         .nav-link.active { background: rgba(255,255,255,0.08); color: var(--text); border-left: 3px solid var(--green); }
-        
+
         .sidebar-foot { margin-top: auto; padding: 20px 10px 0; font-size: 11px; color: var(--text-tertiary); border-top: 1px solid var(--border); }
 
         .main { padding: 24px 32px 80px; width: 100%; max-width: 1400px; margin: 0 auto; }
 
-        /* Responsive Sidebar */
         @media (max-width: 980px) {
             .app-shell { grid-template-columns: 64px 1fr; }
             .sidebar { padding: 16px 8px; align-items: center; }
@@ -80,7 +79,7 @@
         .card-title > div { text-transform: none; letter-spacing: normal; color: var(--text-secondary); font-weight: 500; font-size: 12px; display: inline-block; }
 
         /* Cycle Progress */
-        .cycle-card { display: flex; align-items: center; justify-content: space-between; padding: 24px; }
+        .cycle-card { display: flex; align-items: center; justify-content: space-between; padding: 24px; flex-wrap: wrap; gap: 16px; }
         .cycle-info { display: flex; flex-direction: column; gap: 8px; }
         .cycle-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
         .cycle-val { font-size: 32px; font-weight: 800; }
@@ -114,6 +113,7 @@
         .cal-cell.has-trades { border-color: var(--border); }
         .cal-cell.today { border-color: var(--blue); background: rgba(74,144,226,0.05); }
         .cal-cell.selected-day { border-color: var(--gold); }
+        .cal-cell.other-month .cal-day-num { color: var(--text-tertiary); opacity: 0.4; }
         .cal-day-num { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
         .cal-cell.today .cal-day-num { color: var(--text); }
         .cal-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: auto; }
@@ -135,7 +135,7 @@
         .outcome-win  { background: rgba(29,185,84,0.15); color: var(--green); border: 1px solid rgba(29,185,84,0.3); }
         .outcome-loss { background: rgba(226,33,52,0.15); color: var(--red); border: 1px solid rgba(226,33,52,0.3); }
         .outcome-be   { background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid var(--border); }
-        
+
         .trade-row-main { flex: 1; min-width: 0; }
         .trade-row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
         .trade-row-pair { font-size: 15px; font-weight: 700; }
@@ -143,47 +143,51 @@
         .trade-row-ss { font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
         .trade-row-chevron { font-size: 18px; color: var(--text-tertiary); flex-shrink: 0; transition: transform 0.2s ease; }
         .trade-row:hover .trade-row-chevron { transform: translateX(4px); color: var(--text); }
+        .back-dated { font-size: 10px; font-weight: 700; color: var(--gold); border: 1px solid rgba(255,215,0,0.35); background: rgba(255,215,0,0.08); border-radius: 20px; padding: 2px 9px; }
 
-        /* Trade Edit Modal */
+        /* Trade VIEW modal (read-only — journaled trades are locked once saved) */
         .tmodal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
         .tmodal-overlay.open { display: flex; }
-        .tmodal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
+        .tmodal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 760px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
         .tmodal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 10; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
         .tmodal-title { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
         .tmodal-close { background: rgba(255,255,255,0.05); border: none; color: var(--text-secondary); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; transition: all 0.2s; }
         .tmodal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-        .tmodal-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+        .tmodal-body { padding: 24px; display: flex; flex-direction: column; gap: 22px; }
         .tmodal-foot { display: flex; gap: 12px; padding: 20px 24px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 
-        /* Styled Form Elements */
-        .form-group { margin-bottom: 16px; }
-        .form-group:last-child { margin-bottom: 0; }
-        label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; }
-        select, input[type="date"], input[type="time"], input[type="text"], textarea {
-            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-            border-radius: 8px; padding: 12px; color: var(--text); font-size: 14px; font-family: 'Inter', sans-serif; transition: all 0.2s ease;
-        }
-        select:focus, input:focus, textarea:focus { outline: none; border-color: var(--blue); background: rgba(74,144,226,0.05); }
-        textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+        .tv-section-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-tertiary); margin-bottom: 12px; text-transform: uppercase; }
 
-        /* Pills & Tags */
-        .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .pill { flex: 1; min-width: 80px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary); transition: all 0.15s ease; }
-        .pill:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-        .pill.selected { background: rgba(255,255,255,0.15); border-color: var(--text); color: var(--text); }
+        /* Outcome hero */
+        .tv-outcome-hero { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+        .tv-outcome-hero .tv-oc-badge { font-size: 13px; font-weight: 800; padding: 8px 16px; border-radius: 8px; letter-spacing: 0.5px; }
+        .tv-outcome-hero.win  .tv-oc-badge { background: rgba(29,185,84,0.15); color: var(--green); border: 1px solid rgba(29,185,84,0.3); }
+        .tv-outcome-hero.loss .tv-oc-badge { background: rgba(226,33,52,0.15); color: var(--red); border: 1px solid rgba(226,33,52,0.3); }
+        .tv-outcome-hero.be   .tv-oc-badge { background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid var(--border); }
+        .tv-outcome-hero .tv-oc-meta { font-size: 13px; color: var(--text-secondary); }
 
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        /* Label/value grid */
+        .tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+        .tv-item .tv-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.7px; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 5px; }
+        .tv-item .tv-value { font-size: 14px; font-weight: 600; color: var(--text); }
+        .tv-item .tv-value.empty { color: var(--text-tertiary); font-weight: 400; font-style: italic; }
 
-        /* Checkboxes */
-        .checklist-cat { margin-bottom: 16px; }
-        .cat-label { font-size: 11px; font-weight: 700; color: var(--blue); letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
-        .cb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .cb-item { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: var(--text-secondary); padding: 8px; border-radius: 6px; transition: background 0.15s; }
-        .cb-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-        .cb-item input { width: 16px; height: 16px; accent-color: var(--green); flex-shrink: 0; cursor: pointer; }
+        /* Badges / tags (read-only chips) */
+        .tv-badges, .tv-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tv-badge { background: rgba(74,144,226,0.12); border: 1px solid rgba(74,144,226,0.3); color: var(--blue); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+        .tv-tag { background: rgba(226,33,52,0.1); border: 1px solid rgba(226,33,52,0.28); color: #ff8a8a; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px; }
+        .tv-tag.clean { background: rgba(29,185,84,0.1); border-color: rgba(29,185,84,0.28); color: var(--green); }
 
-        /* Buttons */
+        /* Note / reason blocks */
+        .tv-block { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 14px; line-height: 1.65; color: var(--text-secondary); white-space: pre-wrap; }
+        .tv-block.empty { color: var(--text-tertiary); font-style: italic; }
+
+        /* Screenshots (view-only, zoom on click) */
+        .tv-screens { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .tv-screen img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: zoom-in; transition: border-color 0.2s ease; }
+        .tv-screen img:hover { border-color: var(--blue); }
+        .tv-screen .tv-caption { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.5; }
+
         .btn-main { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s ease; }
         .btn-main:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s ease; }
@@ -191,17 +195,13 @@
         .btn-danger { background: rgba(226,33,52,0.1); border: 1px solid rgba(226,33,52,0.3); color: var(--red); border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s ease; }
         .btn-danger:hover { background: rgba(226,33,52,0.2); }
 
-        /* Screenshot Modal */
+        /* Screenshot zoom modal */
         #ssModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; align-items: center; justify-content: center; padding: 16px; }
         #ssModal.open { display: flex; }
         #ssModalImg { max-width: 100%; max-height: 90vh; border-radius: 8px; object-fit: contain; box-shadow: var(--shadow); }
         #ssModalClose { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 5001; }
 
-        /* Empty State */
         .empty-state { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 15px; line-height: 1.6; }
-        
-        /* Add a nice font for the trades list */
-        .trade-row-pair { font-family: 'Inter', sans-serif; } 
     </style>
 </head>
 <body>
@@ -221,7 +221,7 @@
         <a href="/profile.html" class="nav-link" title="Profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
         <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
     </aside>
-    
+
     <main class="main">
 
     <div class="header">
@@ -308,180 +308,39 @@
 
     <!-- Recent Trades -->
     <div class="card">
-        <div class="card-title">RECENT TRADES <div>— tap a trade to view, edit or add screenshots</div></div>
+        <div class="card-title">RECENT TRADES <div>— tap a trade to view it as journaled</div></div>
         <div id="tradesList"></div>
     </div>
 
     </main>
 </div>
 
-<!-- Screenshot modal -->
+<!-- Screenshot zoom modal -->
 <div id="ssModal">
     <img id="ssModalImg" src="" alt="screenshot">
     <button id="ssModalClose">×</button>
 </div>
 
-<!-- Trade detail / edit modal -->
+<!-- Trade VIEW modal — read-only, matches the trade exactly as journaled -->
 <div class="tmodal-overlay" id="tmodalOverlay">
   <div class="tmodal">
     <div class="tmodal-head">
-      <div class="tmodal-title"><span id="tmodalPairTitle">Trade</span> <span class="back-dated" id="tmodalBackdated" style="display:none; color: var(--gold); font-size: 12px;">BACKDATED</span></div>
+      <div class="tmodal-title"><span id="tmodalPairTitle">Trade</span> <span class="back-dated" id="tmodalBackdated" style="display:none;">BACKDATED</span></div>
       <button class="tmodal-close" id="tmodalClose">×</button>
     </div>
-    <div class="tmodal-body">
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">OUTCOME</div>
-        <div class="tmodal-outcome-row" id="tmodalOutcomeRow" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-          <button type="button" class="pill" data-outcome="WIN">WIN</button>
-          <button type="button" class="pill" data-outcome="LOSS">LOSS</button>
-          <button type="button" class="pill" data-outcome="BREAKEVEN">BE</button>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">TRADE DETAILS</div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>PAIR</label>
-            <select id="tmPair">
-              <option value="">Select</option>
-              <option>XAUUSD</option><option>NAS100</option><option>EURUSD</option>
-              <option>GBPUSD</option><option>AUDUSD</option><option>USDJPY</option><option>Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>DIRECTION</label>
-            <select id="tmDirection"><option value="">Select</option><option>BUY</option><option>SELL</option></select>
-          </div>
-          <div class="form-group">
-            <label>MODEL</label>
-            <select id="tmModel"><option value="">Select</option><option value="xY5">xY5</option><option value="xY7">xY7</option><option value="xY10">xY10</option></select>
-          </div>
-          <div class="form-group">
-            <label>SESSION</label>
-            <select id="tmSession"><option value="">Select</option><option value="asia">Asia</option><option value="london">London</option><option value="newyork">New York</option></select>
-          </div>
-        </div>
-        <div class="grid-2">
-          <div class="form-group"><label>DATE</label><input type="date" id="tmDate"></div>
-          <div class="form-group"><label>TIME</label><input type="time" id="tmTime"></div>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">EXECUTION TYPE</div>
-        <div class="pill-row" id="tmExecRow">
-          <div class="pill" data-exec="limit">🎯 LIMIT</div>
-          <div class="pill" data-exec="instant">⚡ INSTANT</div>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">PRE-TRADE MINDSET</div>
-        <div class="pill-row" id="tmMindsetRow">
-          <div class="pill" data-mindset="1">😤 1</div>
-          <div class="pill" data-mindset="2">😟 2</div>
-          <div class="pill" data-mindset="3">😐 3</div>
-          <div class="pill" data-mindset="4">😊 4</div>
-          <div class="pill" data-mindset="5">🔥 5</div>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">EXECUTION RATING</div>
-        <div class="pill-row" id="tmRatingRow">
-          <div class="pill" data-rating="1">⭐ 1</div>
-          <div class="pill" data-rating="2">⭐⭐ 2</div>
-          <div class="pill" data-rating="3">⭐⭐⭐ 3</div>
-          <div class="pill" data-rating="4">⭐⭐⭐⭐ 4</div>
-          <div class="pill" data-rating="5">⭐⭐⭐⭐⭐ 5</div>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">CHECKLIST</div>
-        <div class="checklist-cat">
-          <div class="cat-label">HTF</div>
-          <div class="cb-grid"><label class="cb-item"><input type="checkbox" id="tm-cl-H4"><span>H4</span></label></div>
-        </div>
-        <div class="checklist-cat">
-          <div class="cat-label">REFINED</div>
-          <div class="cb-grid">
-            <label class="cb-item"><input type="checkbox" id="tm-cl-H1EF"><span>H1 EF</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-H1EG"><span>H1 EG</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EF"><span>M30 EF</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EG"><span>M30 EG</span></label>
-          </div>
-        </div>
-        <div class="checklist-cat">
-          <div class="cat-label">TRADE CONTROL</div>
-          <div class="cb-grid">
-            <label class="cb-item"><input type="checkbox" id="tm-cl-M15EF"><span>M15 EF</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-M15EG"><span>M15 EG</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EF2"><span>M30 EF</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EG2"><span>M30 EG</span></label>
-          </div>
-        </div>
-        <div class="checklist-cat">
-          <div class="cat-label">ENTRY TF</div>
-          <div class="cb-grid">
-            <label class="cb-item"><input type="checkbox" id="tm-cl-ENTRY-M5EG"><span>M5 EG</span></label>
-            <label class="cb-item"><input type="checkbox" id="tm-cl-ENTRY-M1EF"><span>M1 EF</span></label>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">RULE BREAKS</div>
-        <div class="rule-tags" id="tmRuleTags" style="display: flex; flex-wrap: wrap; gap: 8px;">
-          <div class="pill" data-rule="Entered Early" style="min-width: auto;">Entered Early</div>
-          <div class="pill" data-rule="Entered Late" style="min-width: auto;">Entered Late</div>
-          <div class="pill" data-rule="Chased Market" style="min-width: auto;">Chased Market</div>
-          <div class="pill" data-rule="No Confirmation" style="min-width: auto;">No Confirmation</div>
-          <div class="pill" data-rule="Ignored Checklist" style="min-width: auto;">Ignored Checklist</div>
-          <div class="pill" data-rule="Moved SL" style="min-width: auto;">Moved SL</div>
-          <div class="pill" data-rule="Closed Early" style="min-width: auto;">Closed Early</div>
-          <div class="pill" data-rule="Revenge Trade" style="min-width: auto;">Revenge Trade</div>
-          <div class="pill" data-rule="Against HTF Bias" style="min-width: auto;">Against HTF Bias</div>
-          <div class="pill" data-rule="Overtrading" style="min-width: auto;">Overtrading</div>
-          <div class="pill" data-rule="FOMO" style="min-width: auto;">FOMO</div>
-          <div class="pill" data-rule="No Rule Break" style="min-width: auto;">✅ No Rule Break</div>
-        </div>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">GENERAL NOTE</div>
-        <textarea id="tmNotes" placeholder="Write your thoughts..."></textarea>
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">TRADE REASON</div>
-        <input type="text" id="tmReason" placeholder="e.g. Good patience...">
-      </div>
-
-      <div>
-        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">SCREENSHOTS</div>
-        <div class="screenshot-drop" id="tmSsZone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s;">
-          <div style="font-size: 24px; margin-bottom: 8px;">📸</div>
-          <div style="font-size: 13px; font-weight: 500;">Click to add screenshots</div>
-          <input type="file" id="tmSsInput" multiple accept="image/*" style="display:none;">
-        </div>
-        <div class="ss-preview" id="tmSsPreview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 16px;"></div>
-      </div>
-
+    <div class="tmodal-body" id="tmodalBody">
+      <!-- populated read-only via renderTradeView() -->
     </div>
     <div class="tmodal-foot">
-      <button class="btn-main" id="tmSaveBtn" style="flex: 2;">SAVE CHANGES</button>
-      <button class="btn-ghost" id="tmDupBtn" style="flex: 1;">DUPLICATE</button>
-      <button class="btn-danger" id="tmDelBtn" style="flex: 1;">DELETE</button>
+      <button class="btn-ghost" id="tmCloseBtn" style="flex: 1;">CLOSE</button>
+      <button class="btn-danger" id="tmDelBtn" style="flex: 1;">DELETE TRADE</button>
     </div>
   </div>
 </div>
 
 <script type="module">
 import { requireAuth, requireAuthFast, requirePin, showToast } from '/shared.js';
-import { deleteTrade as cloudDeleteTrade, saveCycles, saveTrade } from '/db.js';
+import { deleteTrade as cloudDeleteTrade, saveCycles } from '/db.js';
 
 let journals = { journals: {}, tradeCounter: 1 };
 let cycles   = { currentCycle:1, tradesInCurrentCycle:0, completedCycles:[], allTrades:[] };
@@ -524,14 +383,15 @@ function renderEquityChart() {
         return;
     }
     let running = 0;
-    const points = trades.map((t, i) => {
+    const points = trades.map((t) => {
         running += t.outcome === 'WIN' ? 1 : t.outcome === 'LOSS' ? -1 : 0;
         return running;
     });
     const labels = trades.map((t, i) => `#${i+1}`);
-    const lineColor = points[points.length-1] >= 0 ? 'var(--green)' : 'var(--red)';
+    const positive = points[points.length-1] >= 0;
+    const lineColor = positive ? '#1DB954' : '#E22134';
     const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, lineColor === 'var(--green)' ? 'rgba(29,185,84,0.3)' : 'rgba(226,33,52,0.3)');
+    gradient.addColorStop(0, positive ? 'rgba(29,185,84,0.3)' : 'rgba(226,33,52,0.3)');
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     new Chart(ctx, {
         type: 'line',
@@ -557,23 +417,18 @@ function renderEquityChart() {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'var(--surface)', titleColor: 'var(--text)',
-                    bodyColor: 'var(--text)', borderColor: 'var(--border)', borderWidth: 1,
+                    backgroundColor: '#141414', titleColor: '#ffffff',
+                    bodyColor: '#ffffff', borderColor: '#242424', borderWidth: 1,
                     padding: 12, cornerRadius: 8, displayColors: false,
                     callbacks: { label: (c) => `Score: ${c.raw > 0 ? '+' : ''}${c.raw}` }
                 }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { color:'var(--text-tertiary)', maxTicksLimit:8, font:{size:10} } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color:'var(--text-tertiary)', font:{size:10} } }
+                x: { grid: { display: false }, ticks: { color:'#606060', maxTicksLimit:8, font:{size:10} } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color:'#606060', font:{size:10} } }
             }
         }
     });
-}
-
-function hexToRgba(hex, alpha) {
-    const n = parseInt(hex.slice(1), 16);
-    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
 function updateCycle() {
@@ -623,15 +478,15 @@ function renderChart() {
         type: 'doughnut',
         data: {
             labels: ['Wins','Losses','Breakevens'],
-            datasets: [{ data:[wins,losses,bes], backgroundColor:['var(--green)','var(--red)','var(--text-tertiary)'], borderColor:'var(--surface)', borderWidth:4, hoverOffset:6 }]
+            datasets: [{ data:[wins,losses,bes], backgroundColor:['#1DB954','#E22134','#606060'], borderColor:'#141414', borderWidth:4, hoverOffset:6 }]
         },
         options: {
             responsive:true, maintainAspectRatio:false,
             plugins: {
-                legend: { position: 'bottom', labels:{ color:'var(--text-secondary)', font:{ size:12 }, padding:20, usePointStyle:true, pointStyle:'circle' } },
+                legend: { position: 'bottom', labels:{ color:'#a0a0a0', font:{ size:12 }, padding:20, usePointStyle:true, pointStyle:'circle' } },
                 tooltip: {
-                    backgroundColor: 'var(--surface)', titleColor: 'var(--text)',
-                    bodyColor: 'var(--text)', borderColor: 'var(--border)', borderWidth: 1,
+                    backgroundColor: '#141414', titleColor: '#ffffff',
+                    bodyColor: '#ffffff', borderColor: '#242424', borderWidth: 1,
                     padding: 12, cornerRadius: 8
                 }
             },
@@ -661,9 +516,10 @@ function renderTrades() {
                 <div class="trade-row-main">
                     <div class="trade-row-top">
                         <span class="trade-row-pair">${t.pair||'—'} ${t.direction||''}</span>
+                        ${t.isBackdated ? '<span class="back-dated">BACKDATED</span>' : ''}
                     </div>
                     <div class="trade-row-sub">📅 ${dateStr} ${timeStr}${t.tradeSession?.session ? ' · 🕒 '+t.tradeSession.session.toUpperCase() : ''}</div>
-                    ${noteStr ? `<div class="trade-row-sub" style="margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${noteStr}"</div>` : ''}
+                    ${noteStr ? `<div class="trade-row-sub" style="margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${esc(noteStr)}"</div>` : ''}
                 </div>
                 ${ssCount ? `<span class="trade-row-ss">📸 ${ssCount}</span>` : ''}
                 <span class="trade-row-chevron">›</span>
@@ -683,47 +539,43 @@ document.getElementById('ssModal').addEventListener('click', e => {
         document.getElementById('ssModal').classList.remove('open');
 });
 
+// ── Trade VIEW modal (read-only) ────────────────────────────────────────────
+// Once a trade is journaled it's locked: this shows it exactly as saved.
+// No editing, no duplicating — only viewing the full record, or deleting it.
 let tmActiveId = null;
-let tmScreenshots = [];
-const CL_ITEMS = ['H4','H1EF','H1EG','M30EF','M30EG','M15EF','M15EG','M30EF2','M30EG2','ENTRY-M5EG','ENTRY-M1EF'];
 
-function tmSingleSelect(selector) {
-    document.querySelectorAll(selector).forEach(el => {
-        el.onclick = () => {
-            document.querySelectorAll(selector).forEach(x => x.classList.remove('selected'));
-            el.classList.add('selected');
-        };
-    });
-}
+const CL_LABELS = {
+    'H4': 'H4',
+    'H1EF': 'H1 EF', 'H1EG': 'H1 EG',
+    'M30EF': 'M30 EF (Refined)', 'M30EG': 'M30 EG (Refined)',
+    'M15EF': 'M15 EF', 'M15EG': 'M15 EG',
+    'M30EF2': 'M30 EF (Control)', 'M30EG2': 'M30 EG (Control)',
+    'ENTRY-M5EG': 'M5 EG (Entry)', 'ENTRY-M1EF': 'M1 EF (Entry)'
+};
+const MINDSET_LABELS = { 1:'😤 Frustrated', 2:'😟 Off', 3:'😐 Neutral', 4:'😊 Focused', 5:'🔥 In zone' };
+const SESSION_LABELS = { asia:'🌏 Asia', london:'🏛️ London', newyork:'🗽 New York' };
+const EXEC_LABELS    = { limit:'🎯 Limit', instant:'⚡ Instant' };
+
+function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function tvVal(v) { return v ? esc(String(v)) : '<span class="empty">—</span>'; }
 
 function openTradeModal(tradeId) {
     const t = journals.journals[tradeId];
     if (!t) return;
     tmActiveId = tradeId;
-    tmScreenshots = (t.screenshots || []).map(s => ({...s}));
 
     document.getElementById('tmodalPairTitle').textContent = `${t.pair||'Trade'} ${t.direction||''}`;
     document.getElementById('tmodalBackdated').style.display = t.isBackdated ? 'inline-block' : 'none';
+    document.getElementById('tmodalBody').innerHTML = renderTradeView(t);
 
-    document.querySelectorAll('.tmodal-outcome-row .pill').forEach(b => b.classList.toggle('selected', b.dataset.outcome === t.outcome));
-    document.getElementById('tmPair').value = t.pair || '';
-    document.getElementById('tmDirection').value = t.direction || '';
-    document.getElementById('tmModel').value = t.model || '';
-    document.getElementById('tmSession').value = t.tradeSession?.session || '';
-    document.getElementById('tmDate').value = t.tradeDate || (t.timestamp ? t.timestamp.split('T')[0] : '');
-    document.getElementById('tmTime').value = t.tradeSession?.time || t.tradeTime || '';
+    // Wire screenshot zoom for this render
+    document.querySelectorAll('#tmodalBody .tv-screen img').forEach(img => {
+        img.addEventListener('click', () => {
+            document.getElementById('ssModalImg').src = img.dataset.full;
+            document.getElementById('ssModal').classList.add('open');
+        });
+    });
 
-    document.querySelectorAll('#tmExecRow .pill').forEach(p => p.classList.toggle('selected', p.dataset.exec === t.execution));
-    document.querySelectorAll('#tmMindsetRow .pill').forEach(p => p.classList.toggle('selected', String(t.mindset) === p.dataset.mindset));
-    document.querySelectorAll('#tmRatingRow .pill').forEach(p => p.classList.toggle('selected', String(t.executionRating) === p.dataset.rating));
-    document.querySelectorAll('#tmRuleTags .pill').forEach(tag => tag.classList.toggle('selected', (t.ruleBreaks||[]).includes(tag.dataset.rule)));
-
-    CL_ITEMS.forEach(k => { const el = document.getElementById('tm-cl-'+k); if (el) el.checked = (t.checklist||[]).includes(k); });
-
-    document.getElementById('tmNotes').value = t.text || '';
-    document.getElementById('tmReason').value = t.reason || '';
-
-    renderTmScreenshots();
     document.getElementById('tmodalOverlay').classList.add('open');
 }
 
@@ -732,119 +584,85 @@ function closeTradeModal() {
     tmActiveId = null;
 }
 
-function renderTmScreenshots() {
-    const c = document.getElementById('tmSsPreview');
-    c.innerHTML = '';
-    tmScreenshots.forEach((ss, i) => {
-        if (!ss.data) return;
-        const wrap = document.createElement('div');
-        wrap.style.position = 'relative';
-        const img = document.createElement('img'); img.src = ss.data; img.style.width = '100%'; img.style.height = '80px'; img.style.objectFit = 'cover'; img.style.borderRadius = '6px'; img.style.border = '2px solid var(--border)';
-        img.addEventListener('click', () => {
-            document.getElementById('ssModalImg').src = ss.data;
-            document.getElementById('ssModal').classList.add('open');
-        });
-        const rm = document.createElement('button'); rm.textContent = '×'; rm.style.cssText = 'position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1;';
-        rm.addEventListener('click', (e) => { e.stopPropagation(); tmScreenshots.splice(i,1); renderTmScreenshots(); });
-        const ann = document.createElement('textarea'); ann.rows = 2; ann.style.cssText = 'margin-top:6px;font-size:11px;padding:6px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:4px;width:100%;color:var(--text);font-family:Inter,sans-serif;resize:none;'; ann.placeholder = `Screenshot ${i+1} notes`; ann.value = ss.annotation || '';
-        ann.addEventListener('input', e => { ss.annotation = e.target.value; });
-        wrap.appendChild(img); wrap.appendChild(rm); wrap.appendChild(ann);
-        c.appendChild(wrap);
-    });
-}
+function renderTradeView(t) {
+    const dt = t.timestamp ? new Date(t.timestamp) : null;
+    const dateStr = t.tradeDate || (dt ? dt.toISOString().split('T')[0] : '—');
+    const timeStr  = t.tradeSession?.time || t.tradeTime || (dt ? dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—');
+    const ocCls    = t.outcome==='WIN' ? 'win' : t.outcome==='LOSS' ? 'loss' : 'be';
 
-function tmHandleScreenshots(files) {
-    Array.from(files).forEach(file => {
-        if (!file.type.startsWith('image/')) return;
-        const r = new FileReader();
-        r.onload = e => {
-            tmScreenshots.push({ id: Date.now()+Math.random(), data: e.target.result, name: file.name, annotation: '' });
-            renderTmScreenshots();
-        };
-        r.readAsDataURL(file);
-    });
-    document.getElementById('tmSsInput').value = '';
-}
+    const checklist = (t.checklist||[]).map(k => `<span class="tv-badge">${esc(CL_LABELS[k]||k)}</span>`).join('');
+    const ruleBreaks = t.ruleBreaks||[];
+    const isClean = ruleBreaks.includes('No Rule Break') || ruleBreaks.length === 0;
+    const ruleHtml = isClean
+        ? `<span class="tv-tag clean">✅ No Rule Break</span>`
+        : ruleBreaks.map(r => `<span class="tv-tag">${esc(r)}</span>`).join('');
 
-async function saveTradeEdits() {
-    if (!tmActiveId) return;
-    const t = journals.journals[tmActiveId];
-    if (!t) return;
+    const screenshots = (t.screenshots||[]).filter(s => s.data);
+    const ssHtml = screenshots.length
+        ? `<div class="tv-screens">${screenshots.map((s,i) => `
+            <div class="tv-screen">
+                <img src="${s.data}" data-full="${s.data}" alt="Screenshot ${i+1}">
+                ${s.annotation ? `<div class="tv-caption">${esc(s.annotation)}</div>` : ''}
+            </div>`).join('')}</div>`
+        : `<div class="tv-block empty">No screenshots attached</div>`;
 
-    const outcome = document.querySelector('.tmodal-outcome-row .pill.selected')?.dataset.outcome || t.outcome;
-    const tradeDate = document.getElementById('tmDate').value || t.tradeDate;
-    const tradeTime = document.getElementById('tmTime').value || t.tradeTime;
-    const session = document.getElementById('tmSession').value;
+    return `
+        <div class="tv-outcome-hero ${ocCls}">
+            <span class="tv-oc-badge">${t.outcome||'—'}</span>
+            <span class="tv-oc-meta">${esc(dateStr)} · ${esc(timeStr)}${t.tradeSession?.session ? ' · '+esc(SESSION_LABELS[t.tradeSession.session]||t.tradeSession.session) : ''}</span>
+        </div>
 
-    t.outcome = outcome;
-    t.pair = document.getElementById('tmPair').value;
-    t.direction = document.getElementById('tmDirection').value;
-    t.model = document.getElementById('tmModel').value || null;
-    t.tradeDate = tradeDate;
-    t.tradeTime = tradeTime;
-    t.tradeSession = { session, time: tradeTime };
-    t.execution = document.querySelector('#tmExecRow .pill.selected')?.dataset.exec || t.execution;
-    const mind = document.querySelector('#tmMindsetRow .pill.selected')?.dataset.mindset;
-    t.mindset = mind ? parseInt(mind) : null;
-    const rate = document.querySelector('#tmRatingRow .pill.selected')?.dataset.rating;
-    t.executionRating = rate ? parseInt(rate) : null;
-    t.ruleBreaks = Array.from(document.querySelectorAll('#tmRuleTags .pill.selected')).map(tag => tag.dataset.rule);
-    t.checklist = CL_ITEMS.filter(k => document.getElementById('tm-cl-'+k)?.checked);
-    t.text = document.getElementById('tmNotes').value;
-    t.reason = document.getElementById('tmReason').value;
-    t.screenshots = [...tmScreenshots];
-    if (tradeDate && tradeTime) {
-        try { t.timestamp = new Date(`${tradeDate}T${tradeTime}:00`).toISOString(); } catch(e) {}
-    }
+        <div>
+            <div class="tv-section-title">Trade Details</div>
+            <div class="tv-grid">
+                <div class="tv-item"><div class="tv-label">Pair</div><div class="tv-value">${tvVal(t.pair)}</div></div>
+                <div class="tv-item"><div class="tv-label">Direction</div><div class="tv-value">${tvVal(t.direction)}</div></div>
+                <div class="tv-item"><div class="tv-label">Model</div><div class="tv-value">${tvVal(t.model)}</div></div>
+                <div class="tv-item"><div class="tv-label">Execution</div><div class="tv-value">${t.execution ? esc(EXEC_LABELS[t.execution]||t.execution) : '<span class="empty">—</span>'}</div></div>
+                <div class="tv-item"><div class="tv-label">Phase</div><div class="tv-value">${tvVal(t.phase)}</div></div>
+            </div>
+        </div>
 
-    localStorage.setItem('xX_journal_data', JSON.stringify(journals));
-    showToast('Saving...', 'info');
+        <div>
+            <div class="tv-section-title">Mindset &amp; Execution Rating</div>
+            <div class="tv-grid">
+                <div class="tv-item"><div class="tv-label">Pre-Trade Mindset</div><div class="tv-value">${t.mindset ? esc(MINDSET_LABELS[t.mindset]||t.mindset) : '<span class="empty">—</span>'}</div></div>
+                <div class="tv-item"><div class="tv-label">Execution Rating</div><div class="tv-value">${t.executionRating ? '⭐'.repeat(t.executionRating) : '<span class="empty">—</span>'}</div></div>
+            </div>
+        </div>
 
-    const result = await saveTrade(tmActiveId, t);
-    if (result.success) {
-        showToast('Trade updated ✓', 'success');
-        closeTradeModal();
-        renderTrades(); updateStats(); renderChart(); renderEquityChart(); renderCalendar(); closeDetail();
-    } else {
-        showToast('Save failed: ' + (result.error||'Unknown error'), 'error');
-    }
+        <div>
+            <div class="tv-section-title">Checklist Confirmed</div>
+            ${checklist ? `<div class="tv-badges">${checklist}</div>` : `<div class="tv-block empty">No checklist items were marked</div>`}
+        </div>
+
+        <div>
+            <div class="tv-section-title">Rule Breaks</div>
+            <div class="tv-tags">${ruleHtml}</div>
+        </div>
+
+        <div>
+            <div class="tv-section-title">General Note</div>
+            <div class="tv-block ${t.text ? '' : 'empty'}">${t.text ? esc(t.text) : 'No note written for this trade.'}</div>
+        </div>
+
+        <div>
+            <div class="tv-section-title">Trade Reason</div>
+            <div class="tv-block ${t.reason ? '' : 'empty'}">${t.reason ? esc(t.reason) : 'No reason recorded.'}</div>
+        </div>
+
+        <div>
+            <div class="tv-section-title">Screenshots</div>
+            ${ssHtml}
+        </div>
+    `;
 }
 
 function wireTradeModal() {
     document.getElementById('tmodalClose').addEventListener('click', closeTradeModal);
+    document.getElementById('tmCloseBtn').addEventListener('click', closeTradeModal);
     document.getElementById('tmodalOverlay').addEventListener('click', e => { if (e.target.id === 'tmodalOverlay') closeTradeModal(); });
 
-    document.querySelectorAll('.tmodal-outcome-row .pill').forEach(b => {
-        b.addEventListener('click', () => {
-            document.querySelectorAll('.tmodal-outcome-row .pill').forEach(x => x.classList.remove('selected'));
-            b.classList.add('selected');
-        });
-    });
-
-    tmSingleSelect('#tmExecRow .pill');
-    tmSingleSelect('#tmMindsetRow .pill');
-    tmSingleSelect('#tmRatingRow .pill');
-
-    document.querySelectorAll('#tmRuleTags .pill').forEach(tag => {
-        tag.addEventListener('click', () => {
-            if (tag.dataset.rule === 'No Rule Break') {
-                document.querySelectorAll('#tmRuleTags .pill').forEach(t => t.classList.remove('selected'));
-            } else {
-                document.querySelector('#tmRuleTags .pill[data-rule="No Rule Break"]')?.classList.remove('selected');
-            }
-            tag.classList.toggle('selected');
-        });
-    });
-
-    const tmSsInput = document.getElementById('tmSsInput');
-    const tmSsZone  = document.getElementById('tmSsZone');
-    tmSsZone.addEventListener('click', () => tmSsInput.click());
-    tmSsInput.addEventListener('change', e => tmHandleScreenshots(e.target.files));
-
-    document.getElementById('tmSaveBtn').addEventListener('click', saveTradeEdits);
-    document.getElementById('tmDupBtn').addEventListener('click', () => {
-        if (tmActiveId) location.href = `/journal.html?duplicate=1&tradeId=${tmActiveId}`;
-    });
     document.getElementById('tmDelBtn').addEventListener('click', () => {
         if (tmActiveId) { const id = tmActiveId; closeTradeModal(); doDelete(id); }
     });
@@ -868,6 +686,7 @@ window.doDelete = async (tradeId) => {
     setTimeout(() => location.reload(), 500);
 };
 
+// ── Calendar ─────────────────────────────────────────────────────────────────
 function initCalendar() {
     const now = new Date();
     calYear = now.getFullYear(); calMonth = now.getMonth();
@@ -956,7 +775,7 @@ function openDetail(dateKey, tradeMap) {
             <div class="cal-outcome ${cls}" style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:4px; flex-shrink:0; background: ${cls==='win'?'rgba(29,185,84,0.2)':cls==='loss'?'rgba(226,33,52,0.2)':'rgba(255,255,255,0.1)'}; color: ${cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--text-secondary)'};">${t.outcome}</div>
             <div class="cal-trade-meta" style="flex:1; min-width:0;">
                 <div style="font-size:13px; font-weight:700;">${t.pair} ${t.direction}</div>
-                <div style="font-size:11px; color:var(--text-tertiary);">${t.tradeTime||''} ${t.tradeSession?.session?.toUpperCase()||''} ${t.reason?'· '+t.reason:''}</div>
+                <div style="font-size:11px; color:var(--text-tertiary);">${t.tradeTime||''} ${t.tradeSession?.session?.toUpperCase()||''} ${t.reason?'· '+esc(t.reason):''}</div>
             </div>
             <span style="color:var(--text-tertiary); font-size:16px;">›</span>
         </div>`;
@@ -973,6 +792,7 @@ function closeDetail() {
     document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected-day'));
 }
 
+// ── Exports ───────────────────────────────────────────────────────────────────
 function setupExports() {
     document.getElementById('csvBtn').addEventListener('click', exportCSV);
     document.getElementById('xlsxBtn').addEventListener('click', exportXLSX);
