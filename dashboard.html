@@ -5,202 +5,203 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | xX Trading</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#0a0a0a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { height:100%; }
-        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; }
-
-        /* -- App shell: left sidebar + main content -- */
-        .app-shell { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
-        .sidebar { background:#0a0a0a; border-right:1px solid rgba(255,255,255,0.07); padding:22px 14px; display:flex; flex-direction:column; gap:2px; position:sticky; top:0; height:100vh; }
-        .sidebar-brand { display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
-        .sidebar-brand .mark { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#1DB954,#4A90E2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
-        .sidebar-brand .name { font-size:14px; font-weight:800; letter-spacing:0.5px; }
-        .sidebar-brand .sub  { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
-        .nav-link { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:9px; text-decoration:none; color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; transition:background 0.15s, color 0.15s; }
-        .nav-link .ic { font-size:16px; width:20px; text-align:center; }
-        .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85); }
-        .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; }
-        .sidebar-foot { margin-top:auto; padding:12px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); padding-top:14px; }
-        .main { padding:26px 34px 100px; width:100%; }
-                .sidebar { transition:width 0.15s; }
-        .nav-link .lbl { white-space:nowrap; }
-        .nav-link.active { box-shadow:inset 3px 0 0 #1DB954; }
-        @media (max-width:980px) {
-            .app-shell { grid-template-columns:64px 1fr; }
-            .sidebar { padding:18px 8px; align-items:center; }
-            .sidebar-brand { padding:6px 0 22px; justify-content:center; }
-            .sidebar-brand div:not(.mark) { display:none; }
-            .nav-link { justify-content:center; padding:12px 0; width:44px; }
-            .nav-link .lbl { display:none; }
-            .sidebar-foot { display:none; }
-            .main { padding:16px 16px 90px; }
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --surface-hover: #1a1a1a;
+            --border: #242424;
+            --text: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #606060;
+            --green: #1DB954;
+            --red: #E22134;
+            --blue: #4A90E2;
+            --gold: #FFD700;
+            --radius: 12px;
+            --radius-lg: 16px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
 
-        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); }
-        h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
-        .back-btn { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:'Inter',sans-serif; transition:border-color 0.15s,color 0.15s; }
-        .back-btn:hover { border-color:rgba(255,255,255,0.4); color:#fff; }
-        .card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:20px; margin-bottom:14px; }
-        .card-title { font-size:13px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.5); margin-bottom:16px; }
-        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
-        .stat-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px 14px; position:relative; overflow:hidden; transition:border-color 0.15s; }
-        .stat-card:hover { border-color:rgba(255,255,255,0.15); }
-        .stat-card .stat-ic { position:absolute; top:14px; right:14px; font-size:16px; opacity:0.35; }
-        .stat-value { font-size:32px; font-weight:800; }
-        .stat-label { font-size:11px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.45); margin-top:4px; }
-        .charts-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:14px; margin-bottom:14px; align-items:start; }
-        @media (max-width:980px) { .stats-grid { grid-template-columns:1fr 1fr; } .charts-grid { grid-template-columns:1fr; } }
-        .cycle-card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; margin-bottom:14px; }
-        .cycle-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-        .cycle-label { font-size:11px; font-weight:700; letter-spacing:0.8px; color:rgba(255,255,255,0.4); }
-        .cycle-val { font-size:14px; font-weight:700; }
-        .progress-track { height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
-        .progress-fill  { height:100%; background:#fff; border-radius:3px; transition:width 0.4s; }
-        .chart-wrap { position:relative; height:260px; }
-        .export-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
-        .exp-btn { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); padding:8px 14px; border-radius:50px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s; }
-        .exp-btn:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+        /* -- App shell -- */
+        .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+        .sidebar { background: #050505; border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; z-index: 100; }
+        .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 30px; }
+        .sidebar-brand .mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--green), var(--blue)); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; box-shadow: 0 0 15px rgba(74,144,226,0.3); }
+        .sidebar-brand .name { font-size: 15px; font-weight: 800; }
+        .sidebar-brand .sub  { font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.5px; }
+        
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--text-tertiary); font-size: 14px; font-weight: 600; transition: all 0.2s ease; margin-bottom: 4px; }
+        .nav-link .ic { font-size: 18px; width: 24px; text-align: center; }
+        .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .nav-link.active { background: rgba(255,255,255,0.08); color: var(--text); border-left: 3px solid var(--green); }
+        
+        .sidebar-foot { margin-top: auto; padding: 20px 10px 0; font-size: 11px; color: var(--text-tertiary); border-top: 1px solid var(--border); }
+
+        .main { padding: 24px 32px 80px; width: 100%; max-width: 1400px; margin: 0 auto; }
+
+        /* Responsive Sidebar */
+        @media (max-width: 980px) {
+            .app-shell { grid-template-columns: 64px 1fr; }
+            .sidebar { padding: 16px 8px; align-items: center; }
+            .sidebar-brand { padding: 0 0 24px; justify-content: center; }
+            .sidebar-brand div:not(.mark) { display: none; }
+            .nav-link { justify-content: center; padding: 14px 0; width: 44px; }
+            .nav-link .lbl { display: none; }
+            .sidebar-foot { display: none; }
+            .main { padding: 16px 16px 80px; }
+        }
+
+        /* -- Header -- */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s ease; }
+        .back-btn:hover { border-color: var(--text-secondary); color: var(--text); }
+
+        .export-row { display: flex; gap: 8px; margin-bottom: 24px; }
+        .exp-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .exp-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--text-secondary); }
+
+        /* -- Cards & Layout -- */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow); transition: border-color 0.2s ease; }
+        .card-title { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--text-tertiary); margin-bottom: 16px; text-transform: uppercase; }
+        .card-title > div { text-transform: none; letter-spacing: normal; color: var(--text-secondary); font-weight: 500; font-size: 12px; display: inline-block; }
+
+        /* Cycle Progress */
+        .cycle-card { display: flex; align-items: center; justify-content: space-between; padding: 24px; }
+        .cycle-info { display: flex; flex-direction: column; gap: 8px; }
+        .cycle-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        .cycle-val { font-size: 32px; font-weight: 800; }
+        .cycle-val span { font-size: 16px; color: var(--text-tertiary); font-weight: 500; }
+        .cycle-progress { display: flex; align-items: center; gap: 12px; }
+        .progress-track { width: 200px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--blue)); border-radius: 4px; transition: width 0.4s ease; }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: left; transition: transform 0.2s ease, border-color 0.2s ease; }
+        .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }
+        .stat-icon { font-size: 24px; margin-bottom: 12px; display: block; opacity: 0.8; }
+        .stat-value { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+        .stat-label { font-size: 12px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.5px; text-transform: uppercase; }
+
+        /* Charts Grid */
+        .charts-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; margin-bottom: 24px; }
+        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-wrap { position: relative; height: 300px; }
+
         /* Calendar */
-        .cal-nav-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
-        .cal-month { font-size:14px; font-weight:700; }
-        .cal-nav-btn { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); color:#fff; width:30px; height:30px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-        .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
-        .cal-day-name { text-align:center; font-size:9px; font-weight:700; color:rgba(255,255,255,0.3); padding:5px 0; letter-spacing:0.8px; }
-        .cal-cell { min-height:46px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(255,255,255,0.04); padding:4px 3px 3px; display:flex; flex-direction:column; gap:2px; }
-        .cal-cell.has-trades { cursor:pointer; border-color:rgba(255,255,255,0.1); }
-        .cal-cell.has-trades:hover { background:rgba(255,255,255,0.05); }
-        .cal-cell.today { border-color:rgba(255,255,255,0.3); }
-        .cal-cell.other-month .cal-day-num { color:rgba(255,255,255,0.15); }
-        .cal-cell.selected-day { border-color:#4A90E2; background:rgba(74,144,226,0.07); }
-        .cal-day-num { font-size:10px; font-weight:600; color:rgba(255,255,255,0.45); }
-        .cal-cell.today .cal-day-num { color:#fff; background:rgba(255,255,255,0.15); border-radius:3px; padding:1px 3px; display:inline-block; }
-        .cal-dots { display:flex; gap:2px; flex-wrap:wrap; }
-        .cal-dot { width:5px; height:5px; border-radius:50%; }
-        .cal-dot.win  { background:#1DB954; }
-        .cal-dot.loss { background:#E22134; }
-        .cal-dot.be   { background:rgba(255,255,255,0.5); }
-        .cal-detail { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:16px; margin-top:12px; display:none; }
-        .cal-detail.show { display:block; }
-        .cal-detail-title { font-size:13px; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
-        .cal-close { background:none; border:none; color:rgba(255,255,255,0.4); font-size:18px; cursor:pointer; }
-        .cal-pills { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
-        .cal-pill { font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; }
-        .cal-pill.win  { background:rgba(29,185,84,0.15); color:#1DB954; }
-        .cal-pill.loss { background:rgba(226,33,52,0.15); color:#E22134; }
-        .cal-pill.be   { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.6); }
-        .cal-trade-row { display:flex; align-items:center; gap:10px; padding:9px 10px; background:rgba(255,255,255,0.03); border-radius:7px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.04); }
-        .cal-outcome { font-size:10px; font-weight:800; padding:2px 8px; border-radius:3px; flex-shrink:0; }
-        .cal-outcome.win  { background:rgba(29,185,84,0.2);  color:#1DB954; }
-        .cal-outcome.loss { background:rgba(226,33,52,0.2);  color:#E22134; }
-        .cal-outcome.be   { background:rgba(255,255,255,0.12); color:#fff; }
-        .cal-trade-meta { flex:1; min-width:0; }
-        .cal-trade-pair { font-size:12px; font-weight:700; }
-        .cal-trade-sub  { font-size:10px; color:rgba(255,255,255,0.4); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        /* Trade items */
-        .trade-item { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:16px; margin-bottom:12px; }
-        .trade-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-        .trade-info { display:flex; align-items:center; gap:10px; }
-        .outcome-badge { font-size:10px; font-weight:800; padding:3px 9px; border-radius:4px; }
-        .outcome-win  { background:rgba(29,185,84,0.2);  color:#1DB954; }
-        .outcome-loss { background:rgba(226,33,52,0.2);  color:#E22134; }
-        .outcome-be   { background:rgba(255,255,255,0.15); color:#fff; }
-        .trade-pair { font-size:14px; font-weight:700; }
-        .trade-meta { font-size:12px; color:rgba(255,255,255,0.4); margin-bottom:8px; display:flex; flex-wrap:wrap; gap:8px; }
-        .trade-notes { font-size:13px; color:rgba(255,255,255,0.7); line-height:1.6; margin-bottom:10px; background:rgba(255,255,255,0.02); border-radius:6px; padding:9px 12px; }
-        .trade-row-meta { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
-        .checklist-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-        .cl-badge { background:rgba(74,144,226,0.15); color:#4A90E2; font-size:10px; font-weight:700; padding:2px 7px; border-radius:3px; }
-        .screenshots-wrap { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-        .ss-thumb { width:70px; height:52px; object-fit:cover; border-radius:5px; border:1px solid rgba(255,255,255,0.1); cursor:pointer; transition:all 0.2s; }
-        .ss-thumb:hover { border-color:rgba(255,255,255,0.4); transform:scale(1.06); }
-        .trade-actions { display:flex; gap:8px; }
-        .dup-btn { background:rgba(74,144,226,0.12); border:1px solid rgba(74,144,226,0.3); color:#4A90E2; padding:5px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-family:'Inter',sans-serif; }
-        .del-btn { background:rgba(226,33,52,0.1); border:1px solid rgba(226,33,52,0.25); color:#E22134; padding:5px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-family:'Inter',sans-serif; }
-        .back-dated { font-size:9px; font-weight:700; color:#ffd600; border:1px solid rgba(255,214,0,0.3); border-radius:10px; padding:1px 7px; }
-        .empty-state { text-align:center; padding:40px 20px; color:rgba(255,255,255,0.3); font-size:14px; }
+        .cal-nav-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .cal-month { font-size: 16px; font-weight: 700; }
+        .cal-nav-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .cal-nav-btn:hover { background: rgba(255,255,255,0.1); }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .cal-day-name { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-tertiary); padding: 8px 0; }
+        .cal-cell { min-height: 60px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid transparent; padding: 8px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; transition: all 0.2s ease; position: relative; }
+        .cal-cell:hover { background: rgba(255,255,255,0.05); border-color: var(--border); cursor: pointer; }
+        .cal-cell.has-trades { border-color: var(--border); }
+        .cal-cell.today { border-color: var(--blue); background: rgba(74,144,226,0.05); }
+        .cal-cell.selected-day { border-color: var(--gold); }
+        .cal-day-num { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+        .cal-cell.today .cal-day-num { color: var(--text); }
+        .cal-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: auto; }
+        .cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .cal-dot.win  { background: var(--green); box-shadow: 0 0 4px rgba(29,185,84,0.5); }
+        .cal-dot.loss { background: var(--red); }
+        .cal-dot.be   { background: var(--text-tertiary); }
 
-        /* -- Compact trade row (Recent Trades list) -- */
-        .trade-row { display:flex; align-items:center; gap:12px; padding:12px 14px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; margin-bottom:8px; cursor:pointer; transition:background 0.15s,border-color 0.15s; }
-        .trade-row:hover { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.14); }
-        .trade-row-main { flex:1; min-width:0; }
-        .trade-row-top { display:flex; align-items:center; gap:8px; margin-bottom:3px; flex-wrap:wrap; }
-        .trade-row-pair { font-size:13.5px; font-weight:700; }
-        .trade-row-sub { font-size:11px; color:rgba(255,255,255,0.4); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .trade-row-ss { font-size:10.5px; color:rgba(255,255,255,0.35); flex-shrink:0; display:flex; align-items:center; gap:3px; }
-        .trade-row-chevron { font-size:14px; color:rgba(255,255,255,0.2); flex-shrink:0; }
+        .cal-detail { background: var(--surface-hover); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-top: 16px; display: none; }
+        .cal-detail.show { display: block; }
+        .cal-detail-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .cal-close { background: none; border: none; color: var(--text-tertiary); font-size: 18px; cursor: pointer; }
+        .cal-close:hover { color: var(--text); }
 
-        /* -- Trade detail / edit modal -- */
-        .tmodal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(4px); z-index:10000; align-items:flex-start; justify-content:center; padding:30px 16px; overflow-y:auto; }
-        .tmodal-overlay.open { display:flex; }
-        .tmodal { background:#0d0d0d; border:1px solid rgba(255,255,255,0.1); border-radius:16px; width:100%; max-width:720px; margin-bottom:30px; }
-        .tmodal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid rgba(255,255,255,0.07); position:sticky; top:0; background:#0d0d0d; border-radius:16px 16px 0 0; z-index:2; }
-        .tmodal-title { font-size:15px; font-weight:800; display:flex; align-items:center; gap:10px; }
-        .tmodal-close { background:rgba(255,255,255,0.06); border:none; color:rgba(255,255,255,0.6); width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer; }
-        .tmodal-close:hover { background:rgba(255,255,255,0.12); color:#fff; }
-        .tmodal-body { padding:22px; display:flex; flex-direction:column; gap:18px; }
-        .tmodal-section-title { font-size:11px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.45); margin-bottom:10px; }
-        .tmodal-outcome-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
-        .tmodal-outcome-btn { padding:11px 8px; border-radius:9px; font-size:12.5px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.55); font-family:'Inter',sans-serif; transition:all 0.15s; }
-        .tmodal-outcome-btn.active[data-outcome="WIN"] { background:rgba(29,185,84,0.18); border-color:#1DB954; color:#1DB954; }
-        .tmodal-outcome-btn.active[data-outcome="LOSS"] { background:rgba(226,33,52,0.18); border-color:#E22134; color:#ff6b6b; }
-        .tmodal-outcome-btn.active[data-outcome="BREAKEVEN"] { background:rgba(255,255,255,0.16); border-color:rgba(255,255,255,0.4); color:#fff; }
-        .tmodal-foot { display:flex; gap:10px; flex-wrap:wrap; padding:16px 22px; border-top:1px solid rgba(255,255,255,0.07); position:sticky; bottom:0; background:#0d0d0d; border-radius:0 0 16px 16px; }
-        .tmodal-foot .save-btn2 { flex:2; min-width:140px; background:#4A90E2; color:#fff; border:none; border-radius:9px; padding:13px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; }
-        .tmodal-foot .save-btn2:hover { filter:brightness(1.08); }
-        .tmodal-foot .dup-btn2 { flex:1; min-width:90px; background:rgba(74,144,226,0.1); border:1px solid rgba(74,144,226,0.3); color:#4A90E2; border-radius:9px; padding:13px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
-        .tmodal-foot .del-btn2 { flex:1; min-width:90px; background:rgba(226,33,52,0.08); border:1px solid rgba(226,33,52,0.25); color:#E22134; border-radius:9px; padding:13px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+        /* Trades List */
+        .trade-row { display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; }
+        .trade-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.2); transform: translateX(4px); }
+        .outcome-badge { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; text-align: center; min-width: 50px; }
+        .outcome-win  { background: rgba(29,185,84,0.15); color: var(--green); border: 1px solid rgba(29,185,84,0.3); }
+        .outcome-loss { background: rgba(226,33,52,0.15); color: var(--red); border: 1px solid rgba(226,33,52,0.3); }
+        .outcome-be   { background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid var(--border); }
+        
+        .trade-row-main { flex: 1; min-width: 0; }
+        .trade-row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+        .trade-row-pair { font-size: 15px; font-weight: 700; }
+        .trade-row-sub { font-size: 12px; color: var(--text-tertiary); }
+        .trade-row-ss { font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
+        .trade-row-chevron { font-size: 18px; color: var(--text-tertiary); flex-shrink: 0; transition: transform 0.2s ease; }
+        .trade-row:hover .trade-row-chevron { transform: translateX(4px); color: var(--text); }
 
-        /* Reused form controls / pills / checklist / screenshots (matches New Trade page) */
-        .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        .tmodal label { display:block; font-size:10.5px; font-weight:600; letter-spacing:0.7px; color:rgba(255,255,255,0.4); margin-bottom:6px; }
-        .tmodal select, .tmodal input[type="date"], .tmodal input[type="time"], .tmodal input[type="text"], .tmodal textarea {
-            width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
-            border-radius:8px; padding:10px 12px; color:#fff; font-size:13.5px; font-family:'Inter',sans-serif; transition:all 0.15s;
+        /* Trade Edit Modal */
+        .tmodal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+        .tmodal-overlay.open { display: flex; }
+        .tmodal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
+        .tmodal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 10; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+        .tmodal-title { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+        .tmodal-close { background: rgba(255,255,255,0.05); border: none; color: var(--text-secondary); width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; transition: all 0.2s; }
+        .tmodal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .tmodal-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+        .tmodal-foot { display: flex; gap: 12px; padding: 20px 24px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+        /* Styled Form Elements */
+        .form-group { margin-bottom: 16px; }
+        .form-group:last-child { margin-bottom: 0; }
+        label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; }
+        select, input[type="date"], input[type="time"], input[type="text"], textarea {
+            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            border-radius: 8px; padding: 12px; color: var(--text); font-size: 14px; font-family: 'Inter', sans-serif; transition: all 0.2s ease;
         }
-        .tmodal select:focus, .tmodal input:focus, .tmodal textarea:focus { outline:none; border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.07); }
-        .tmodal option { background:#111; }
-        .tmodal textarea { min-height:110px; resize:vertical; line-height:1.6; }
-        .pill-row { display:flex; gap:8px; flex-wrap:wrap; }
-        .pill { flex:1; min-width:76px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:11px 8px; text-align:center; cursor:pointer; font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.6); transition:all 0.12s; letter-spacing:0.4px; user-select:none; }
-        .pill:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.2); }
-        .pill.selected { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.35); color:#fff; }
-        .mindset-row { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; }
-        .mindset-pill { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 3px; text-align:center; cursor:pointer; font-size:10.5px; color:rgba(255,255,255,0.6); transition:all 0.12s; user-select:none; line-height:1.5; }
-        .mindset-pill:hover { background:rgba(255,255,255,0.08); }
-        .mindset-pill[data-mindset="1"].selected { border-color:#E22134; background:rgba(226,33,52,0.12); color:#ff6b6b; }
-        .mindset-pill[data-mindset="2"].selected { border-color:#ff7043; background:rgba(255,112,67,0.12); color:#ff9068; }
-        .mindset-pill[data-mindset="3"].selected { border-color:#ffd600; background:rgba(255,214,0,0.12); color:#ffd600; }
-        .mindset-pill[data-mindset="4"].selected { border-color:#69f0ae; background:rgba(105,240,174,0.12); color:#69f0ae; }
-        .mindset-pill[data-mindset="5"].selected { border-color:#1DB954; background:rgba(29,185,84,0.12); color:#1DB954; }
-        .checklist-cat { margin-bottom:14px; }
-        .checklist-cat:last-child { margin-bottom:0; }
-        .cat-label { font-size:10.5px; font-weight:700; color:#4A90E2; letter-spacing:0.7px; margin-bottom:8px; }
-        .cb-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-        .cb-item { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12.5px; color:rgba(255,255,255,0.8); padding:6px 8px; min-height:30px; border-radius:6px; transition:background 0.12s; }
-        .cb-item:hover { background:rgba(255,255,255,0.04); }
-        .cb-item input { width:16px; height:16px; accent-color:#fff; flex-shrink:0; cursor:pointer; }
-        .rule-tags { display:flex; flex-wrap:wrap; gap:7px; }
-        .rule-tag { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:8px 13px; font-size:11.5px; cursor:pointer; color:rgba(255,255,255,0.6); transition:all 0.12s; user-select:none; }
-        .rule-tag:hover { background:rgba(255,255,255,0.08); }
-        .rule-tag.selected { background:rgba(226,33,52,0.15); border-color:rgba(226,33,52,0.5); color:#ff6b6b; }
-        .screenshot-drop { border:2px dashed rgba(255,255,255,0.12); border-radius:10px; padding:26px 20px; text-align:center; cursor:pointer; transition:all 0.15s; }
-        .screenshot-drop:hover { border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.02); }
-        .ss-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; margin-top:14px; }
-        .ss-item { position:relative; }
-        .ss-item img { width:100%; height:92px; object-fit:cover; border-radius:6px; border:2px solid rgba(29,185,84,0.4); cursor:zoom-in; }
-        .ss-remove { position:absolute; top:5px; right:5px; background:rgba(226,33,52,0.9); border:none; border-radius:50%; width:20px; height:20px; color:#fff; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-        .ss-remove:hover { background:rgba(226,33,52,1); }
-        .ss-ann { margin-top:6px; font-size:10.5px; padding:6px 8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; width:100%; color:rgba(255,255,255,0.7); font-family:'Inter',sans-serif; resize:none; }
-        @media (max-width:600px) { .grid-4 { grid-template-columns:1fr 1fr; } .tmodal-outcome-row { grid-template-columns:1fr 1fr 1fr; } }
+        select:focus, input:focus, textarea:focus { outline: none; border-color: var(--blue); background: rgba(74,144,226,0.05); }
+        textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+
+        /* Pills & Tags */
+        .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .pill { flex: 1; min-width: 80px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary); transition: all 0.15s ease; }
+        .pill:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .pill.selected { background: rgba(255,255,255,0.15); border-color: var(--text); color: var(--text); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+        /* Checkboxes */
+        .checklist-cat { margin-bottom: 16px; }
+        .cat-label { font-size: 11px; font-weight: 700; color: var(--blue); letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
+        .cb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .cb-item { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: var(--text-secondary); padding: 8px; border-radius: 6px; transition: background 0.15s; }
+        .cb-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .cb-item input { width: 16px; height: 16px; accent-color: var(--green); flex-shrink: 0; cursor: pointer; }
+
+        /* Buttons */
+        .btn-main { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s ease; }
+        .btn-main:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s ease; }
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .btn-danger { background: rgba(226,33,52,0.1); border: 1px solid rgba(226,33,52,0.3); color: var(--red); border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s ease; }
+        .btn-danger:hover { background: rgba(226,33,52,0.2); }
+
+        /* Screenshot Modal */
+        #ssModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; align-items: center; justify-content: center; padding: 16px; }
+        #ssModal.open { display: flex; }
+        #ssModalImg { max-width: 100%; max-height: 90vh; border-radius: 8px; object-fit: contain; box-shadow: var(--shadow); }
+        #ssModalClose { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 5001; }
+
+        /* Empty State */
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 15px; line-height: 1.6; }
+        
+        /* Add a nice font for the trades list */
+        .trade-row-pair { font-family: 'Inter', sans-serif; } 
     </style>
 </head>
 <body>
@@ -220,11 +221,14 @@
         <a href="/profile.html" class="nav-link" title="Profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
         <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
     </aside>
+    
     <main class="main">
 
     <div class="header">
         <h1>DASHBOARD</h1>
-        <a href="/" class="back-btn">← HOME</a>
+        <div class="header-right">
+            <a href="/" class="back-btn">← HOME</a>
+        </div>
     </div>
 
     <div class="export-row">
@@ -233,27 +237,49 @@
         <button class="exp-btn" id="csvBtn">📋 CSV</button>
     </div>
 
-    <!-- Cycle -->
-    <div class="cycle-card">
-        <div class="cycle-row">
-            <span class="cycle-label">CYCLE PROGRESS</span>
-            <span class="cycle-val">Cycle <span id="cycleNum">1</span> · <span id="cycleTrades">0</span>/20</span>
+    <!-- Cycle Progress -->
+    <div class="cycle-card card">
+        <div class="cycle-info">
+            <div class="cycle-label">CYCLE PROGRESS</div>
+            <div class="cycle-val" id="cycleNum">1</div>
+            <div style="color: var(--text-secondary); font-size: 14px; font-weight: 600;">
+                <span id="cycleTrades">0</span> / 20 trades logged
+            </div>
         </div>
-        <div class="progress-track"><div class="progress-fill" id="cycleBar" style="width:0%"></div></div>
+        <div class="cycle-progress">
+            <div class="progress-track"><div class="progress-fill" id="cycleBar" style="width:0%"></div></div>
+            <span style="font-weight:700; color: var(--text-secondary);" id="cyclePct">0%</span>
+        </div>
     </div>
 
     <!-- Stats -->
     <div class="stats-grid">
-        <div class="stat-card"><span class="stat-ic">📦</span><div class="stat-value" id="totalTrades">0</div><div class="stat-label">TOTAL TRADES</div></div>
-        <div class="stat-card"><span class="stat-ic">🎯</span><div class="stat-value" id="winRate">0%</div><div class="stat-label">WIN RATE</div></div>
-        <div class="stat-card"><span class="stat-ic">🔥</span><div class="stat-value" id="avgWinStreak">0</div><div class="stat-label">AVG WIN STREAK</div></div>
-        <div class="stat-card"><span class="stat-ic">🧊</span><div class="stat-value" id="avgLossStreak">0</div><div class="stat-label">AVG LOSS STREAK</div></div>
+        <div class="stat-card">
+            <span class="stat-icon">📦</span>
+            <div class="stat-value" id="totalTrades">0</div>
+            <div class="stat-label">TOTAL TRADES</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">🎯</span>
+            <div class="stat-value" id="winRate">0%</div>
+            <div class="stat-label">WIN RATE</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">🔥</span>
+            <div class="stat-value" id="avgWinStreak">0</div>
+            <div class="stat-label">AVG WIN STREAK</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">🧊</span>
+            <div class="stat-value" id="avgLossStreak">0</div>
+            <div class="stat-label">AVG LOSS STREAK</div>
+        </div>
     </div>
 
     <!-- Charts -->
     <div class="charts-grid">
         <div class="card">
-            <div class="card-title">PERFORMANCE OVER TIME</div>
+            <div class="card-title">PERFORMANCE OVER TIME <div>(Cumulative Win/Loss Score)</div></div>
             <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
         </div>
         <div class="card">
@@ -262,60 +288,60 @@
         </div>
     </div>
 
-<!-- Calendar -->
-<div class="card">
-    <div class="cal-nav-row">
-        <button class="cal-nav-btn" id="calPrev">‹</button>
-        <div class="cal-month" id="calMonthLabel"></div>
-        <button class="cal-nav-btn" id="calNext">›</button>
-    </div>
-    <div class="cal-grid" id="calGrid"></div>
-    <div class="cal-detail" id="calDetail">
-        <div class="cal-detail-title">
-            <span id="calDetailTitle"></span>
-            <button class="cal-close" id="calClose">×</button>
+    <!-- Calendar -->
+    <div class="card">
+        <div class="cal-nav-row">
+            <button class="cal-nav-btn" id="calPrev">‹</button>
+            <div class="cal-month" id="calMonthLabel"></div>
+            <button class="cal-nav-btn" id="calNext">›</button>
         </div>
-        <div class="cal-pills" id="calPills"></div>
-        <div id="calTrades"></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-detail" id="calDetail">
+            <div class="cal-detail-title">
+                <span id="calDetailTitle"></span>
+                <button class="cal-close" id="calClose">×</button>
+            </div>
+            <div class="cal-pills" id="calPills" style="display: flex; gap: 8px; margin-bottom: 12px;"></div>
+            <div id="calTrades"></div>
+        </div>
     </div>
-</div>
 
-<!-- Recent Trades -->
-<div class="card">
-    <div class="card-title">RECENT TRADES <span style="font-weight:400;color:rgba(255,255,255,0.3);text-transform:none;letter-spacing:0;">— tap a trade to view, edit or add screenshots</span></div>
-    <div id="tradesList"></div>
-</div>
+    <!-- Recent Trades -->
+    <div class="card">
+        <div class="card-title">RECENT TRADES <div>— tap a trade to view, edit or add screenshots</div></div>
+        <div id="tradesList"></div>
+    </div>
 
     </main>
 </div>
 
 <!-- Screenshot modal -->
-<div id="ssModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;">
-    <img id="ssModalImg" style="max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain;">
-    <button id="ssModalClose" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;width:38px;height:38px;border-radius:50%;font-size:22px;cursor:pointer;">×</button>
+<div id="ssModal">
+    <img id="ssModalImg" src="" alt="screenshot">
+    <button id="ssModalClose">×</button>
 </div>
 
 <!-- Trade detail / edit modal -->
 <div class="tmodal-overlay" id="tmodalOverlay">
   <div class="tmodal">
     <div class="tmodal-head">
-      <div class="tmodal-title"><span id="tmodalPairTitle">Trade</span> <span class="back-dated" id="tmodalBackdated" style="display:none;">BACKDATED</span></div>
+      <div class="tmodal-title"><span id="tmodalPairTitle">Trade</span> <span class="back-dated" id="tmodalBackdated" style="display:none; color: var(--gold); font-size: 12px;">BACKDATED</span></div>
       <button class="tmodal-close" id="tmodalClose">×</button>
     </div>
     <div class="tmodal-body">
 
       <div>
-        <div class="tmodal-section-title">OUTCOME</div>
-        <div class="tmodal-outcome-row" id="tmodalOutcomeRow">
-          <button type="button" class="tmodal-outcome-btn" data-outcome="WIN">WIN</button>
-          <button type="button" class="tmodal-outcome-btn" data-outcome="LOSS">LOSS</button>
-          <button type="button" class="tmodal-outcome-btn" data-outcome="BREAKEVEN">BE</button>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">OUTCOME</div>
+        <div class="tmodal-outcome-row" id="tmodalOutcomeRow" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+          <button type="button" class="pill" data-outcome="WIN">WIN</button>
+          <button type="button" class="pill" data-outcome="LOSS">LOSS</button>
+          <button type="button" class="pill" data-outcome="BREAKEVEN">BE</button>
         </div>
       </div>
 
       <div>
-        <div class="tmodal-section-title">TRADE DETAILS</div>
-        <div class="grid-4" style="margin-bottom:12px;">
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">TRADE DETAILS</div>
+        <div class="grid-2">
           <div class="form-group">
             <label>PAIR</label>
             <select id="tmPair">
@@ -344,7 +370,7 @@
       </div>
 
       <div>
-        <div class="tmodal-section-title">EXECUTION TYPE</div>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">EXECUTION TYPE</div>
         <div class="pill-row" id="tmExecRow">
           <div class="pill" data-exec="limit">🎯 LIMIT</div>
           <div class="pill" data-exec="instant">⚡ INSTANT</div>
@@ -352,29 +378,29 @@
       </div>
 
       <div>
-        <div class="tmodal-section-title">PRE-TRADE MINDSET</div>
-        <div class="mindset-row" id="tmMindsetRow">
-          <div class="mindset-pill" data-mindset="1">😤<br>1<br><small>Frustrated</small></div>
-          <div class="mindset-pill" data-mindset="2">😟<br>2<br><small>Off</small></div>
-          <div class="mindset-pill" data-mindset="3">😐<br>3<br><small>Neutral</small></div>
-          <div class="mindset-pill" data-mindset="4">😊<br>4<br><small>Focused</small></div>
-          <div class="mindset-pill" data-mindset="5">🔥<br>5<br><small>In zone</small></div>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">PRE-TRADE MINDSET</div>
+        <div class="pill-row" id="tmMindsetRow">
+          <div class="pill" data-mindset="1">😤 1</div>
+          <div class="pill" data-mindset="2">😟 2</div>
+          <div class="pill" data-mindset="3">😐 3</div>
+          <div class="pill" data-mindset="4">😊 4</div>
+          <div class="pill" data-mindset="5">🔥 5</div>
         </div>
       </div>
 
       <div>
-        <div class="tmodal-section-title">EXECUTION RATING</div>
-        <div class="pill-row" id="tmRatingRow" style="flex-wrap:wrap;">
-          <div class="pill" data-rating="1">⭐<br><small>Poor</small></div>
-          <div class="pill" data-rating="2">⭐⭐<br><small>Below</small></div>
-          <div class="pill" data-rating="3">⭐⭐⭐<br><small>Avg</small></div>
-          <div class="pill" data-rating="4">⭐⭐⭐⭐<br><small>Good</small></div>
-          <div class="pill" data-rating="5">⭐⭐⭐⭐⭐<br><small>Perfect</small></div>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">EXECUTION RATING</div>
+        <div class="pill-row" id="tmRatingRow">
+          <div class="pill" data-rating="1">⭐ 1</div>
+          <div class="pill" data-rating="2">⭐⭐ 2</div>
+          <div class="pill" data-rating="3">⭐⭐⭐ 3</div>
+          <div class="pill" data-rating="4">⭐⭐⭐⭐ 4</div>
+          <div class="pill" data-rating="5">⭐⭐⭐⭐⭐ 5</div>
         </div>
       </div>
 
       <div>
-        <div class="tmodal-section-title">CHECKLIST</div>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">CHECKLIST</div>
         <div class="checklist-cat">
           <div class="cat-label">HTF</div>
           <div class="cb-grid"><label class="cb-item"><input type="checkbox" id="tm-cl-H4"><span>H4</span></label></div>
@@ -407,61 +433,60 @@
       </div>
 
       <div>
-        <div class="tmodal-section-title">RULE BREAKS</div>
-        <div class="rule-tags" id="tmRuleTags">
-          <div class="rule-tag" data-rule="Entered Early">Entered Early</div>
-          <div class="rule-tag" data-rule="Entered Late">Entered Late</div>
-          <div class="rule-tag" data-rule="Chased Market">Chased Market</div>
-          <div class="rule-tag" data-rule="No Confirmation">No Confirmation</div>
-          <div class="rule-tag" data-rule="Ignored Checklist">Ignored Checklist</div>
-          <div class="rule-tag" data-rule="Moved SL">Moved SL</div>
-          <div class="rule-tag" data-rule="Closed Early">Closed Early</div>
-          <div class="rule-tag" data-rule="Revenge Trade">Revenge Trade</div>
-          <div class="rule-tag" data-rule="Against HTF Bias">Against HTF Bias</div>
-          <div class="rule-tag" data-rule="Overtrading">Overtrading</div>
-          <div class="rule-tag" data-rule="FOMO">FOMO</div>
-          <div class="rule-tag" data-rule="No Rule Break">✅ No Rule Break</div>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">RULE BREAKS</div>
+        <div class="rule-tags" id="tmRuleTags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <div class="pill" data-rule="Entered Early" style="min-width: auto;">Entered Early</div>
+          <div class="pill" data-rule="Entered Late" style="min-width: auto;">Entered Late</div>
+          <div class="pill" data-rule="Chased Market" style="min-width: auto;">Chased Market</div>
+          <div class="pill" data-rule="No Confirmation" style="min-width: auto;">No Confirmation</div>
+          <div class="pill" data-rule="Ignored Checklist" style="min-width: auto;">Ignored Checklist</div>
+          <div class="pill" data-rule="Moved SL" style="min-width: auto;">Moved SL</div>
+          <div class="pill" data-rule="Closed Early" style="min-width: auto;">Closed Early</div>
+          <div class="pill" data-rule="Revenge Trade" style="min-width: auto;">Revenge Trade</div>
+          <div class="pill" data-rule="Against HTF Bias" style="min-width: auto;">Against HTF Bias</div>
+          <div class="pill" data-rule="Overtrading" style="min-width: auto;">Overtrading</div>
+          <div class="pill" data-rule="FOMO" style="min-width: auto;">FOMO</div>
+          <div class="pill" data-rule="No Rule Break" style="min-width: auto;">✅ No Rule Break</div>
         </div>
       </div>
 
       <div>
-        <div class="tmodal-section-title">GENERAL NOTE</div>
-        <textarea id="tmNotes" placeholder="Write your thoughts, observations and analysis..."></textarea>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">GENERAL NOTE</div>
+        <textarea id="tmNotes" placeholder="Write your thoughts..."></textarea>
       </div>
 
       <div>
-        <div class="tmodal-section-title">TRADE REASON</div>
-        <input type="text" id="tmReason" placeholder="e.g. Good patience, Entered early, Followed plan...">
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">TRADE REASON</div>
+        <input type="text" id="tmReason" placeholder="e.g. Good patience...">
       </div>
 
       <div>
-        <div class="tmodal-section-title">SCREENSHOTS</div>
-        <div class="screenshot-drop" id="tmSsZone">
-          <div style="font-size:30px;margin-bottom:6px;">📸</div>
-          <div style="font-size:13px;font-weight:500;">Click to add screenshots</div>
+        <div class="tmodal-section-title" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">SCREENSHOTS</div>
+        <div class="screenshot-drop" id="tmSsZone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s;">
+          <div style="font-size: 24px; margin-bottom: 8px;">📸</div>
+          <div style="font-size: 13px; font-weight: 500;">Click to add screenshots</div>
           <input type="file" id="tmSsInput" multiple accept="image/*" style="display:none;">
         </div>
-        <div class="ss-preview" id="tmSsPreview"></div>
+        <div class="ss-preview" id="tmSsPreview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 16px;"></div>
       </div>
 
     </div>
     <div class="tmodal-foot">
-      <button class="save-btn2" id="tmSaveBtn">SAVE CHANGES</button>
-      <button class="dup-btn2" id="tmDupBtn">DUPLICATE</button>
-      <button class="del-btn2" id="tmDelBtn">DELETE</button>
+      <button class="btn-main" id="tmSaveBtn" style="flex: 2;">SAVE CHANGES</button>
+      <button class="btn-ghost" id="tmDupBtn" style="flex: 1;">DUPLICATE</button>
+      <button class="btn-danger" id="tmDelBtn" style="flex: 1;">DELETE</button>
     </div>
   </div>
 </div>
 
 <script type="module">
-import { requireAuth, requireAuthFast, requirePin, showToast, syncToLocalStorage } from '/shared.js';
-import { deleteTrade as cloudDeleteTrade, saveCycles, loadAllTrades, loadCycles, saveTrade } from '/db.js';
+import { requireAuth, requireAuthFast, requirePin, showToast } from '/shared.js';
+import { deleteTrade as cloudDeleteTrade, saveCycles, saveTrade } from '/db.js';
 
 let journals = { journals: {}, tradeCounter: 1 };
 let cycles   = { currentCycle:1, tradesInCurrentCycle:0, completedCycles:[], allTrades:[] };
 let calYear, calMonth;
 
-// Everything runs after DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireAuthFast('/dashboard.html');
     if (!user) return;
@@ -490,8 +515,6 @@ function init() {
     wireTradeModal();
 }
 
-// Cumulative WIN(+1)/LOSS(-1)/BE(0) score over time — a simple, dependency-free
-// "performance over time" line so trends are visible at a glance.
 function renderEquityChart() {
     const trades = Object.values(journals.journals)
         .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -506,10 +529,10 @@ function renderEquityChart() {
         return running;
     });
     const labels = trades.map((t, i) => `#${i+1}`);
-    const lineColor = points[points.length-1] >= 0 ? '#1DB954' : '#E22134';
-    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 260);
-    gradient.addColorStop(0, hexToRgba(lineColor, 0.28));
-    gradient.addColorStop(1, hexToRgba(lineColor, 0.02));
+    const lineColor = points[points.length-1] >= 0 ? 'var(--green)' : 'var(--red)';
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, lineColor === 'var(--green)' ? 'rgba(29,185,84,0.3)' : 'rgba(226,33,52,0.3)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
     new Chart(ctx, {
         type: 'line',
         data: {
@@ -518,7 +541,7 @@ function renderEquityChart() {
                 data: points,
                 borderColor: lineColor,
                 backgroundColor: gradient,
-                borderWidth: 2.5,
+                borderWidth: 3,
                 pointRadius: 0,
                 pointHoverRadius: 5,
                 pointHoverBackgroundColor: lineColor,
@@ -534,15 +557,15 @@ function renderEquityChart() {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(17,17,17,0.95)', titleColor: 'rgba(255,255,255,0.6)',
-                    bodyColor: '#fff', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
-                    padding: 10, cornerRadius: 8, displayColors: false,
+                    backgroundColor: 'var(--surface)', titleColor: 'var(--text)',
+                    bodyColor: 'var(--text)', borderColor: 'var(--border)', borderWidth: 1,
+                    padding: 12, cornerRadius: 8, displayColors: false,
                     callbacks: { label: (c) => `Score: ${c.raw > 0 ? '+' : ''}${c.raw}` }
                 }
             },
             scales: {
-                x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:8, font:{size:10} } },
-                y: { grid: { color:'rgba(255,255,255,0.06)' }, ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} } }
+                x: { grid: { display: false }, ticks: { color:'var(--text-tertiary)', maxTicksLimit:8, font:{size:10} } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color:'var(--text-tertiary)', font:{size:10} } }
             }
         }
     });
@@ -554,9 +577,11 @@ function hexToRgba(hex, alpha) {
 }
 
 function updateCycle() {
-    document.getElementById('cycleNum').textContent    = cycles.currentCycle;
+    const pct = Math.min((cycles.tradesInCurrentCycle / 20) * 100, 100);
+    document.getElementById('cycleNum').textContent = cycles.currentCycle;
     document.getElementById('cycleTrades').textContent = cycles.tradesInCurrentCycle;
-    document.getElementById('cycleBar').style.width    = Math.min((cycles.tradesInCurrentCycle/20)*100,100)+'%';
+    document.getElementById('cycleBar').style.width = pct + '%';
+    document.getElementById('cyclePct').textContent = Math.round(pct) + '%';
 }
 
 function updateStats() {
@@ -567,7 +592,6 @@ function updateStats() {
     document.getElementById('totalTrades').textContent = total;
     document.getElementById('winRate').textContent     = wr + '%';
 
-    // Streaks
     const outcomes = trades.map(t => t.outcome);
     let curType = null, curLen = 0, winStreaks = [], lossStreaks = [];
     outcomes.forEach(o => {
@@ -599,19 +623,19 @@ function renderChart() {
         type: 'doughnut',
         data: {
             labels: ['Wins','Losses','Breakevens'],
-            datasets: [{ data:[wins,losses,bes], backgroundColor:['#1DB954','#E22134','rgba(255,255,255,0.25)'], borderColor:'#111', borderWidth:3, hoverOffset:6, borderRadius:4 }]
+            datasets: [{ data:[wins,losses,bes], backgroundColor:['var(--green)','var(--red)','var(--text-tertiary)'], borderColor:'var(--surface)', borderWidth:4, hoverOffset:6 }]
         },
         options: {
             responsive:true, maintainAspectRatio:false,
             plugins: {
-                legend: { position:'bottom', labels:{ color:'rgba(255,255,255,0.7)', font:{ size:12 }, padding:20, usePointStyle:true, pointStyle:'circle' } },
+                legend: { position: 'bottom', labels:{ color:'var(--text-secondary)', font:{ size:12 }, padding:20, usePointStyle:true, pointStyle:'circle' } },
                 tooltip: {
-                    backgroundColor: 'rgba(17,17,17,0.95)', titleColor: 'rgba(255,255,255,0.6)',
-                    bodyColor: '#fff', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
-                    padding: 10, cornerRadius: 8, displayColors: true
+                    backgroundColor: 'var(--surface)', titleColor: 'var(--text)',
+                    bodyColor: 'var(--text)', borderColor: 'var(--border)', borderWidth: 1,
+                    padding: 12, cornerRadius: 8
                 }
             },
-            cutout:'72%'
+            cutout:'70%'
         }
     });
 }
@@ -620,18 +644,16 @@ function renderTrades() {
     const trades = Object.values(journals.journals)
         .sort((a,b) => new Date(b.timestamp)-new Date(a.timestamp))
         .slice(0,15);
-    // Ensure screenshots are arrays (not undefined)
     trades.forEach(t => { if (!Array.isArray(t.screenshots)) t.screenshots = []; });
     const container = document.getElementById('tradesList');
     if (!trades.length) { container.innerHTML = '<div class="empty-state">No trades recorded yet</div>'; return; }
 
     container.innerHTML = trades.map(t => {
         const dt = new Date(t.timestamp);
-        const dateStr = dt.toLocaleDateString();
+        const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const timeStr = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
         const ocCls   = t.outcome==='WIN' ? 'win' : t.outcome==='LOSS' ? 'loss' : 'be';
         const ssCount = t.screenshots?.filter(s => s.data).length || 0;
-        const bdHtml  = t.isBackdated ? '<span class="back-dated">BACKDATED</span>' : '';
         const noteStr = (t.text || '').trim();
         return `
             <div class="trade-row" data-trade="${t.tradeId}">
@@ -639,9 +661,9 @@ function renderTrades() {
                 <div class="trade-row-main">
                     <div class="trade-row-top">
                         <span class="trade-row-pair">${t.pair||'—'} ${t.direction||''}</span>
-                        ${bdHtml}
                     </div>
-                    <div class="trade-row-sub">📅 ${dateStr} ${timeStr}${t.tradeSession?.session ? ' · 🕒 '+t.tradeSession.session.toUpperCase() : ''}${noteStr ? ' · '+noteStr : ''}</div>
+                    <div class="trade-row-sub">📅 ${dateStr} ${timeStr}${t.tradeSession?.session ? ' · 🕒 '+t.tradeSession.session.toUpperCase() : ''}</div>
+                    ${noteStr ? `<div class="trade-row-sub" style="margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${noteStr}"</div>` : ''}
                 </div>
                 ${ssCount ? `<span class="trade-row-ss">📸 ${ssCount}</span>` : ''}
                 <span class="trade-row-chevron">›</span>
@@ -654,14 +676,13 @@ function renderTrades() {
 }
 
 document.getElementById('ssModalClose').addEventListener('click', () => {
-    document.getElementById('ssModal').style.display = 'none';
+    document.getElementById('ssModal').classList.remove('open');
 });
 document.getElementById('ssModal').addEventListener('click', e => {
     if (e.target === document.getElementById('ssModal'))
-        document.getElementById('ssModal').style.display = 'none';
+        document.getElementById('ssModal').classList.remove('open');
 });
 
-// ── Trade detail / edit modal ───────────────────────────────────────────────
 let tmActiveId = null;
 let tmScreenshots = [];
 const CL_ITEMS = ['H4','H1EF','H1EG','M30EF','M30EG','M15EF','M15EG','M30EF2','M30EG2','ENTRY-M5EG','ENTRY-M1EF'];
@@ -684,7 +705,7 @@ function openTradeModal(tradeId) {
     document.getElementById('tmodalPairTitle').textContent = `${t.pair||'Trade'} ${t.direction||''}`;
     document.getElementById('tmodalBackdated').style.display = t.isBackdated ? 'inline-block' : 'none';
 
-    document.querySelectorAll('.tmodal-outcome-btn').forEach(b => b.classList.toggle('active', b.dataset.outcome === t.outcome));
+    document.querySelectorAll('.tmodal-outcome-row .pill').forEach(b => b.classList.toggle('selected', b.dataset.outcome === t.outcome));
     document.getElementById('tmPair').value = t.pair || '';
     document.getElementById('tmDirection').value = t.direction || '';
     document.getElementById('tmModel').value = t.model || '';
@@ -693,9 +714,9 @@ function openTradeModal(tradeId) {
     document.getElementById('tmTime').value = t.tradeSession?.time || t.tradeTime || '';
 
     document.querySelectorAll('#tmExecRow .pill').forEach(p => p.classList.toggle('selected', p.dataset.exec === t.execution));
-    document.querySelectorAll('#tmMindsetRow .mindset-pill').forEach(p => p.classList.toggle('selected', String(t.mindset) === p.dataset.mindset));
+    document.querySelectorAll('#tmMindsetRow .pill').forEach(p => p.classList.toggle('selected', String(t.mindset) === p.dataset.mindset));
     document.querySelectorAll('#tmRatingRow .pill').forEach(p => p.classList.toggle('selected', String(t.executionRating) === p.dataset.rating));
-    document.querySelectorAll('#tmRuleTags .rule-tag').forEach(tag => tag.classList.toggle('selected', (t.ruleBreaks||[]).includes(tag.dataset.rule)));
+    document.querySelectorAll('#tmRuleTags .pill').forEach(tag => tag.classList.toggle('selected', (t.ruleBreaks||[]).includes(tag.dataset.rule)));
 
     CL_ITEMS.forEach(k => { const el = document.getElementById('tm-cl-'+k); if (el) el.checked = (t.checklist||[]).includes(k); });
 
@@ -717,16 +738,15 @@ function renderTmScreenshots() {
     tmScreenshots.forEach((ss, i) => {
         if (!ss.data) return;
         const wrap = document.createElement('div');
-        wrap.className = 'ss-item';
-        const img = document.createElement('img'); img.src = ss.data;
+        wrap.style.position = 'relative';
+        const img = document.createElement('img'); img.src = ss.data; img.style.width = '100%'; img.style.height = '80px'; img.style.objectFit = 'cover'; img.style.borderRadius = '6px'; img.style.border = '2px solid var(--border)';
         img.addEventListener('click', () => {
             document.getElementById('ssModalImg').src = ss.data;
-            document.getElementById('ssModal').style.display = 'flex';
+            document.getElementById('ssModal').classList.add('open');
         });
-        const rm = document.createElement('button'); rm.className = 'ss-remove'; rm.textContent = '×';
+        const rm = document.createElement('button'); rm.textContent = '×'; rm.style.cssText = 'position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1;';
         rm.addEventListener('click', (e) => { e.stopPropagation(); tmScreenshots.splice(i,1); renderTmScreenshots(); });
-        const ann = document.createElement('textarea'); ann.className = 'ss-ann'; ann.rows = 2;
-        ann.placeholder = `Screenshot ${i+1} — what do you see?`; ann.value = ss.annotation || '';
+        const ann = document.createElement('textarea'); ann.rows = 2; ann.style.cssText = 'margin-top:6px;font-size:11px;padding:6px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:4px;width:100%;color:var(--text);font-family:Inter,sans-serif;resize:none;'; ann.placeholder = `Screenshot ${i+1} notes`; ann.value = ss.annotation || '';
         ann.addEventListener('input', e => { ss.annotation = e.target.value; });
         wrap.appendChild(img); wrap.appendChild(rm); wrap.appendChild(ann);
         c.appendChild(wrap);
@@ -751,7 +771,7 @@ async function saveTradeEdits() {
     const t = journals.journals[tmActiveId];
     if (!t) return;
 
-    const outcome = document.querySelector('.tmodal-outcome-btn.active')?.dataset.outcome || t.outcome;
+    const outcome = document.querySelector('.tmodal-outcome-row .pill.selected')?.dataset.outcome || t.outcome;
     const tradeDate = document.getElementById('tmDate').value || t.tradeDate;
     const tradeTime = document.getElementById('tmTime').value || t.tradeTime;
     const session = document.getElementById('tmSession').value;
@@ -764,11 +784,11 @@ async function saveTradeEdits() {
     t.tradeTime = tradeTime;
     t.tradeSession = { session, time: tradeTime };
     t.execution = document.querySelector('#tmExecRow .pill.selected')?.dataset.exec || t.execution;
-    const mind = document.querySelector('#tmMindsetRow .mindset-pill.selected')?.dataset.mindset;
+    const mind = document.querySelector('#tmMindsetRow .pill.selected')?.dataset.mindset;
     t.mindset = mind ? parseInt(mind) : null;
     const rate = document.querySelector('#tmRatingRow .pill.selected')?.dataset.rating;
     t.executionRating = rate ? parseInt(rate) : null;
-    t.ruleBreaks = Array.from(document.querySelectorAll('#tmRuleTags .rule-tag.selected')).map(tag => tag.dataset.rule);
+    t.ruleBreaks = Array.from(document.querySelectorAll('#tmRuleTags .pill.selected')).map(tag => tag.dataset.rule);
     t.checklist = CL_ITEMS.filter(k => document.getElementById('tm-cl-'+k)?.checked);
     t.text = document.getElementById('tmNotes').value;
     t.reason = document.getElementById('tmReason').value;
@@ -794,23 +814,23 @@ function wireTradeModal() {
     document.getElementById('tmodalClose').addEventListener('click', closeTradeModal);
     document.getElementById('tmodalOverlay').addEventListener('click', e => { if (e.target.id === 'tmodalOverlay') closeTradeModal(); });
 
-    document.querySelectorAll('.tmodal-outcome-btn').forEach(b => {
+    document.querySelectorAll('.tmodal-outcome-row .pill').forEach(b => {
         b.addEventListener('click', () => {
-            document.querySelectorAll('.tmodal-outcome-btn').forEach(x => x.classList.remove('active'));
-            b.classList.add('active');
+            document.querySelectorAll('.tmodal-outcome-row .pill').forEach(x => x.classList.remove('selected'));
+            b.classList.add('selected');
         });
     });
 
     tmSingleSelect('#tmExecRow .pill');
-    tmSingleSelect('#tmMindsetRow .mindset-pill');
+    tmSingleSelect('#tmMindsetRow .pill');
     tmSingleSelect('#tmRatingRow .pill');
 
-    document.querySelectorAll('#tmRuleTags .rule-tag').forEach(tag => {
+    document.querySelectorAll('#tmRuleTags .pill').forEach(tag => {
         tag.addEventListener('click', () => {
             if (tag.dataset.rule === 'No Rule Break') {
-                document.querySelectorAll('#tmRuleTags .rule-tag').forEach(t => t.classList.remove('selected'));
+                document.querySelectorAll('#tmRuleTags .pill').forEach(t => t.classList.remove('selected'));
             } else {
-                document.querySelector('#tmRuleTags .rule-tag[data-rule="No Rule Break"]')?.classList.remove('selected');
+                document.querySelector('#tmRuleTags .pill[data-rule="No Rule Break"]')?.classList.remove('selected');
             }
             tag.classList.toggle('selected');
         });
@@ -848,7 +868,6 @@ window.doDelete = async (tradeId) => {
     setTimeout(() => location.reload(), 500);
 };
 
-// ── Calendar ─────────────────────────────────────────────────────────────────
 function initCalendar() {
     const now = new Date();
     calYear = now.getFullYear(); calMonth = now.getMonth();
@@ -927,19 +946,19 @@ function openDetail(dateKey, tradeMap) {
     const losses = trades.filter(t=>t.outcome==='LOSS').length;
     const bes  = trades.filter(t=>t.outcome==='BREAKEVEN').length;
     document.getElementById('calPills').innerHTML = [
-        wins?`<div class="cal-pill win">✓ ${wins} WIN${wins>1?'S':''}</div>`:'',
-        losses?`<div class="cal-pill loss">✗ ${losses} LOSS${losses>1?'ES':''}</div>`:'',
-        bes?`<div class="cal-pill be">— ${bes} BE</div>`:''
+        wins?`<div class="cal-pill" style="background:rgba(29,185,84,0.2); color:var(--green); padding:4px 10px; border-radius:4px; font-weight:700; font-size:12px;">✓ ${wins} WIN${wins>1?'S':''}</div>`:'',
+        losses?`<div class="cal-pill" style="background:rgba(226,33,52,0.2); color:var(--red); padding:4px 10px; border-radius:4px; font-weight:700; font-size:12px;">✗ ${losses} LOSS${losses>1?'ES':''}</div>`:'',
+        bes?`<div class="cal-pill" style="background:rgba(255,255,255,0.1); color:var(--text-secondary); padding:4px 10px; border-radius:4px; font-weight:700; font-size:12px;">— ${bes} BE</div>`:''
     ].join('');
     document.getElementById('calTrades').innerHTML = trades.map(t => {
         const cls = t.outcome==='WIN'?'win':t.outcome==='LOSS'?'loss':'be';
-        return `<div class="cal-trade-row" data-trade="${t.tradeId}" style="cursor:pointer;">
-            <div class="cal-outcome ${cls}">${t.outcome}</div>
-            <div class="cal-trade-meta">
-                <div class="cal-trade-pair">${t.pair} ${t.direction}</div>
-                <div class="cal-trade-sub">${t.tradeTime||''} ${t.tradeSession?.session?.toUpperCase()||''} ${t.reason?'· '+t.reason:''}</div>
+        return `<div class="cal-trade-row" data-trade="${t.tradeId}" style="display:flex; align-items:center; gap:12px; padding:10px; background:rgba(255,255,255,0.03); border-radius:6px; margin-bottom:6px; border:1px solid var(--border); cursor:pointer;">
+            <div class="cal-outcome ${cls}" style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:4px; flex-shrink:0; background: ${cls==='win'?'rgba(29,185,84,0.2)':cls==='loss'?'rgba(226,33,52,0.2)':'rgba(255,255,255,0.1)'}; color: ${cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--text-secondary)'};">${t.outcome}</div>
+            <div class="cal-trade-meta" style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:700;">${t.pair} ${t.direction}</div>
+                <div style="font-size:11px; color:var(--text-tertiary);">${t.tradeTime||''} ${t.tradeSession?.session?.toUpperCase()||''} ${t.reason?'· '+t.reason:''}</div>
             </div>
-            <span style="color:rgba(255,255,255,0.2);font-size:14px;">›</span>
+            <span style="color:var(--text-tertiary); font-size:16px;">›</span>
         </div>`;
     }).join('');
     document.querySelectorAll('#calTrades .cal-trade-row').forEach(row => {
@@ -954,7 +973,6 @@ function closeDetail() {
     document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected-day'));
 }
 
-// ── Exports ───────────────────────────────────────────────────────────────────
 function setupExports() {
     document.getElementById('csvBtn').addEventListener('click', exportCSV);
     document.getElementById('xlsxBtn').addEventListener('click', exportXLSX);
