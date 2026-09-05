@@ -74,6 +74,13 @@ html{height:100%;}
 .badge-r{background:rgba(226,33,52,0.12);color:var(--red);}
 .badge-b{background:rgba(74,144,226,0.12);color:var(--blue);}
 
+/* ── Snapshot (what's working / what's not) ── */
+.snapshot-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.snap-card{margin-bottom:0;border-left:3px solid;}
+.snap-win{border-left-color:var(--green);background:linear-gradient(135deg,rgba(29,185,84,0.05),var(--card));}
+.snap-loss{border-left-color:var(--red);background:linear-gradient(135deg,rgba(226,33,52,0.05),var(--card));}
+@media (max-width:640px){.snapshot-grid{grid-template-columns:1fr;}}
+
 /* ── Stat grid ── */
 .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 10px;text-align:center;}
@@ -219,6 +226,17 @@ textarea{min-height:80px;resize:vertical;}
 <div class="page on" id="page-overview">
   <div class="status" id="statusBar">Loading...</div>
 
+  <div class="snapshot-grid">
+    <div class="card snap-card snap-win">
+      <div class="card-hd">🟢 WHAT'S WORKING <span class="badge badge-g">REPEAT THIS</span></div>
+      <div id="ov-top-win"><div class="empty">Review WIN trades to see your edge</div></div>
+    </div>
+    <div class="card snap-card snap-loss">
+      <div class="card-hd">🔴 WHAT'S NOT <span class="badge badge-r">FIX THIS</span></div>
+      <div id="ov-top-loss"><div class="empty">Review LOSS trades to expose weaknesses</div></div>
+    </div>
+  </div>
+
   <div class="stat-grid">
     <div class="stat"><div class="stat-v" id="s-trades">—</div><div class="stat-l">TRADES</div></div>
     <div class="stat"><div class="stat-v" style="color:var(--green)" id="s-wr">—</div><div class="stat-l">WIN RATE</div></div>
@@ -240,16 +258,6 @@ textarea{min-height:80px;resize:vertical;}
       <div class="prog-top"><span>Trades reviewed</span><span id="p2-lbl">0/0</span></div>
       <div class="prog-track"><div class="prog-fill" id="p2-fill" style="width:0%;background:var(--blue);"></div></div>
     </div>
-  </div>
-
-  <div class="card">
-    <div class="card-hd">TOP WIN PATTERN <span class="badge badge-g">REPEAT THIS</span></div>
-    <div id="ov-top-win"><div class="empty">Review WIN trades to see your edge</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-hd">TOP LOSS MISTAKE <span class="badge badge-r">FIX THIS</span></div>
-    <div id="ov-top-loss"><div class="empty">Review LOSS trades to expose weaknesses</div></div>
   </div>
 
   <div class="card">
@@ -355,6 +363,10 @@ textarea{min-height:80px;resize:vertical;}
     <button class="fbtn" data-f="be">⚪ BE</button>
     <button class="fbtn" data-f="active">⏳ Active</button>
     <button class="fbtn" data-f="resolved">✅ Resolved</button>
+  </div>
+  <div class="filters" style="margin-bottom:16px;">
+    <button class="fbtn" id="cleanResolvedBtn" style="border-color:rgba(29,185,84,0.3);color:var(--green);">🧹 Clear Resolved</button>
+    <button class="fbtn" id="cleanAllBtn" style="border-color:rgba(226,33,52,0.3);color:var(--red);">🗑 Clear All Reviews</button>
   </div>
   <div id="rv-list"></div>
 </div>
@@ -535,6 +547,10 @@ function wireEvents() {
   document.getElementById('wkPrev').addEventListener('click', () => { wkOffset--; renderWeekly(); });
   document.getElementById('wkNext').addEventListener('click', () => { wkOffset++; renderWeekly(); });
 
+  // Bulk clean
+  document.getElementById('cleanResolvedBtn').addEventListener('click', () => bulkClean('resolved'));
+  document.getElementById('cleanAllBtn').addEventListener('click', () => bulkClean('all'));
+
   // Exports
   document.getElementById('csvBtn').addEventListener('click', expCSV);
   document.getElementById('xlsxBtn').addEventListener('click', expXLSX);
@@ -618,8 +634,10 @@ function renderOvCharts(mRevs) {
     if (ccEmptyEl) ccEmptyEl.style.display = 'none';
     catCh = new Chart(ccEl, {
       type:'bar',
-      data:{ labels:cats, datasets:[{ data:cats.map(c=>catCounts[c]), backgroundColor:cats.map((_,i)=>`hsl(${i*45},65%,55%)`), borderWidth:0, borderRadius:4 }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      data:{ labels:cats, datasets:[{ data:cats.map(c=>catCounts[c]), backgroundColor:cats.map((_,i)=>`hsl(${i*45},65%,55%)`), borderWidth:0, borderRadius:6, maxBarThickness:34 }] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ backgroundColor:'rgba(10,10,10,0.95)', titleColor:'rgba(255,255,255,0.6)', bodyColor:'#fff', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, padding:10, cornerRadius:8, displayColors:false } },
         scales:{ y:{beginAtZero:true,ticks:{color:'rgba(255,255,255,0.45)',stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}},
                  x:{ticks:{color:'rgba(255,255,255,0.55)',maxRotation:40,font:{size:9}},grid:{display:false}} } }
     });
@@ -641,9 +659,12 @@ function renderOvCharts(mRevs) {
     const oth = lss.length - lim - ins;
     execCh = new Chart(exEl, {
       type:'doughnut',
-      data:{ labels:['Limit','Instant','Other'], datasets:[{ data:[lim,ins,oth], backgroundColor:['#4A90E2','#E22134','#555'], borderWidth:0 }] },
-      options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
-        plugins:{ legend:{ position:'bottom', labels:{ color:'rgba(255,255,255,0.65)', font:{size:11}, padding:14 } } } }
+      data:{ labels:['Limit','Instant','Other'], datasets:[{ data:[lim,ins,oth], backgroundColor:['#4A90E2','#E22134','rgba(255,255,255,0.25)'], borderColor:'var(--card)', borderWidth:3 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'70%',
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:'rgba(255,255,255,0.65)', font:{size:11}, padding:14, usePointStyle:true, pointStyle:'circle' } },
+          tooltip:{ backgroundColor:'rgba(10,10,10,0.95)', titleColor:'rgba(255,255,255,0.6)', bodyColor:'#fff', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, padding:10, cornerRadius:8 }
+        } }
     });
   } else {
     if (exEl) exEl.style.display = 'none';
@@ -952,6 +973,25 @@ window.toggleRes = async id => {
     showToast(`Status saved locally only — ${result.error}`,'error');
   }
 };
+async function bulkClean(mode) {
+  const toRemove = mode === 'resolved' ? reviews.filter(r => r.resolved) : [...reviews];
+  if (!toRemove.length) { showToast(mode==='resolved' ? 'No resolved reviews to clear' : 'No reviews to clear', 'info'); return; }
+  const label = mode === 'resolved' ? `Clear ${toRemove.length} resolved review(s)? This cannot be undone.` : `Delete ALL ${toRemove.length} reviews? This cannot be undone.`;
+  if (!confirm(label)) return;
+
+  const ids = new Set(toRemove.map(r => r.id));
+  reviews = reviews.filter(r => !ids.has(r.id));
+  localStorage.setItem(IMP_KEY, JSON.stringify(reviews));
+  toRemove.forEach(r => addPendingDelete(r.id));
+  render();
+  showToast(`Cleared ${toRemove.length} review(s)`, 'success');
+
+  for (const r of toRemove) {
+    const result = await dbDeleteReview(r.id);
+    if (result.success) removePendingDelete(r.id);
+  }
+}
+
 window.delRev = async id => {
   if (!confirm('Delete this review?')) return;
   reviews = reviews.filter(x=>x.id!==id);
@@ -1037,7 +1077,10 @@ function renderWeekly() {
           y:{beginAtZero:true,max:100,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.45)',callback:v=>v+'%'}},
           y2:{beginAtZero:true,position:'right',grid:{display:false},ticks:{color:'rgba(74,144,226,0.6)',stepSize:1}}
         },
-        plugins:{legend:{labels:{color:'rgba(255,255,255,0.55)',font:{size:10},padding:12}}}}
+        plugins:{
+          legend:{labels:{color:'rgba(255,255,255,0.55)',font:{size:10},padding:12}},
+          tooltip:{ backgroundColor:'rgba(10,10,10,0.95)', titleColor:'rgba(255,255,255,0.6)', bodyColor:'#fff', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, padding:10, cornerRadius:8 }
+        }}
     });
   } else {
     if (mCtx) mCtx.style.display = 'none';

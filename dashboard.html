@@ -126,6 +126,81 @@
         .del-btn { background:rgba(226,33,52,0.1); border:1px solid rgba(226,33,52,0.25); color:#E22134; padding:5px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-family:'Inter',sans-serif; }
         .back-dated { font-size:9px; font-weight:700; color:#ffd600; border:1px solid rgba(255,214,0,0.3); border-radius:10px; padding:1px 7px; }
         .empty-state { text-align:center; padding:40px 20px; color:rgba(255,255,255,0.3); font-size:14px; }
+
+        /* -- Compact trade row (Recent Trades list) -- */
+        .trade-row { display:flex; align-items:center; gap:12px; padding:12px 14px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; margin-bottom:8px; cursor:pointer; transition:background 0.15s,border-color 0.15s; }
+        .trade-row:hover { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.14); }
+        .trade-row-main { flex:1; min-width:0; }
+        .trade-row-top { display:flex; align-items:center; gap:8px; margin-bottom:3px; flex-wrap:wrap; }
+        .trade-row-pair { font-size:13.5px; font-weight:700; }
+        .trade-row-sub { font-size:11px; color:rgba(255,255,255,0.4); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .trade-row-ss { font-size:10.5px; color:rgba(255,255,255,0.35); flex-shrink:0; display:flex; align-items:center; gap:3px; }
+        .trade-row-chevron { font-size:14px; color:rgba(255,255,255,0.2); flex-shrink:0; }
+
+        /* -- Trade detail / edit modal -- */
+        .tmodal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(4px); z-index:10000; align-items:flex-start; justify-content:center; padding:30px 16px; overflow-y:auto; }
+        .tmodal-overlay.open { display:flex; }
+        .tmodal { background:#0d0d0d; border:1px solid rgba(255,255,255,0.1); border-radius:16px; width:100%; max-width:720px; margin-bottom:30px; }
+        .tmodal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid rgba(255,255,255,0.07); position:sticky; top:0; background:#0d0d0d; border-radius:16px 16px 0 0; z-index:2; }
+        .tmodal-title { font-size:15px; font-weight:800; display:flex; align-items:center; gap:10px; }
+        .tmodal-close { background:rgba(255,255,255,0.06); border:none; color:rgba(255,255,255,0.6); width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer; }
+        .tmodal-close:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        .tmodal-body { padding:22px; display:flex; flex-direction:column; gap:18px; }
+        .tmodal-section-title { font-size:11px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,0.45); margin-bottom:10px; }
+        .tmodal-outcome-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+        .tmodal-outcome-btn { padding:11px 8px; border-radius:9px; font-size:12.5px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.55); font-family:'Inter',sans-serif; transition:all 0.15s; }
+        .tmodal-outcome-btn.active[data-outcome="WIN"] { background:rgba(29,185,84,0.18); border-color:#1DB954; color:#1DB954; }
+        .tmodal-outcome-btn.active[data-outcome="LOSS"] { background:rgba(226,33,52,0.18); border-color:#E22134; color:#ff6b6b; }
+        .tmodal-outcome-btn.active[data-outcome="BREAKEVEN"] { background:rgba(255,255,255,0.16); border-color:rgba(255,255,255,0.4); color:#fff; }
+        .tmodal-foot { display:flex; gap:10px; flex-wrap:wrap; padding:16px 22px; border-top:1px solid rgba(255,255,255,0.07); position:sticky; bottom:0; background:#0d0d0d; border-radius:0 0 16px 16px; }
+        .tmodal-foot .save-btn2 { flex:2; min-width:140px; background:#4A90E2; color:#fff; border:none; border-radius:9px; padding:13px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; }
+        .tmodal-foot .save-btn2:hover { filter:brightness(1.08); }
+        .tmodal-foot .dup-btn2 { flex:1; min-width:90px; background:rgba(74,144,226,0.1); border:1px solid rgba(74,144,226,0.3); color:#4A90E2; border-radius:9px; padding:13px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+        .tmodal-foot .del-btn2 { flex:1; min-width:90px; background:rgba(226,33,52,0.08); border:1px solid rgba(226,33,52,0.25); color:#E22134; border-radius:9px; padding:13px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+
+        /* Reused form controls / pills / checklist / screenshots (matches New Trade page) */
+        .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .tmodal label { display:block; font-size:10.5px; font-weight:600; letter-spacing:0.7px; color:rgba(255,255,255,0.4); margin-bottom:6px; }
+        .tmodal select, .tmodal input[type="date"], .tmodal input[type="time"], .tmodal input[type="text"], .tmodal textarea {
+            width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+            border-radius:8px; padding:10px 12px; color:#fff; font-size:13.5px; font-family:'Inter',sans-serif; transition:all 0.15s;
+        }
+        .tmodal select:focus, .tmodal input:focus, .tmodal textarea:focus { outline:none; border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.07); }
+        .tmodal option { background:#111; }
+        .tmodal textarea { min-height:110px; resize:vertical; line-height:1.6; }
+        .pill-row { display:flex; gap:8px; flex-wrap:wrap; }
+        .pill { flex:1; min-width:76px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:11px 8px; text-align:center; cursor:pointer; font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.6); transition:all 0.12s; letter-spacing:0.4px; user-select:none; }
+        .pill:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.2); }
+        .pill.selected { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.35); color:#fff; }
+        .mindset-row { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; }
+        .mindset-pill { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 3px; text-align:center; cursor:pointer; font-size:10.5px; color:rgba(255,255,255,0.6); transition:all 0.12s; user-select:none; line-height:1.5; }
+        .mindset-pill:hover { background:rgba(255,255,255,0.08); }
+        .mindset-pill[data-mindset="1"].selected { border-color:#E22134; background:rgba(226,33,52,0.12); color:#ff6b6b; }
+        .mindset-pill[data-mindset="2"].selected { border-color:#ff7043; background:rgba(255,112,67,0.12); color:#ff9068; }
+        .mindset-pill[data-mindset="3"].selected { border-color:#ffd600; background:rgba(255,214,0,0.12); color:#ffd600; }
+        .mindset-pill[data-mindset="4"].selected { border-color:#69f0ae; background:rgba(105,240,174,0.12); color:#69f0ae; }
+        .mindset-pill[data-mindset="5"].selected { border-color:#1DB954; background:rgba(29,185,84,0.12); color:#1DB954; }
+        .checklist-cat { margin-bottom:14px; }
+        .checklist-cat:last-child { margin-bottom:0; }
+        .cat-label { font-size:10.5px; font-weight:700; color:#4A90E2; letter-spacing:0.7px; margin-bottom:8px; }
+        .cb-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .cb-item { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12.5px; color:rgba(255,255,255,0.8); padding:6px 8px; min-height:30px; border-radius:6px; transition:background 0.12s; }
+        .cb-item:hover { background:rgba(255,255,255,0.04); }
+        .cb-item input { width:16px; height:16px; accent-color:#fff; flex-shrink:0; cursor:pointer; }
+        .rule-tags { display:flex; flex-wrap:wrap; gap:7px; }
+        .rule-tag { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:8px 13px; font-size:11.5px; cursor:pointer; color:rgba(255,255,255,0.6); transition:all 0.12s; user-select:none; }
+        .rule-tag:hover { background:rgba(255,255,255,0.08); }
+        .rule-tag.selected { background:rgba(226,33,52,0.15); border-color:rgba(226,33,52,0.5); color:#ff6b6b; }
+        .screenshot-drop { border:2px dashed rgba(255,255,255,0.12); border-radius:10px; padding:26px 20px; text-align:center; cursor:pointer; transition:all 0.15s; }
+        .screenshot-drop:hover { border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.02); }
+        .ss-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; margin-top:14px; }
+        .ss-item { position:relative; }
+        .ss-item img { width:100%; height:92px; object-fit:cover; border-radius:6px; border:2px solid rgba(29,185,84,0.4); cursor:zoom-in; }
+        .ss-remove { position:absolute; top:5px; right:5px; background:rgba(226,33,52,0.9); border:none; border-radius:50%; width:20px; height:20px; color:#fff; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .ss-remove:hover { background:rgba(226,33,52,1); }
+        .ss-ann { margin-top:6px; font-size:10.5px; padding:6px 8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; width:100%; color:rgba(255,255,255,0.7); font-family:'Inter',sans-serif; resize:none; }
+        @media (max-width:600px) { .grid-4 { grid-template-columns:1fr 1fr; } .tmodal-outcome-row { grid-template-columns:1fr 1fr 1fr; } }
     </style>
 </head>
 <body>
@@ -207,7 +282,7 @@
 
 <!-- Recent Trades -->
 <div class="card">
-    <div class="card-title">RECENT TRADES</div>
+    <div class="card-title">RECENT TRADES <span style="font-weight:400;color:rgba(255,255,255,0.3);text-transform:none;letter-spacing:0;">— tap a trade to view, edit or add screenshots</span></div>
     <div id="tradesList"></div>
 </div>
 
@@ -220,9 +295,167 @@
     <button id="ssModalClose" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;width:38px;height:38px;border-radius:50%;font-size:22px;cursor:pointer;">×</button>
 </div>
 
+<!-- Trade detail / edit modal -->
+<div class="tmodal-overlay" id="tmodalOverlay">
+  <div class="tmodal">
+    <div class="tmodal-head">
+      <div class="tmodal-title"><span id="tmodalPairTitle">Trade</span> <span class="back-dated" id="tmodalBackdated" style="display:none;">BACKDATED</span></div>
+      <button class="tmodal-close" id="tmodalClose">×</button>
+    </div>
+    <div class="tmodal-body">
+
+      <div>
+        <div class="tmodal-section-title">OUTCOME</div>
+        <div class="tmodal-outcome-row" id="tmodalOutcomeRow">
+          <button type="button" class="tmodal-outcome-btn" data-outcome="WIN">WIN</button>
+          <button type="button" class="tmodal-outcome-btn" data-outcome="LOSS">LOSS</button>
+          <button type="button" class="tmodal-outcome-btn" data-outcome="BREAKEVEN">BE</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">TRADE DETAILS</div>
+        <div class="grid-4" style="margin-bottom:12px;">
+          <div class="form-group">
+            <label>PAIR</label>
+            <select id="tmPair">
+              <option value="">Select</option>
+              <option>XAUUSD</option><option>NAS100</option><option>EURUSD</option>
+              <option>GBPUSD</option><option>AUDUSD</option><option>USDJPY</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>DIRECTION</label>
+            <select id="tmDirection"><option value="">Select</option><option>BUY</option><option>SELL</option></select>
+          </div>
+          <div class="form-group">
+            <label>MODEL</label>
+            <select id="tmModel"><option value="">Select</option><option value="xY5">xY5</option><option value="xY7">xY7</option><option value="xY10">xY10</option></select>
+          </div>
+          <div class="form-group">
+            <label>SESSION</label>
+            <select id="tmSession"><option value="">Select</option><option value="asia">Asia</option><option value="london">London</option><option value="newyork">New York</option></select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group"><label>DATE</label><input type="date" id="tmDate"></div>
+          <div class="form-group"><label>TIME</label><input type="time" id="tmTime"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">EXECUTION TYPE</div>
+        <div class="pill-row" id="tmExecRow">
+          <div class="pill" data-exec="limit">🎯 LIMIT</div>
+          <div class="pill" data-exec="instant">⚡ INSTANT</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">PRE-TRADE MINDSET</div>
+        <div class="mindset-row" id="tmMindsetRow">
+          <div class="mindset-pill" data-mindset="1">😤<br>1<br><small>Frustrated</small></div>
+          <div class="mindset-pill" data-mindset="2">😟<br>2<br><small>Off</small></div>
+          <div class="mindset-pill" data-mindset="3">😐<br>3<br><small>Neutral</small></div>
+          <div class="mindset-pill" data-mindset="4">😊<br>4<br><small>Focused</small></div>
+          <div class="mindset-pill" data-mindset="5">🔥<br>5<br><small>In zone</small></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">EXECUTION RATING</div>
+        <div class="pill-row" id="tmRatingRow" style="flex-wrap:wrap;">
+          <div class="pill" data-rating="1">⭐<br><small>Poor</small></div>
+          <div class="pill" data-rating="2">⭐⭐<br><small>Below</small></div>
+          <div class="pill" data-rating="3">⭐⭐⭐<br><small>Avg</small></div>
+          <div class="pill" data-rating="4">⭐⭐⭐⭐<br><small>Good</small></div>
+          <div class="pill" data-rating="5">⭐⭐⭐⭐⭐<br><small>Perfect</small></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">CHECKLIST</div>
+        <div class="checklist-cat">
+          <div class="cat-label">HTF</div>
+          <div class="cb-grid"><label class="cb-item"><input type="checkbox" id="tm-cl-H4"><span>H4</span></label></div>
+        </div>
+        <div class="checklist-cat">
+          <div class="cat-label">REFINED</div>
+          <div class="cb-grid">
+            <label class="cb-item"><input type="checkbox" id="tm-cl-H1EF"><span>H1 EF</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-H1EG"><span>H1 EG</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EF"><span>M30 EF</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EG"><span>M30 EG</span></label>
+          </div>
+        </div>
+        <div class="checklist-cat">
+          <div class="cat-label">TRADE CONTROL</div>
+          <div class="cb-grid">
+            <label class="cb-item"><input type="checkbox" id="tm-cl-M15EF"><span>M15 EF</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-M15EG"><span>M15 EG</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EF2"><span>M30 EF</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-M30EG2"><span>M30 EG</span></label>
+          </div>
+        </div>
+        <div class="checklist-cat">
+          <div class="cat-label">ENTRY TF</div>
+          <div class="cb-grid">
+            <label class="cb-item"><input type="checkbox" id="tm-cl-ENTRY-M5EG"><span>M5 EG</span></label>
+            <label class="cb-item"><input type="checkbox" id="tm-cl-ENTRY-M1EF"><span>M1 EF</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">RULE BREAKS</div>
+        <div class="rule-tags" id="tmRuleTags">
+          <div class="rule-tag" data-rule="Entered Early">Entered Early</div>
+          <div class="rule-tag" data-rule="Entered Late">Entered Late</div>
+          <div class="rule-tag" data-rule="Chased Market">Chased Market</div>
+          <div class="rule-tag" data-rule="No Confirmation">No Confirmation</div>
+          <div class="rule-tag" data-rule="Ignored Checklist">Ignored Checklist</div>
+          <div class="rule-tag" data-rule="Moved SL">Moved SL</div>
+          <div class="rule-tag" data-rule="Closed Early">Closed Early</div>
+          <div class="rule-tag" data-rule="Revenge Trade">Revenge Trade</div>
+          <div class="rule-tag" data-rule="Against HTF Bias">Against HTF Bias</div>
+          <div class="rule-tag" data-rule="Overtrading">Overtrading</div>
+          <div class="rule-tag" data-rule="FOMO">FOMO</div>
+          <div class="rule-tag" data-rule="No Rule Break">✅ No Rule Break</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">GENERAL NOTE</div>
+        <textarea id="tmNotes" placeholder="Write your thoughts, observations and analysis..."></textarea>
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">TRADE REASON</div>
+        <input type="text" id="tmReason" placeholder="e.g. Good patience, Entered early, Followed plan...">
+      </div>
+
+      <div>
+        <div class="tmodal-section-title">SCREENSHOTS</div>
+        <div class="screenshot-drop" id="tmSsZone">
+          <div style="font-size:30px;margin-bottom:6px;">📸</div>
+          <div style="font-size:13px;font-weight:500;">Click to add screenshots</div>
+          <input type="file" id="tmSsInput" multiple accept="image/*" style="display:none;">
+        </div>
+        <div class="ss-preview" id="tmSsPreview"></div>
+      </div>
+
+    </div>
+    <div class="tmodal-foot">
+      <button class="save-btn2" id="tmSaveBtn">SAVE CHANGES</button>
+      <button class="dup-btn2" id="tmDupBtn">DUPLICATE</button>
+      <button class="del-btn2" id="tmDelBtn">DELETE</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { requireAuth, requireAuthFast, requirePin, showToast, syncToLocalStorage } from '/shared.js';
-import { deleteTrade as cloudDeleteTrade, saveCycles, loadAllTrades, loadCycles } from '/db.js';
+import { deleteTrade as cloudDeleteTrade, saveCycles, loadAllTrades, loadCycles, saveTrade } from '/db.js';
 
 let journals = { journals: {}, tradeCounter: 1 };
 let cycles   = { currentCycle:1, tradesInCurrentCycle:0, completedCycles:[], allTrades:[] };
@@ -254,6 +487,7 @@ function init() {
     renderTrades();
     initCalendar();
     setupExports();
+    wireTradeModal();
 }
 
 // Cumulative WIN(+1)/LOSS(-1)/BE(0) score over time — a simple, dependency-free
@@ -272,30 +506,51 @@ function renderEquityChart() {
         return running;
     });
     const labels = trades.map((t, i) => `#${i+1}`);
+    const lineColor = points[points.length-1] >= 0 ? '#1DB954' : '#E22134';
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 260);
+    gradient.addColorStop(0, hexToRgba(lineColor, 0.28));
+    gradient.addColorStop(1, hexToRgba(lineColor, 0.02));
     new Chart(ctx, {
         type: 'line',
         data: {
             labels,
             datasets: [{
                 data: points,
-                borderColor: '#4A90E2',
-                backgroundColor: 'rgba(74,144,226,0.12)',
-                borderWidth: 2,
+                borderColor: lineColor,
+                backgroundColor: gradient,
+                borderWidth: 2.5,
                 pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0.25,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: lineColor,
+                pointHoverBorderColor: '#000',
+                pointHoverBorderWidth: 2,
+                tension: 0.35,
                 fill: true
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(17,17,17,0.95)', titleColor: 'rgba(255,255,255,0.6)',
+                    bodyColor: '#fff', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                    padding: 10, cornerRadius: 8, displayColors: false,
+                    callbacks: { label: (c) => `Score: ${c.raw > 0 ? '+' : ''}${c.raw}` }
+                }
+            },
             scales: {
                 x: { grid: { display:false }, ticks: { color:'rgba(255,255,255,0.35)', maxTicksLimit:8, font:{size:10} } },
                 y: { grid: { color:'rgba(255,255,255,0.06)' }, ticks: { color:'rgba(255,255,255,0.35)', font:{size:10} } }
             }
         }
     });
+}
+
+function hexToRgba(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
 function updateCycle() {
@@ -344,14 +599,19 @@ function renderChart() {
         type: 'doughnut',
         data: {
             labels: ['Wins','Losses','Breakevens'],
-            datasets: [{ data:[wins,losses,bes], backgroundColor:['#1DB954','#E22134','#555'], borderWidth:0, hoverOffset:4 }]
+            datasets: [{ data:[wins,losses,bes], backgroundColor:['#1DB954','#E22134','rgba(255,255,255,0.25)'], borderColor:'#111', borderWidth:3, hoverOffset:6, borderRadius:4 }]
         },
         options: {
             responsive:true, maintainAspectRatio:false,
             plugins: {
-                legend: { position:'bottom', labels:{ color:'#fff', font:{ size:12 }, padding:20 } }
+                legend: { position:'bottom', labels:{ color:'rgba(255,255,255,0.7)', font:{ size:12 }, padding:20, usePointStyle:true, pointStyle:'circle' } },
+                tooltip: {
+                    backgroundColor: 'rgba(17,17,17,0.95)', titleColor: 'rgba(255,255,255,0.6)',
+                    bodyColor: '#fff', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                    padding: 10, cornerRadius: 8, displayColors: true
+                }
             },
-            cutout:'70%'
+            cutout:'72%'
         }
     });
 }
@@ -370,47 +630,26 @@ function renderTrades() {
         const dateStr = dt.toLocaleDateString();
         const timeStr = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
         const ocCls   = t.outcome==='WIN' ? 'win' : t.outcome==='LOSS' ? 'loss' : 'be';
-        const mindsetLabels = ['','😤 Frustrated','😟 Off','😐 Neutral','😊 Focused','🔥 In zone'];
-        const ssHtml = t.screenshots?.length ? `
-            <div class="screenshots-wrap">
-                ${t.screenshots.map((ss,i) => ss.data ? `<img class="ss-thumb" src="${ss.data}" data-trade="${t.tradeId}" data-idx="${i}" title="${ss.annotation||'Screenshot '+(i+1)}">` : '').join('')}
-            </div>` : '';
-        const clHtml = t.checklist?.length ? `<div class="checklist-badges">${t.checklist.map(c=>`<div class="cl-badge">${c}</div>`).join('')}</div>` : '';
-        const mindHtml = t.mindset ? `<span>🧠 ${mindsetLabels[t.mindset]||t.mindset}</span>` : '';
-        const rateHtml = t.executionRating ? `<span>⭐ ${t.executionRating}/5</span>` : '';
-        const ruleHtml = t.ruleBreaks?.length ? `<span style="color:${t.ruleBreaks.includes('No Rule Break')?'#1DB954':'#ff6b6b'}">⚠ ${t.ruleBreaks.join(', ')}</span>` : '';
-        const bdHtml   = t.isBackdated ? '<span class="back-dated">BACKDATED</span>' : '';
+        const ssCount = t.screenshots?.filter(s => s.data).length || 0;
+        const bdHtml  = t.isBackdated ? '<span class="back-dated">BACKDATED</span>' : '';
+        const noteStr = (t.text || '').trim();
         return `
-            <div class="trade-item" id="trade-${t.tradeId}">
-                <div class="trade-head">
-                    <div class="trade-info">
-                        <span class="outcome-badge outcome-${ocCls}">${t.outcome}</span>
-                        <span class="trade-pair">${t.pair} ${t.direction}</span>
+            <div class="trade-row" data-trade="${t.tradeId}">
+                <span class="outcome-badge outcome-${ocCls}">${t.outcome}</span>
+                <div class="trade-row-main">
+                    <div class="trade-row-top">
+                        <span class="trade-row-pair">${t.pair||'—'} ${t.direction||''}</span>
                         ${bdHtml}
                     </div>
-                    <div class="trade-actions">
-                        <button class="dup-btn" onclick="location.href='/journal.html?duplicate=1&tradeId=${t.tradeId}'">Dup</button>
-                        <button class="del-btn" onclick="doDelete('${t.tradeId}')">Del</button>
-                    </div>
+                    <div class="trade-row-sub">📅 ${dateStr} ${timeStr}${t.tradeSession?.session ? ' · 🕒 '+t.tradeSession.session.toUpperCase() : ''}${noteStr ? ' · '+noteStr : ''}</div>
                 </div>
-                <div class="trade-meta">
-                    <span>📅 ${dateStr} ${timeStr}</span>
-                    ${t.tradeSession?.session ? `<span>🕒 ${t.tradeSession.session.toUpperCase()}</span>` : ''}
-                    ${t.execution ? `<span>${t.execution==='limit'?'🎯':'⚡'} ${t.execution}</span>` : ''}
-                </div>
-                <div class="trade-notes">${t.text || 'No notes'}</div>
-                ${mindHtml||rateHtml||ruleHtml ? `<div class="trade-row-meta">${mindHtml}${rateHtml}${ruleHtml}</div>` : ''}
-                ${clHtml}${ssHtml}
+                ${ssCount ? `<span class="trade-row-ss">📸 ${ssCount}</span>` : ''}
+                <span class="trade-row-chevron">›</span>
             </div>`;
     }).join('');
 
-    // Screenshot click → modal
-    document.querySelectorAll('.ss-thumb').forEach(img => {
-        img.addEventListener('click', () => {
-            const modal = document.getElementById('ssModal');
-            document.getElementById('ssModalImg').src = img.src;
-            modal.style.display = 'flex';
-        });
+    document.querySelectorAll('.trade-row').forEach(row => {
+        row.addEventListener('click', () => openTradeModal(row.dataset.trade));
     });
 }
 
@@ -421,6 +660,175 @@ document.getElementById('ssModal').addEventListener('click', e => {
     if (e.target === document.getElementById('ssModal'))
         document.getElementById('ssModal').style.display = 'none';
 });
+
+// ── Trade detail / edit modal ───────────────────────────────────────────────
+let tmActiveId = null;
+let tmScreenshots = [];
+const CL_ITEMS = ['H4','H1EF','H1EG','M30EF','M30EG','M15EF','M15EG','M30EF2','M30EG2','ENTRY-M5EG','ENTRY-M1EF'];
+
+function tmSingleSelect(selector) {
+    document.querySelectorAll(selector).forEach(el => {
+        el.onclick = () => {
+            document.querySelectorAll(selector).forEach(x => x.classList.remove('selected'));
+            el.classList.add('selected');
+        };
+    });
+}
+
+function openTradeModal(tradeId) {
+    const t = journals.journals[tradeId];
+    if (!t) return;
+    tmActiveId = tradeId;
+    tmScreenshots = (t.screenshots || []).map(s => ({...s}));
+
+    document.getElementById('tmodalPairTitle').textContent = `${t.pair||'Trade'} ${t.direction||''}`;
+    document.getElementById('tmodalBackdated').style.display = t.isBackdated ? 'inline-block' : 'none';
+
+    document.querySelectorAll('.tmodal-outcome-btn').forEach(b => b.classList.toggle('active', b.dataset.outcome === t.outcome));
+    document.getElementById('tmPair').value = t.pair || '';
+    document.getElementById('tmDirection').value = t.direction || '';
+    document.getElementById('tmModel').value = t.model || '';
+    document.getElementById('tmSession').value = t.tradeSession?.session || '';
+    document.getElementById('tmDate').value = t.tradeDate || (t.timestamp ? t.timestamp.split('T')[0] : '');
+    document.getElementById('tmTime').value = t.tradeSession?.time || t.tradeTime || '';
+
+    document.querySelectorAll('#tmExecRow .pill').forEach(p => p.classList.toggle('selected', p.dataset.exec === t.execution));
+    document.querySelectorAll('#tmMindsetRow .mindset-pill').forEach(p => p.classList.toggle('selected', String(t.mindset) === p.dataset.mindset));
+    document.querySelectorAll('#tmRatingRow .pill').forEach(p => p.classList.toggle('selected', String(t.executionRating) === p.dataset.rating));
+    document.querySelectorAll('#tmRuleTags .rule-tag').forEach(tag => tag.classList.toggle('selected', (t.ruleBreaks||[]).includes(tag.dataset.rule)));
+
+    CL_ITEMS.forEach(k => { const el = document.getElementById('tm-cl-'+k); if (el) el.checked = (t.checklist||[]).includes(k); });
+
+    document.getElementById('tmNotes').value = t.text || '';
+    document.getElementById('tmReason').value = t.reason || '';
+
+    renderTmScreenshots();
+    document.getElementById('tmodalOverlay').classList.add('open');
+}
+
+function closeTradeModal() {
+    document.getElementById('tmodalOverlay').classList.remove('open');
+    tmActiveId = null;
+}
+
+function renderTmScreenshots() {
+    const c = document.getElementById('tmSsPreview');
+    c.innerHTML = '';
+    tmScreenshots.forEach((ss, i) => {
+        if (!ss.data) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'ss-item';
+        const img = document.createElement('img'); img.src = ss.data;
+        img.addEventListener('click', () => {
+            document.getElementById('ssModalImg').src = ss.data;
+            document.getElementById('ssModal').style.display = 'flex';
+        });
+        const rm = document.createElement('button'); rm.className = 'ss-remove'; rm.textContent = '×';
+        rm.addEventListener('click', (e) => { e.stopPropagation(); tmScreenshots.splice(i,1); renderTmScreenshots(); });
+        const ann = document.createElement('textarea'); ann.className = 'ss-ann'; ann.rows = 2;
+        ann.placeholder = `Screenshot ${i+1} — what do you see?`; ann.value = ss.annotation || '';
+        ann.addEventListener('input', e => { ss.annotation = e.target.value; });
+        wrap.appendChild(img); wrap.appendChild(rm); wrap.appendChild(ann);
+        c.appendChild(wrap);
+    });
+}
+
+function tmHandleScreenshots(files) {
+    Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const r = new FileReader();
+        r.onload = e => {
+            tmScreenshots.push({ id: Date.now()+Math.random(), data: e.target.result, name: file.name, annotation: '' });
+            renderTmScreenshots();
+        };
+        r.readAsDataURL(file);
+    });
+    document.getElementById('tmSsInput').value = '';
+}
+
+async function saveTradeEdits() {
+    if (!tmActiveId) return;
+    const t = journals.journals[tmActiveId];
+    if (!t) return;
+
+    const outcome = document.querySelector('.tmodal-outcome-btn.active')?.dataset.outcome || t.outcome;
+    const tradeDate = document.getElementById('tmDate').value || t.tradeDate;
+    const tradeTime = document.getElementById('tmTime').value || t.tradeTime;
+    const session = document.getElementById('tmSession').value;
+
+    t.outcome = outcome;
+    t.pair = document.getElementById('tmPair').value;
+    t.direction = document.getElementById('tmDirection').value;
+    t.model = document.getElementById('tmModel').value || null;
+    t.tradeDate = tradeDate;
+    t.tradeTime = tradeTime;
+    t.tradeSession = { session, time: tradeTime };
+    t.execution = document.querySelector('#tmExecRow .pill.selected')?.dataset.exec || t.execution;
+    const mind = document.querySelector('#tmMindsetRow .mindset-pill.selected')?.dataset.mindset;
+    t.mindset = mind ? parseInt(mind) : null;
+    const rate = document.querySelector('#tmRatingRow .pill.selected')?.dataset.rating;
+    t.executionRating = rate ? parseInt(rate) : null;
+    t.ruleBreaks = Array.from(document.querySelectorAll('#tmRuleTags .rule-tag.selected')).map(tag => tag.dataset.rule);
+    t.checklist = CL_ITEMS.filter(k => document.getElementById('tm-cl-'+k)?.checked);
+    t.text = document.getElementById('tmNotes').value;
+    t.reason = document.getElementById('tmReason').value;
+    t.screenshots = [...tmScreenshots];
+    if (tradeDate && tradeTime) {
+        try { t.timestamp = new Date(`${tradeDate}T${tradeTime}:00`).toISOString(); } catch(e) {}
+    }
+
+    localStorage.setItem('xX_journal_data', JSON.stringify(journals));
+    showToast('Saving...', 'info');
+
+    const result = await saveTrade(tmActiveId, t);
+    if (result.success) {
+        showToast('Trade updated ✓', 'success');
+        closeTradeModal();
+        renderTrades(); updateStats(); renderChart(); renderEquityChart(); renderCalendar(); closeDetail();
+    } else {
+        showToast('Save failed: ' + (result.error||'Unknown error'), 'error');
+    }
+}
+
+function wireTradeModal() {
+    document.getElementById('tmodalClose').addEventListener('click', closeTradeModal);
+    document.getElementById('tmodalOverlay').addEventListener('click', e => { if (e.target.id === 'tmodalOverlay') closeTradeModal(); });
+
+    document.querySelectorAll('.tmodal-outcome-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('.tmodal-outcome-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+        });
+    });
+
+    tmSingleSelect('#tmExecRow .pill');
+    tmSingleSelect('#tmMindsetRow .mindset-pill');
+    tmSingleSelect('#tmRatingRow .pill');
+
+    document.querySelectorAll('#tmRuleTags .rule-tag').forEach(tag => {
+        tag.addEventListener('click', () => {
+            if (tag.dataset.rule === 'No Rule Break') {
+                document.querySelectorAll('#tmRuleTags .rule-tag').forEach(t => t.classList.remove('selected'));
+            } else {
+                document.querySelector('#tmRuleTags .rule-tag[data-rule="No Rule Break"]')?.classList.remove('selected');
+            }
+            tag.classList.toggle('selected');
+        });
+    });
+
+    const tmSsInput = document.getElementById('tmSsInput');
+    const tmSsZone  = document.getElementById('tmSsZone');
+    tmSsZone.addEventListener('click', () => tmSsInput.click());
+    tmSsInput.addEventListener('change', e => tmHandleScreenshots(e.target.files));
+
+    document.getElementById('tmSaveBtn').addEventListener('click', saveTradeEdits);
+    document.getElementById('tmDupBtn').addEventListener('click', () => {
+        if (tmActiveId) location.href = `/journal.html?duplicate=1&tradeId=${tmActiveId}`;
+    });
+    document.getElementById('tmDelBtn').addEventListener('click', () => {
+        if (tmActiveId) { const id = tmActiveId; closeTradeModal(); doDelete(id); }
+    });
+}
 
 window.doDelete = async (tradeId) => {
     if (!confirm('Delete this trade? Cannot be undone.')) return;
@@ -525,14 +933,18 @@ function openDetail(dateKey, tradeMap) {
     ].join('');
     document.getElementById('calTrades').innerHTML = trades.map(t => {
         const cls = t.outcome==='WIN'?'win':t.outcome==='LOSS'?'loss':'be';
-        return `<div class="cal-trade-row">
+        return `<div class="cal-trade-row" data-trade="${t.tradeId}" style="cursor:pointer;">
             <div class="cal-outcome ${cls}">${t.outcome}</div>
             <div class="cal-trade-meta">
                 <div class="cal-trade-pair">${t.pair} ${t.direction}</div>
                 <div class="cal-trade-sub">${t.tradeTime||''} ${t.tradeSession?.session?.toUpperCase()||''} ${t.reason?'· '+t.reason:''}</div>
             </div>
+            <span style="color:rgba(255,255,255,0.2);font-size:14px;">›</span>
         </div>`;
     }).join('');
+    document.querySelectorAll('#calTrades .cal-trade-row').forEach(row => {
+        row.addEventListener('click', () => openTradeModal(row.dataset.trade));
+    });
     document.getElementById('calDetail').classList.add('show');
     document.getElementById('calDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
