@@ -322,6 +322,15 @@
         .buffer-dots { display:flex; gap:4px; }
         .buffer-dot { width:11px; height:11px; border-radius:3px; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.14); transition:all 0.3s; }
         .buffer-dot.filled { border-color:transparent; }
+        .cycle-pick { background:rgba(255,255,255,0.06); color:#fff; border:1px solid rgba(255,255,255,0.18); border-radius:8px; padding:5px 8px; font-size:11px; font-weight:700; letter-spacing:.5px; margin-left:auto; margin-right:8px; cursor:pointer; }
+        .chart-legend { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-top:10px; font-size:11px; font-weight:600; color:rgba(255,255,255,0.7); }
+        .chart-legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; }
+        .chart-legend .legend-note { margin-left:auto; color:rgba(255,255,255,0.4); font-weight:500; }
+        .chart-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; margin-top:12px; }
+        .chart-stat { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:8px 10px; }
+        .chart-stat b { display:block; font-size:15px; color:#fff; }
+        .chart-stat span { font-size:9.5px; letter-spacing:.8px; color:rgba(255,255,255,0.45); font-weight:700; }
+        .chart-next { grid-column:1 / -1; font-size:12px; color:rgba(255,255,255,0.8); line-height:1.45; padding:8px 10px; border-radius:10px; border:1px dashed rgba(255,255,255,0.18); }
         .card-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
         .card-title-row .card-title { margin-bottom:0; }
         .buffer-settings-btn { background:none; border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.5); border-radius:6px; font-size:9.5px; font-weight:700; letter-spacing:0.5px; padding:4px 9px; cursor:pointer; }
@@ -426,6 +435,7 @@
                 <div class="card">
                     <div class="card-title-row">
                         <div class="card-title">CYCLE PROGRESSION</div>
+                        <select class="cycle-pick" id="chartCycleSelect" title="Look at any cycle's ladder" aria-label="Cycle shown in the chart"></select>
                         <button class="buffer-settings-btn" id="bufferSettingsBtn" title="Must match the EA's InpLazarusBufferRetries input">BUFFER SIZE: <span id="bufferSettingVal">2</span></button>
                     </div>
                     <div class="chart-sub">Project Lazarus buffered progression — a qualifying win arms a buffer; a confirmed win before it runs out advances the level; BE always holds</div>
@@ -458,6 +468,8 @@
                     </div>
 
                     <div class="chart-wrap"><canvas id="homeEquityChart"></canvas></div>
+                    <div class="chart-legend"><span><i style="background:#1DB954"></i>Win</span><span><i style="background:#E22134"></i>Loss</span><span><i style="background:#8a8f98"></i>Breakeven</span><span class="legend-note">Hover a step for the trade</span></div>
+                    <div class="chart-stats" id="chartStats"></div>
                 </div>
 
             </div>
@@ -479,7 +491,8 @@
 
 <script type="module">
 import { requireAuthFast, requirePin } from '/shared.js';
-import { getProfile } from '/db.js';
+import { getProfile, loadCycles, saveCycleMeta } from '/db.js';
+import { MAX_LEVEL, LEVEL_TIERS, tierFor, simulateLazarus } from '/lazarus.js';
 
 let journals = { journals: {} };
 let cycles   = { currentCycle: 1, tradesInCurrentCycle: 0 };
@@ -512,6 +525,7 @@ document.getElementById('bufferSettingsBtn').addEventListener('click', () => {
     const n = parseInt(input, 10);
     if (n >= 1 && n <= 3) {
         localStorage.setItem(LAZARUS_BUFFER_KEY, String(n));
+        saveCycleMeta({ lazarusBuffer: n }).catch(() => {}); // saved in the cloud too, so every device and NOVA AI use the same size
         renderStats();
     } else {
         alert('Enter a number from 1 to 3.');
@@ -521,9 +535,19 @@ document.getElementById('bufferSettingsBtn').addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireAuthFast('/');
     if (!user) return;
+    window.__xxUserId = user.id;
     await requirePin();
 
     loadLocal();
+    // A new device has no cycle info or buffer size yet: take them from the cloud (the trader's own choices), never guess.
+    try {
+        const needCycle = !JSON.parse(localStorage.getItem('xX_cycle_data') || '{}').currentCycle;
+        const needBuffer = !localStorage.getItem(LAZARUS_BUFFER_KEY);
+        const cloud = await loadCycles();
+        if (needCycle && cloud.exists && cloud.currentCycle) { cycles = { ...cycles, currentCycle: cloud.currentCycle, tradesInCurrentCycle: cloud.tradesInCurrentCycle || 0 }; localStorage.setItem('xX_cycle_data', JSON.stringify(cycles)); }
+        if (needBuffer && cloud.lazarusBuffer) localStorage.setItem(LAZARUS_BUFFER_KEY, String(cloud.lazarusBuffer));
+        if (cloud.cycleNames && Object.keys(cloud.cycleNames).length) localStorage.setItem(`xX_cycle_names_${user.id}`, JSON.stringify({ ...JSON.parse(localStorage.getItem(`xX_cycle_names_${user.id}`) || '{}'), ...cloud.cycleNames }));
+    } catch (e) { /* offline: the local copy is used */ }
     await renderGreeting(user);
     renderCycle();
     renderStats();
@@ -586,17 +610,31 @@ function renderStats() {
     }
     document.getElementById('homeStreak').textContent = (streakType === 'LOSS' ? '-' : '') + streak;
 
-    renderCycleProgressionChart(trades, cycles.currentCycle || 1);
+    const current = cycles.currentCycle || 1;
+    const nums = [...new Set([...trades.map(t => t.cycleNumber || 1), current])].sort((a, b) => b - a);
+    if (viewCycle === null || !nums.includes(viewCycle)) viewCycle = current;
+    const names = cycleNames();
+    const sel = document.getElementById('chartCycleSelect');
+    sel.innerHTML = nums.map(n => `<option value="${n}"${n === viewCycle ? ' selected' : ''}>Cycle ${n}${names[n] ? ' · ' + names[n].replace(/[<>&"]/g, '') : ''}${n === current ? ' (current)' : ''}</option>`).join('');
+    renderCycleProgressionChart(trades, viewCycle);
 }
 
-// -- Level tiers: rank name + color per level band (1-10) --
-const MAX_LEVEL = 10;
-const LEVEL_TIERS = [
-    { max: 3,  name: 'REBUILDING',  color: '#E22134' },
-    { max: 6,  name: 'IN CONTROL',  color: '#4A90E2' },
-    { max: 9,  name: 'DIALED IN',   color: '#1DB954' },
-    { max: 10, name: 'PEAK STATE',  color: '#FFD600' }
-];
+// the cycle the chart shows: the current one unless the trader picks another
+let viewCycle = null;
+function cycleNames() { try { return JSON.parse(localStorage.getItem(`xX_cycle_names_${window.__xxUserId || ''}`) || '{}'); } catch (e) { return {}; } }
+document.getElementById('chartCycleSelect').addEventListener('change', (e) => { viewCycle = parseInt(e.target.value, 10); renderStats(); });
+
+// Plain-words line: what the next result would do to the ladder right now.
+function nextStepText(sim, level) {
+    if (level >= MAX_LEVEL && sim.state === 'BUFFERED') return `You are at the top (level ${MAX_LEVEL}). A win keeps you there; each loss uses a buffer slot (${sim.buffer} left).`;
+    if (sim.state === 'BUFFERED') {
+        return `Buffered at level ${level}: a win moves you up to level ${Math.min(level + 1, MAX_LEVEL)}; a loss uses one of the ${sim.buffer} buffer slot${sim.buffer === 1 ? '' : 's'} left${sim.buffer <= 1 ? ' and drops you to level ' + Math.max(level - 1, 1) : ''}; a breakeven changes nothing.`;
+    }
+    const cushion = sim.legacyBuffer > 0 ? ` You carry a legacy cushion of ${sim.legacyBuffer}: that many losses are absorbed before a drop.` : ' No cushion: a loss just repeats the level.';
+    return `Qualifying at level ${level}: a win arms the buffer (the level repeats); a breakeven changes nothing.${cushion}`;
+}
+
+// Level tiers, the Lazarus ladder and its lot tables now live in /lazarus.js (shared with the Cycles page).
 // Rotating flavor text for the ongoing peak-state badge pops
 const PEAK_MESSAGES = [
     "🏆 PEAK STATE — YOU'RE LOADED, ABBA!",
@@ -608,9 +646,6 @@ const PEAK_MESSAGES = [
 // timer for as long as the climber sits at MAX_LEVEL — not just once.
 let peakCelebrationTimer = null;
 let peakCelebrationClimberRef = null;
-function tierFor(level) {
-    return LEVEL_TIERS.find(t => level <= t.max) || LEVEL_TIERS[LEVEL_TIERS.length - 1];
-}
 
 // ── PROJECT LAZARUS — buffered progression simulation ──────────────────────
 // Mirrors the xTra X_EA's state machine so the dashboard reflects the buffer
@@ -635,121 +670,6 @@ function getLazarusMaxBuffer() {
     return (v >= 1 && v <= 3) ? v : 2;
 }
 
-// Lot tables per model, mirroring the EA's lotSizes_XY5/XY7/XY10 arrays —
-// used only to size the legacy cushion (a lot-size ratio between levels).
-const LOT_TABLES = {
-    xY5:  [0.07, 0.20, 0.56, 1.54, 4.34, 12.26, 33.60, 94.50, 269.50, 350.00],
-    xY7:  [0.05, 0.14, 0.40, 1.13, 3.14, 8.76,  24.00, 67.50, 192.50, 250.00],
-    xY10: [0.03, 0.10, 0.28, 0.79, 2.20, 6.13,  16.80, 47.25, 134.75, 175.00]
-};
-// Trades logged before the MODEL field existed (or missing it) fall back to
-// whichever model was last seen, or xY10 if none has been seen yet.
-const DEFAULT_MODEL = 'xY10';
-
-function computeLegacyCushion(model, clearedIdx, newIdx, lossesAbsorbed, maxBuffer) {
-    const table = LOT_TABLES[model] || LOT_TABLES[DEFAULT_MODEL];
-    const lotCleared = table[clearedIdx], lotNew = table[newIdx];
-    if (!lotNew) return 0;
-    const netProfitInRiskUnits = 6.0 - lossesAbsorbed; // 2 wins * 3R, minus losses spent
-    const cushion = Math.floor(netProfitInRiskUnits * lotCleared / lotNew);
-    return Math.max(0, Math.min(maxBuffer, cushion));
-}
-
-// Walks one cycle's trades through the Lazarus state machine.
-// Returns per-trade level points (1-indexed, for the chart) plus the final
-// state for the dashboard header (state/buffer/legacy cushion).
-function simulateLazarus(cycleTrades, maxBuffer) {
-    let levelIdx = 0; // 0-indexed internally; level shown to the user is levelIdx+1
-    let state = 'QUALIFICATION';
-    let buffer = 0;
-    let legacyBuffer = 0, legacyBufferCap = 0;
-    let lastModel = DEFAULT_MODEL;
-
-    const points = [levelIdx + 1];
-    const moves = [];
-
-    cycleTrades.forEach(t => {
-        const model = t.model || t.mt4?.mode || lastModel;
-        lastModel = model;
-
-        // If this trade was explicitly tagged Qualifying or Buffer/Confirmation
-        // (read straight off the EA's own STATE display at the time), trust
-        // that over whatever the simulation inferred so far. This makes the
-        // dashboard self-correcting instead of silently drifting if an
-        // earlier trade was missed, logged out of order, or the buffer-size
-        // setting above doesn't match what the EA was actually running.
-        // If this trade was explicitly tagged Qualifying, Legacy-Cushion, or
-        // Buffer/Confirmation (read straight off the EA's own STATE display
-        // at the time), trust that over whatever the simulation inferred so
-        // far. This makes the dashboard self-correcting instead of silently
-        // drifting if an earlier trade was missed, logged out of order, or
-        // the buffer-size setting above doesn't match what the EA was
-        // actually running.
-        //
-        // QUALIFYING and LEGACY both map to the EA's QUALIFICATION state —
-        // LEGACY additionally confirms a carried-over cushion is active, so
-        // if the running simulation had already dropped it to 0 (drift), a
-        // logged LEGACY loss nudges it back to at least 1 rather than being
-        // silently treated as a bare, unprotected retry.
-        if (t.phase === 'QUALIFYING' || t.phase === 'LEGACY') {
-            state = 'QUALIFICATION';
-            if (t.phase === 'LEGACY' && legacyBuffer === 0) {
-                legacyBuffer = 1;
-                legacyBufferCap = Math.max(legacyBufferCap, 1);
-            }
-        } else if (t.phase === 'BUFFER') {
-            state = 'BUFFERED';
-        }
-
-        if (t.outcome === 'BREAKEVEN') {
-            points.push(levelIdx + 1);
-            moves.push(null);
-            return;
-        }
-
-        let move = null;
-        if (t.outcome === 'WIN') {
-            move = 'WIN';
-            if (state === 'QUALIFICATION') {
-                // Qualifying win — arm the buffer, repeat the level.
-                buffer = maxBuffer;
-                state = 'BUFFERED';
-                legacyBuffer = 0; legacyBufferCap = 0;
-            } else {
-                // Confirmation win — advance, carry forward a legacy cushion.
-                const lossesAbsorbed = maxBuffer - buffer;
-                const clearedIdx = levelIdx;
-                const newIdx = Math.min(levelIdx + 1, MAX_LEVEL - 1);
-                legacyBufferCap = computeLegacyCushion(model, clearedIdx, newIdx, lossesAbsorbed, maxBuffer);
-                legacyBuffer = legacyBufferCap;
-                levelIdx = newIdx;
-                state = 'QUALIFICATION';
-                buffer = 0;
-            }
-        } else if (t.outcome === 'LOSS') {
-            move = 'LOSS';
-            if (state === 'QUALIFICATION') {
-                if (legacyBuffer > 0) {
-                    legacyBuffer--;
-                    if (legacyBuffer === 0) { levelIdx = Math.max(levelIdx - 1, 0); legacyBufferCap = 0; }
-                }
-                // else: no cushion yet — just retry the level, nothing changes.
-            } else {
-                buffer--;
-                if (buffer <= 0) {
-                    levelIdx = Math.max(levelIdx - 1, 0);
-                    state = 'QUALIFICATION';
-                    buffer = 0; legacyBuffer = 0; legacyBufferCap = 0;
-                }
-            }
-        }
-
-        points.push(levelIdx + 1);
-        moves.push(move);
-    });
-
-    return { points, level: levelIdx + 1, state, buffer, legacyBuffer, legacyBufferCap, maxBuffer, moves };
-}
 
 // 20-SLOT CHART + radial level gauge, rank badge and dot track
 function renderCycleProgressionChart(allTrades, cycleNum) {
@@ -857,6 +777,7 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     });
 
     renderLevelHeader(level, lastMove, moveStreak, sim);
+    renderChartStats(cycleTrades, sim, level, cycleNum);
 
     // Labels: 0 (starting point, before any trade) through however many
     // trades this cycle has had — starting at 0 keeps the start flag's
@@ -931,13 +852,15 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                 borderJoinStyle: 'round',
                 pointRadius: (c) => (c.raw !== null && c.dataIndex === lastFilledIndex(points)) ? 7 : 4,
                 pointStyle: (c) => (c.raw !== null && c.dataIndex === lastFilledIndex(points)) ? 'circle' : 'rectRounded',
+                // each step is coloured by what the trade did (win / loss / breakeven); the start point is neutral
                 pointBackgroundColor: (c) => {
-                    const v = c.raw;
-                    if (v === null) return 'transparent';
-                    return tierFor(v).color;
+                    if (c.raw === null) return 'transparent';
+                    if (c.dataIndex === 0) return '#ffffff';
+                    const o = cycleTrades[c.dataIndex - 1]?.outcome;
+                    return o === 'WIN' ? '#1DB954' : o === 'LOSS' ? '#E22134' : '#8a8f98';
                 },
-                pointBorderColor: '#000',
-                pointBorderWidth: 2,
+                pointBorderColor: (c) => (c.raw === null ? 'transparent' : tierFor(c.raw).color),
+                pointBorderWidth: 3,
                 pointHoverRadius: 8,
                 stepped: 'after',
                 spanGaps: false,
@@ -974,9 +897,30 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
                     padding: 12,
                     cornerRadius: 8,
                     callbacks: {
+                        title: function(items) {
+                            const i = items[0]?.dataIndex;
+                            if (!i) return 'Start of cycle';
+                            const t = cycleTrades[i - 1];
+                            const d = t?.tradeDate || (t?.timestamp ? String(t.timestamp).slice(0, 10) : '');
+                            return `Trade #${i}${d ? ' · ' + d : ''}`;
+                        },
                         label: function(context) {
                             if (context.raw === null) return 'No trade yet';
-                            return `Level ${context.raw} · ${tierFor(context.raw).name}`;
+                            const i = context.dataIndex;
+                            const prev = i > 0 ? points[i - 1] : null;
+                            const move = prev !== null && prev !== context.raw ? ` (from ${prev})` : '';
+                            return `Level ${context.raw}${move} · ${tierFor(context.raw).name}`;
+                        },
+                        afterLabel: function(context) {
+                            const i = context.dataIndex;
+                            if (!i) return '';
+                            const t = cycleTrades[i - 1];
+                            if (!t) return '';
+                            const bits = [`${t.outcome || '?'}${t.pair ? ' · ' + t.pair : ''}${t.direction ? ' ' + t.direction : ''}`];
+                            if (t.phase) bits.push(`phase ${t.phase}`);
+                            const rb = (t.ruleBreaks || []).filter(x => x && !/no rule break/i.test(x));
+                            if (rb.length) bits.push('rule breaks: ' + rb.join(', '));
+                            return bits;
                         }
                     }
                 }
@@ -1027,6 +971,26 @@ function renderCycleProgressionChart(allTrades, cycleNum) {
     } else {
         stopPeakCelebration();
     }
+}
+
+// Summary chips under the chart: record, best level, how long at this level, and what the next result does.
+function renderChartStats(cycleTrades, sim, level, cycleNum) {
+    const el = document.getElementById('chartStats');
+    if (!el) return;
+    const w = cycleTrades.filter(t => t.outcome === 'WIN').length;
+    const l = cycleTrades.filter(t => t.outcome === 'LOSS').length;
+    const be = cycleTrades.filter(t => t.outcome === 'BREAKEVEN').length;
+    const peak = Math.max(...sim.points);
+    let atLevel = 0;
+    for (let i = sim.points.length - 1; i >= 0 && sim.points[i] === level; i--) atLevel++;
+    atLevel = Math.max(0, atLevel - 1); // the start point is not a trade
+    const isCurrent = cycleNum === (cycles.currentCycle || 1);
+    el.innerHTML = `
+        <div class="chart-stat"><b>${w}W · ${l}L · ${be}BE</b><span>THIS CYCLE</span></div>
+        <div class="chart-stat"><b>Level ${peak}</b><span>BEST REACHED</span></div>
+        <div class="chart-stat"><b>${atLevel} trade${atLevel === 1 ? '' : 's'}</b><span>AT LEVEL ${level}</span></div>
+        <div class="chart-stat"><b>${cycleTrades.length} / 20</b><span>${isCurrent ? 'CURRENT CYCLE' : 'PAUSED CYCLE'}</span></div>
+        ${isCurrent ? `<div class="chart-next">${nextStepText(sim, level)}</div>` : ''}`;
 }
 
 // Move the little climbing figure to sit on top of the current step.

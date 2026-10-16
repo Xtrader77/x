@@ -186,22 +186,37 @@ function _bgSync() {
                 userName: local.userName || 'Trader'
             }));
 
-            // Recalculate cycles from real trade count — never trust stale DB
+            // Work out the cycles from the trades' own cycle numbers and the cycle the trader chose.
+            // This used to recalculate "current cycle = trades / 20 + 1" and save it, which silently undid any cycle
+            // the trader had closed early and replaced with a fresh one. The trader's own choice (saved in the cloud)
+            // is now kept; a count is only used for an account that has never saved a cycle.
             const sorted = Object.values(merged).sort((a,b) => +new Date(a.timestamp) - +new Date(b.timestamp));
             const total  = sorted.length;
-            const done   = Math.floor(total / 20);
-            const inCur  = total % 20;
+            const { loadCycles } = await import('./db.js');
+            const cloud = await loadCycles();
+            const localC = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
+            const byCycle = {};
+            sorted.forEach(t => { const n = t.cycleNumber || 1; (byCycle[n] = byCycle[n] || []).push(t); });
+            const highest = Math.max(1, ...Object.keys(byCycle).map(Number));
+            let currentCycle;
+            if (cloud.exists && cloud.currentCycle) currentCycle = cloud.currentCycle;
+            else if (localC.currentCycle) currentCycle = localC.currentCycle;
+            else currentCycle = Math.max(highest, Math.floor(total / 20) + 1);
+            currentCycle = Math.max(currentCycle, 1);
             const cycles = {
-                currentCycle: done + 1,
-                tradesInCurrentCycle: inCur,
-                completedCycles: Array.from({length: done}, (_, i) => ({
-                    cycleNumber: i + 1,
-                    completedAt: sorted[(i+1)*20 - 1]?.timestamp || new Date().toISOString()
-                })),
+                ...localC,
+                currentCycle,
+                tradesInCurrentCycle: (byCycle[currentCycle] || []).length,
+                completedCycles: Object.keys(byCycle).map(Number).sort((a,b) => a - b)
+                    .filter(n => byCycle[n].length >= 20)
+                    .map(n => ({ cycleNumber: n, completedAt: byCycle[n][19].timestamp || new Date().toISOString() })),
                 allTrades: sorted.map(t => t.tradeId)
             };
             localStorage.setItem('xX_cycle_data', JSON.stringify(cycles));
-            saveCycles(cycles).catch(() => {});
+            // only write back if something really changed, so a background sync never fights a save from another page
+            if (!cloud.exists || cloud.currentCycle !== cycles.currentCycle || cloud.tradesInCurrentCycle !== cycles.tradesInCurrentCycle) {
+                saveCycles(cycles).catch(() => {});
+            }
         } catch(e) {
             console.warn('[bgSync]', e);
         }

@@ -263,15 +263,27 @@ export async function deleteTrade(tradeId) {
 }
 
 // ── Cycles ────────────────────────────────────────────────────────────────────
+// Cycle names and the Lazarus buffer size are kept inside the cycles row, in one small { meta: true } entry at the end of
+// completed_cycles (no database change needed). Every save keeps whatever meta is already in the cloud, so saving the
+// cycle counters from any page can never wipe the names. NOVA Command reads the same entry.
+function splitMeta(list) {
+    const arr = Array.isArray(list) ? list : [];
+    const meta = arr.find(e => e && typeof e === 'object' && e.meta === true) || null;
+    return { done: arr.filter(e => !(e && typeof e === 'object' && e.meta === true)), meta };
+}
+
 export async function saveCycles(cyclesData) {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: 'Not logged in' };
-    const { data: existing } = await supabase.from('cycles').select('id').eq('user_id', user.id).single();
+    const { data: existing } = await supabase.from('cycles').select('id, completed_cycles').eq('user_id', user.id).maybeSingle();
+    const keep = splitMeta(safeJSON(existing?.completed_cycles, [])).meta;      // what the cloud already knows
+    const { done } = splitMeta(cyclesData.completedCycles);
+    const completed = keep ? [...done, keep] : done;
     const row = {
         user_id: user.id,
         current_cycle: cyclesData.currentCycle || 1,
         trades_in_current_cycle: cyclesData.tradesInCurrentCycle || 0,
-        completed_cycles: JSON.stringify(cyclesData.completedCycles || []),
+        completed_cycles: JSON.stringify(completed),
         all_trades: JSON.stringify(cyclesData.allTrades || [])
     };
     if (existing?.id) row.id = existing.id;
@@ -280,16 +292,42 @@ export async function saveCycles(cyclesData) {
     return { success: true };
 }
 
-export async function loadCycles() {
+// Saves only the cycle names and/or buffer size; the cycle counters are never touched.
+// names: the complete { "1": "name", ... } object (a missing key means no name).
+export async function saveCycleMeta({ names, lazarusBuffer }) {
     const user = await getCurrentUser();
-    if (!user) return { currentCycle: 1, tradesInCurrentCycle: 0, completedCycles: [], allTrades: [] };
-    const { data } = await supabase.from('cycles').select('*').eq('user_id', user.id).single();
-    if (!data) return { currentCycle: 1, tradesInCurrentCycle: 0, completedCycles: [], allTrades: [] };
+    if (!user) return { success: false, error: 'Not logged in' };
+    const { data: existing } = await supabase.from('cycles').select('id, completed_cycles').eq('user_id', user.id).maybeSingle();
+    const { done, meta } = splitMeta(safeJSON(existing?.completed_cycles, []));
+    const next = { meta: true, names: { ...(meta?.names || {}) }, lazarusBuffer: meta?.lazarusBuffer ?? null };
+    if (names && typeof names === 'object') {
+        next.names = {};
+        for (const [k, v] of Object.entries(names)) { const s = String(v || '').trim().slice(0, 60); if (s) next.names[k] = s; }
+    }
+    if (lazarusBuffer >= 1 && lazarusBuffer <= 3) next.lazarusBuffer = lazarusBuffer;
+    const completed = JSON.stringify([...done, next]);
+    const { error } = existing?.id
+        ? await supabase.from('cycles').update({ completed_cycles: completed }).eq('id', existing.id).eq('user_id', user.id)
+        : await supabase.from('cycles').insert({ user_id: user.id, current_cycle: 1, trades_in_current_cycle: 0, completed_cycles: completed, all_trades: '[]' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+export async function loadCycles() {
+    const empty = { exists: false, currentCycle: 1, tradesInCurrentCycle: 0, completedCycles: [], allTrades: [], cycleNames: {}, lazarusBuffer: null };
+    const user = await getCurrentUser();
+    if (!user) return empty;
+    const { data } = await supabase.from('cycles').select('*').eq('user_id', user.id).maybeSingle();
+    if (!data) return empty;
+    const { done, meta } = splitMeta(safeJSON(data.completed_cycles, []));
     return {
+        exists: true,
         currentCycle: data.current_cycle,
         tradesInCurrentCycle: data.trades_in_current_cycle,
-        completedCycles: safeJSON(data.completed_cycles, []),
-        allTrades: safeJSON(data.all_trades, [])
+        completedCycles: done,
+        allTrades: safeJSON(data.all_trades, []),
+        cycleNames: meta?.names || {},
+        lazarusBuffer: meta?.lazarusBuffer ?? null
     };
 }
 

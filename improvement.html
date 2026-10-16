@@ -402,7 +402,7 @@ textarea{min-height:80px;resize:vertical;}
 
 <script type="module">
 import { requireAuthFast, requirePin, showToast } from '/shared.js';
-import { saveReview as dbSaveReview, loadReviews as dbLoadReviews, deleteReview as dbDeleteReview } from '/db.js';
+import { saveReview as dbSaveReview, loadReviews as dbLoadReviews, deleteReview as dbDeleteReview, loadAllTrades as dbLoadAllTrades } from '/db.js';
 
 const IMP_KEY = 'xX_improvement_engine';
 const JNL_KEY = 'xX_journal_data';
@@ -467,6 +467,15 @@ async function syncReviewsFromCloud() {
       if (result.success) removePendingDelete(id);
     }
     const stillPendingDeletes = new Set(getPendingDeletes());
+
+    // The trade list used by the dropdown and the cards must match the cloud (a new device or a
+    // cleared cache would otherwise show "no trades"). Cloud wins, local-only trades are kept.
+    try {
+      const cloudJ = (await dbLoadAllTrades(false)).journals || {};
+      const merged = { ...Object.fromEntries(trades.map(t => [t.tradeId, t])), ...cloudJ };
+      const list = Object.values(merged).filter(t => t && t.tradeId);
+      if (list.length) trades = list;
+    } catch (e) { console.warn('[trades sync]', e); }
 
     const cloud = (await dbLoadReviews()).filter(r => !stillPendingDeletes.has(r.id));
     const cloudIds = new Set(cloud.map(r => r.id));
@@ -925,6 +934,14 @@ function clearForm() {
 }
 
 // ── Tracker ───────────────────────────────────────────────
+// Readable card title: date · cycle instead of the raw TRADE_ id.
+function tradeLabel(r) {
+  const t = trades.find(x => x.tradeId === r.tradeId);
+  const d = t?.tradeDate || (t?.timestamp ? String(t.timestamp).slice(0, 10) : r.date || '');
+  const cyc = t?.cycleNumber ? ` · cycle ${t.cycleNumber}` : '';
+  return esc(`${d}${cyc}`.trim() || r.tradeId || 'Trade');
+}
+
 function renderTracker() {
   let list = [...reviews];
   if (curFilter==='active')   list=list.filter(r=>!r.resolved);
@@ -940,7 +957,7 @@ function renderTracker() {
   el.innerHTML = list.map(r => {
     const cls = (r.reviewType||'mistake') + (r.resolved?' resolved':'');
     return `<div class="rv-card ${cls}">
-      <div class="rv-title">${r.tradeId} — <span style="color:${oc(r.tradeOutcome)}">${r.tradeOutcome}</span> ${r.tradePair} ${r.tradeDirection}</div>
+      <div class="rv-title">${tradeLabel(r)} — <span style="color:${oc(r.tradeOutcome)}">${r.tradeOutcome}</span> ${r.tradePair} ${r.tradeDirection}</div>
       <div class="rv-meta">${tLbls[r.reviewType||'mistake']}${r.category!=='N/A'?' · '+r.category:''} · ${r.severity} · ${r.date}${r.resolved?' · ✅ RESOLVED':''}</div>
       ${r.reviewType!=='good'&&r.tradeReason&&r.tradeReason!=='N/A'?`<div class="rv-lbl">TRADE REASON</div><div class="rv-body" style="font-style:italic">"${esc(r.tradeReason)}"</div>`:''}
       <div class="rv-lbl">${r.reviewType==='good'?'WHAT WENT WELL':r.reviewType==='be'?'WHAT HAPPENED':'WHAT WENT WRONG'}</div>

@@ -576,7 +576,7 @@ async function save(outcome) {
     cycles.allTrades.push(tradeId);
     cycles.tradesInCurrentCycle++;
 
-    if (cycles.tradesInCurrentCycle >= 20 && cycles.currentCycle < 3) {
+    if (cycles.tradesInCurrentCycle >= 20) {
         cycles.completedCycles.push({ cycleNumber: cycles.currentCycle, completedAt: timestamp });
         cycles.currentCycle++; cycles.tradesInCurrentCycle = 0;
     }
@@ -672,6 +672,18 @@ function prefill() {
         if (cached.journals) journals = cached;
         const cachedCycles = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
         if (cachedCycles.currentCycle) cycles = cachedCycles;
+    } catch(e) {}
+
+    // A new device (or cleared browser data) has no local cycle info: take the open cycle from the cloud instead of
+    // starting again at cycle 1, so new trades always land in the cycle the trader is really working in.
+    try {
+        if (!JSON.parse(localStorage.getItem('xX_cycle_data') || '{}').currentCycle) {
+            const cloudC = await loadCycles();
+            if (cloudC.exists && cloudC.currentCycle) {
+                cycles = { currentCycle: cloudC.currentCycle, tradesInCurrentCycle: cloudC.tradesInCurrentCycle || 0, completedCycles: cloudC.completedCycles || [], allTrades: cloudC.allTrades || [] };
+                localStorage.setItem('xX_cycle_data', JSON.stringify(cycles));
+            }
+        }
     } catch(e) {}
 
     init();
