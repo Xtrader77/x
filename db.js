@@ -130,6 +130,19 @@ export async function saveRecovery(question, answerHash) {
 }
 
 // ── Trades ────────────────────────────────────────────────────────────────────
+// Reward ratio of a trade ('1:2' or '1:3'): the `rr` column, or kept inside mt4_data on older databases.
+function rrOf(t) {
+    let v = t.rr;
+    if (!v && t.mt4_data) { const o = safeJSON(t.mt4_data, null); v = o && o.rr; }
+    return v === '1:2' || v === '1:3' ? v : null;
+}
+
+// A trade's level: the `level` column, or "L7" kept in the old `phase` column
+// when the database had no level column yet. Old Lazarus phases (QUALIFYING...) give no level.
+function levelOf(t) {
+    const n = Number.isInteger(t.level) ? t.level : parseInt(String(t.phase || '').replace(/^L/i, ''), 10);
+    return /^L\d+$/i.test(String(t.phase || '')) || Number.isInteger(t.level) ? (n >= 1 && n <= 10 ? n : null) : null;
+}
 export async function saveTrade(tradeId, tradeData) {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: 'Not logged in — please sign out and sign back in' };
@@ -142,7 +155,8 @@ export async function saveTrade(tradeId, tradeData) {
         id: tradeId, user_id: user.id,
         pair: tradeData.pair || null, direction: tradeData.direction || null,
         model: tradeData.model || tradeData.mt4?.mode || null,
-        phase: tradeData.phase || null,
+        rr: tradeData.rr === '1:2' || tradeData.rr === '1:3' ? tradeData.rr : null,
+        level: Number.isInteger(tradeData.level) && tradeData.level >= 1 && tradeData.level <= 10 ? tradeData.level : null,
         outcome: tradeData.outcome || null, trade_date: tradeData.tradeDate || null,
         trade_time: tradeData.tradeTime || null, is_backdated: tradeData.isBackdated || false,
         timestamp: tradeData.timestamp || new Date().toISOString(),
@@ -157,8 +171,29 @@ export async function saveTrade(tradeId, tradeData) {
     };
 
     // Try insert first, then update on conflict — avoids RLS UPDATE edge cases
-    const rowWithTs = { ...row, updated_at: new Date().toISOString() };
-    const { error: insertError } = await supabase.from('trades').insert(rowWithTs);
+    let rowWithTs = { ...row, updated_at: new Date().toISOString() };
+    let { error: insertError } = await supabase.from('trades').insert(rowWithTs);
+    // The `level` and `rr` columns are new. If the database has not been updated yet (run the SQL in the
+    // README), keep them where older databases can hold them so saving never fails because of them:
+    // level as "L7" in the old `phase` column, and rr inside the mt4_data JSON.
+    let noLevelCol = false, noRrCol = false;
+    const buildRow = () => {
+        const { level, rr, ...rest } = row;
+        const out = { ...rest, updated_at: rowWithTs.updated_at };
+        if (noLevelCol) out.phase = level ? `L${level}` : null; else out.level = level;
+        if (noRrCol) {
+            let mt = null; try { mt = row.mt4_data ? JSON.parse(row.mt4_data) : null; } catch (e) { mt = null; }
+            if (rr) out.mt4_data = JSON.stringify({ ...(mt || {}), rr });
+        } else out.rr = rr;
+        return out;
+    };
+    for (let attempt = 0; attempt < 3 && insertError; attempt++) {
+        const m = /'(level|rr)' column|column "?(level|rr)"?/i.exec(insertError.message || '');
+        if (!m) break;
+        if ((m[1] || m[2]).toLowerCase() === 'level') noLevelCol = true; else noRrCol = true;
+        rowWithTs = buildRow();
+        ({ error: insertError } = await supabase.from('trades').insert(rowWithTs));
+    }
     let tradeError = insertError;
     if (insertError && insertError.code === '23505') {
         // Duplicate — update instead
@@ -242,7 +277,7 @@ export async function loadAllTrades(includeScreenshots = false) {
             tradeSession: { session: t.session, time: t.trade_time },
             execution: t.execution, screenshots: ssByTrade[t.id] || localSS,
             pair: t.pair, direction: t.direction, reason: t.reason,
-            model: t.model, phase: t.phase, outcome: t.outcome, timestamp: t.timestamp,
+            model: t.model, level: levelOf(t), rr: rrOf(t), outcome: t.outcome, timestamp: t.timestamp,
             tradeDate: t.trade_date, tradeTime: t.trade_time,
             isBackdated: t.is_backdated, tradeId: t.id,
             mindset: t.mindset, executionRating: t.execution_rating,
@@ -263,27 +298,15 @@ export async function deleteTrade(tradeId) {
 }
 
 // ── Cycles ────────────────────────────────────────────────────────────────────
-// Cycle names and the Lazarus buffer size are kept inside the cycles row, in one small { meta: true } entry at the end of
-// completed_cycles (no database change needed). Every save keeps whatever meta is already in the cloud, so saving the
-// cycle counters from any page can never wipe the names. NOVA Command reads the same entry.
-function splitMeta(list) {
-    const arr = Array.isArray(list) ? list : [];
-    const meta = arr.find(e => e && typeof e === 'object' && e.meta === true) || null;
-    return { done: arr.filter(e => !(e && typeof e === 'object' && e.meta === true)), meta };
-}
-
 export async function saveCycles(cyclesData) {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: 'Not logged in' };
-    const { data: existing } = await supabase.from('cycles').select('id, completed_cycles').eq('user_id', user.id).maybeSingle();
-    const keep = splitMeta(safeJSON(existing?.completed_cycles, [])).meta;      // what the cloud already knows
-    const { done } = splitMeta(cyclesData.completedCycles);
-    const completed = keep ? [...done, keep] : done;
+    const { data: existing } = await supabase.from('cycles').select('id').eq('user_id', user.id).single();
     const row = {
         user_id: user.id,
         current_cycle: cyclesData.currentCycle || 1,
         trades_in_current_cycle: cyclesData.tradesInCurrentCycle || 0,
-        completed_cycles: JSON.stringify(completed),
+        completed_cycles: JSON.stringify(cyclesData.completedCycles || []),
         all_trades: JSON.stringify(cyclesData.allTrades || [])
     };
     if (existing?.id) row.id = existing.id;
@@ -292,42 +315,16 @@ export async function saveCycles(cyclesData) {
     return { success: true };
 }
 
-// Saves only the cycle names and/or buffer size; the cycle counters are never touched.
-// names: the complete { "1": "name", ... } object (a missing key means no name).
-export async function saveCycleMeta({ names, lazarusBuffer }) {
-    const user = await getCurrentUser();
-    if (!user) return { success: false, error: 'Not logged in' };
-    const { data: existing } = await supabase.from('cycles').select('id, completed_cycles').eq('user_id', user.id).maybeSingle();
-    const { done, meta } = splitMeta(safeJSON(existing?.completed_cycles, []));
-    const next = { meta: true, names: { ...(meta?.names || {}) }, lazarusBuffer: meta?.lazarusBuffer ?? null };
-    if (names && typeof names === 'object') {
-        next.names = {};
-        for (const [k, v] of Object.entries(names)) { const s = String(v || '').trim().slice(0, 60); if (s) next.names[k] = s; }
-    }
-    if (lazarusBuffer >= 1 && lazarusBuffer <= 3) next.lazarusBuffer = lazarusBuffer;
-    const completed = JSON.stringify([...done, next]);
-    const { error } = existing?.id
-        ? await supabase.from('cycles').update({ completed_cycles: completed }).eq('id', existing.id).eq('user_id', user.id)
-        : await supabase.from('cycles').insert({ user_id: user.id, current_cycle: 1, trades_in_current_cycle: 0, completed_cycles: completed, all_trades: '[]' });
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-}
-
 export async function loadCycles() {
-    const empty = { exists: false, currentCycle: 1, tradesInCurrentCycle: 0, completedCycles: [], allTrades: [], cycleNames: {}, lazarusBuffer: null };
     const user = await getCurrentUser();
-    if (!user) return empty;
-    const { data } = await supabase.from('cycles').select('*').eq('user_id', user.id).maybeSingle();
-    if (!data) return empty;
-    const { done, meta } = splitMeta(safeJSON(data.completed_cycles, []));
+    if (!user) return { currentCycle: 1, tradesInCurrentCycle: 0, completedCycles: [], allTrades: [] };
+    const { data } = await supabase.from('cycles').select('*').eq('user_id', user.id).single();
+    if (!data) return { currentCycle: 1, tradesInCurrentCycle: 0, completedCycles: [], allTrades: [] };
     return {
-        exists: true,
         currentCycle: data.current_cycle,
         tradesInCurrentCycle: data.trades_in_current_cycle,
-        completedCycles: done,
-        allTrades: safeJSON(data.all_trades, []),
-        cycleNames: meta?.names || {},
-        lazarusBuffer: meta?.lazarusBuffer ?? null
+        completedCycles: safeJSON(data.completed_cycles, []),
+        allTrades: safeJSON(data.all_trades, [])
     };
 }
 

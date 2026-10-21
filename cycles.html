@@ -149,8 +149,7 @@
 
 <script type="module">
 import { requireAuthFast, requirePin, showToast } from '/shared.js';
-import { loadAllTrades, saveCycles, loadCycles, saveCycleMeta } from '/db.js';
-import { simulateLazarus } from '/lazarus.js';
+import { loadAllTrades, saveCycles } from '/db.js';
 
 const user = await requireAuthFast('/cycles.html');
 if (!user) throw new Error('not authed');
@@ -158,23 +157,7 @@ await requirePin();
 
 const NAMES_KEY = `xX_cycle_names_${user.id}`;
 function getNames() { try { return JSON.parse(localStorage.getItem(NAMES_KEY) || '{}'); } catch(e) { return {}; } }
-// Names are kept on this device AND in the cloud (inside the cycles row), so they follow the trader to every device and
-// NOVA AI can read them. The cloud copy is merged in once at the start; every change is pushed up.
-let cloudCycles = null;
-try { cloudCycles = await loadCycles(); } catch(e) { cloudCycles = null; }
-if (cloudCycles?.cycleNames && Object.keys(cloudCycles.cycleNames).length) {
-    localStorage.setItem(NAMES_KEY, JSON.stringify({ ...getNames(), ...cloudCycles.cycleNames }));
-}
-function saveNames(obj) {
-    localStorage.setItem(NAMES_KEY, JSON.stringify(obj));
-    saveCycleMeta({ names: obj }).then(r => { if (!r.success) showToast('Name saved on this device only — ' + r.error, 'error'); }).catch(() => {});
-}
-const BUFFER_KEY = 'xX_lazarus_buffer_max';
-function bufferSize() {
-    const v = parseInt(localStorage.getItem(BUFFER_KEY), 10);
-    if (v >= 1 && v <= 3) return v;
-    return (cloudCycles?.lazarusBuffer >= 1 && cloudCycles.lazarusBuffer <= 3) ? cloudCycles.lazarusBuffer : 2;
-}
+function saveNames(obj) { localStorage.setItem(NAMES_KEY, JSON.stringify(obj)); }
 
 let trades = [];
 try {
@@ -187,12 +170,11 @@ try {
     trades = Object.values(cached.journals || {}).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
 
-// Group trades by the cycle they were logged in (each trade carries its own cycle number). This used to cut the list
-// into blocks of 20, which put trades in the wrong cycle as soon as a cycle was closed early.
+// Group trades into cycles of 20, in trade order (mirrors the save-time cycleNumber logic)
 const cycles = {};
 let maxCycleFromTrades = 0;
-trades.forEach((t) => {
-    const cycleNum = t.cycleNumber || 1;
+trades.forEach((t, i) => {
+    const cycleNum = Math.floor(i / 20) + 1;
     if (!cycles[cycleNum]) cycles[cycleNum] = [];
     cycles[cycleNum].push(t);
     if (cycleNum > maxCycleFromTrades) maxCycleFromTrades = cycleNum;
@@ -202,7 +184,7 @@ const cycleNums = Object.keys(cycles).map(Number).sort((a,b) => a - b);
 
 // Load manually created cycles from localStorage
 let manualCycles = [];
-let savedCurrentCycle = (cloudCycles?.exists && cloudCycles.currentCycle) ? cloudCycles.currentCycle : 1;
+let savedCurrentCycle = 1;
 try {
     const cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
     if (cycleData.manualCycles) {
@@ -217,10 +199,16 @@ try {
 let actualCurrentNum = savedCurrentCycle;
 let actualCurrentTrades = trades.filter(t => (t.cycleNumber || 1) === actualCurrentNum);
 
-// The level ladder is the same Lazarus logic as the home page, so both pages always agree.
 function levelSeries(cycleTrades) {
-    const sim = simulateLazarus(cycleTrades, bufferSize());
-    return { points: sim.points, endLevel: sim.level, sim };
+    let level = 1;
+    const points = [];
+    cycleTrades.forEach(t => {
+        if (Number.isInteger(t.level) && t.level >= 1 && t.level <= 10) level = t.level; // the level the trader chose for this trade
+        points.push(level);
+        if (t.outcome === 'WIN') level = Math.min(level + 1, 10);
+        else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
+    });
+    return { points, endLevel: level };
 }
 
 function winRate(cycleTrades) {
@@ -369,7 +357,7 @@ if (!allCycleData.length) {
         
         const first = cycleTrades[0], last = cycleTrades[cycleTrades.length - 1];
         const wr = winRate(cycleTrades);
-        const { points, endLevel } = levelSeries(cycleTrades);
+        const { points } = levelSeries(cycleTrades);
         const isComplete = cycleInfo.isCompleted;
         const isCurrent = num === actualCurrentNum;
 
@@ -378,14 +366,13 @@ if (!allCycleData.length) {
         el.innerHTML = `
             <div class="cci-head">
                 <span class="cci-num">CYCLE ${num}</span>
-                <span class="cci-status ${isCurrent ? 'current' : isComplete ? 'done' : 'active'}">${isCurrent ? 'CURRENT' : isComplete ? 'COMPLETE' : 'PAUSED'}</span>
+                <span class="cci-status ${isCurrent ? 'current' : isComplete ? 'done' : 'active'}">${isCurrent ? 'CURRENT' : isComplete ? 'COMPLETE' : 'ACTIVE'}</span>
             </div>
             <input type="text" class="cci-name-input" placeholder="Name this cycle..." value="${(names[num]||'').replace(/"/g,'&quot;')}" data-cycle="${num}">
             <div class="cci-dates">${new Date(first.timestamp).toLocaleDateString()} — ${new Date(last.timestamp).toLocaleDateString()}</div>
             <div class="cci-stats">
                 <div><div class="cci-stat-val">${wr.toFixed(1)}%</div><div class="cci-stat-label">WIN RATE</div></div>
                 <div><div class="cci-stat-val">${cycleTrades.length}</div><div class="cci-stat-label">TRADES</div></div>
-                <div><div class="cci-stat-val">L${endLevel}</div><div class="cci-stat-label">LEVEL</div></div>
             </div>
             <div class="cci-chart"><canvas id="cycleChart${num}"></canvas></div>
             <div class="switch-hint">${isCurrent ? '✓ Currently active' : 'Click to switch to this cycle'}</div>
@@ -411,7 +398,7 @@ if (!allCycleData.length) {
         new Chart(document.getElementById(`cycleChart${num}`), {
             type: 'line',
             data: {
-                labels: points.map((_, i) => `${i}`),
+                labels: points.map((_, i) => `${i+1}`),
                 datasets: [{
                     data: points,
                     borderColor: isCurrent ? '#1DB954' : isComplete ? '#4A90E2' : '#FFD700',
@@ -427,7 +414,7 @@ if (!allCycleData.length) {
                 plugins: { legend: { display:false } },
                 scales: {
                     x: { display:false },
-                    y: { min:0, max:10, ticks: { stepSize:5, color:'rgba(255,255,255,0.3)', font:{size:9} }, grid: { color:'rgba(255,255,255,0.05)' } }
+                    y: { min:0, max:11, ticks: { stepSize:5, color:'rgba(255,255,255,0.3)', font:{size:9} }, grid: { color:'rgba(255,255,255,0.05)' } }
                 }
             }
         });

@@ -676,7 +676,8 @@ function renderTradeView(t) {
                 <div class="tv-item"><div class="tv-label">Direction</div><div class="tv-value">${tvVal(t.direction)}</div></div>
                 <div class="tv-item"><div class="tv-label">Model</div><div class="tv-value">${tvVal(t.model)}</div></div>
                 <div class="tv-item"><div class="tv-label">Execution</div><div class="tv-value">${t.execution ? esc(EXEC_LABELS[t.execution]||t.execution) : '<span class="empty">—</span>'}</div></div>
-                <div class="tv-item"><div class="tv-label">Phase</div><div class="tv-value">${tvVal(t.phase)}</div></div>
+                <div class="tv-item"><div class="tv-label">R:R</div><div class="tv-value">${tvVal(t.rr)}</div></div>
+                <div class="tv-item"><div class="tv-label">Level</div><div class="tv-value">${tvVal(t.level)}</div></div>
             </div>
         </div>
 

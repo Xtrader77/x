@@ -1,5 +1,5 @@
-// xX Trading Journal — Service Worker v5 (cache-first, fast)
-const CACHE = 'xx-v5';
+// xX Trading Journal — Service Worker v4 (cache-first, fast)
+const CACHE = 'xx-v4';
 const PRECACHE = [
     '/',
     '/index.html',
@@ -14,8 +14,6 @@ const PRECACHE = [
     '/profile.html',
     '/db.js',
     '/shared.js',
-    '/lazarus.js',
-    '/cycles.html',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png'
