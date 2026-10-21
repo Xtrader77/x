@@ -117,7 +117,7 @@
         <div class="header">
             <div>
                 <h1>CYCLES</h1>
-                <div class="header-sub">Every cycle is 20 trades. Name each one, track its level progression, and revisit old cycles anytime.</div>
+                <div class="header-sub">A cycle is one trading period: you start it, trade it, and close it yourself (you withdraw, or the account is blown). Every new trade goes into the current cycle.</div>
             </div>
             <a href="/" class="back-btn">← HOME</a>
         </div>
@@ -126,8 +126,8 @@
         <div class="card" id="currentCycleCard">
             <span class="current-badge">CURRENT CYCLE</span>
             <div class="card-title" id="curCycleTitle" style="font-size:18px;margin-bottom:2px;">Cycle 1</div>
-            <div class="card-sub" id="curCycleSub">0 / 20 trades</div>
-            <div class="progress-track"><div class="progress-fill" id="curCycleFill" style="width:0%"></div></div>
+            <div class="card-sub" id="curCycleSub">0 trades</div>
+            <div class="progress-track" title="Win rate this cycle"><div class="progress-fill" id="curCycleFill" style="width:0%"></div></div>
             <div class="name-row">
                 <input type="text" id="curCycleNameInput" placeholder="Name this cycle (e.g. 'Discipline Reset', 'No Revenge Trades')">
                 <button id="curCycleNameSave">SAVE</button>
@@ -137,7 +137,7 @@
                 <div class="mini-stat"><div class="mini-stat-val" id="curCycleLevel">1</div><div class="mini-stat-label">CURRENT LEVEL</div></div>
                 <div class="mini-stat"><div class="mini-stat-val" id="curCycleTrades">0</div><div class="mini-stat-label">TRADES LOGGED</div></div>
             </div>
-            <button class="new-cycle-btn" id="startNewCycleBtn">🔄 START NEW CYCLE</button>
+            <button class="new-cycle-btn" id="startNewCycleBtn">🔄 CLOSE THIS CYCLE & START A NEW ONE</button>
         </div>
 
         <!-- All cycles -->
@@ -148,33 +148,15 @@
 </div>
 
 <script type="module">
-import { requireAuthFast, requirePin, showToast } from '/shared.js';
-import { loadAllTrades, saveCycles, loadCycles, saveCycleMeta } from '/db.js';
-import { simulateLazarus } from '/lazarus.js';
+import { requireAuthFast, requirePin, showToast, readCycleLocal, writeCycleLocal, reconcileCycles, countInCycle, cycleOf } from '/shared.js';
+import { loadAllTrades, saveCycles, loadCycles } from '/db.js';
 
 const user = await requireAuthFast('/cycles.html');
 if (!user) throw new Error('not authed');
 await requirePin();
 
-const NAMES_KEY = `xX_cycle_names_${user.id}`;
+const NAMES_KEY = `xX_cycle_names_${user.id}`; // older copy of the cycle names; they now live with the cycle itself
 function getNames() { try { return JSON.parse(localStorage.getItem(NAMES_KEY) || '{}'); } catch(e) { return {}; } }
-// Names are kept on this device AND in the cloud (inside the cycles row), so they follow the trader to every device and
-// NOVA AI can read them. The cloud copy is merged in once at the start; every change is pushed up.
-let cloudCycles = null;
-try { cloudCycles = await loadCycles(); } catch(e) { cloudCycles = null; }
-if (cloudCycles?.cycleNames && Object.keys(cloudCycles.cycleNames).length) {
-    localStorage.setItem(NAMES_KEY, JSON.stringify({ ...getNames(), ...cloudCycles.cycleNames }));
-}
-function saveNames(obj) {
-    localStorage.setItem(NAMES_KEY, JSON.stringify(obj));
-    saveCycleMeta({ names: obj }).then(r => { if (!r.success) showToast('Name saved on this device only — ' + r.error, 'error'); }).catch(() => {});
-}
-const BUFFER_KEY = 'xX_lazarus_buffer_max';
-function bufferSize() {
-    const v = parseInt(localStorage.getItem(BUFFER_KEY), 10);
-    if (v >= 1 && v <= 3) return v;
-    return (cloudCycles?.lazarusBuffer >= 1 && cloudCycles.lazarusBuffer <= 3) ? cloudCycles.lazarusBuffer : 2;
-}
 
 let trades = [];
 try {
@@ -187,40 +169,42 @@ try {
     trades = Object.values(cached.journals || {}).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
 
-// Group trades by the cycle they were logged in (each trade carries its own cycle number). This used to cut the list
-// into blocks of 20, which put trades in the wrong cycle as soon as a cycle was closed early.
+// One source of truth: the newest saved choice of this device or the cloud, plus what the trades prove.
+let cloudCycles = null;
+try { cloudCycles = await loadCycles(); } catch(e) { cloudCycles = null; }
+let state = reconcileCycles(readCycleLocal(), cloudCycles, trades);
+// bring older name-only copies into the cycle records
+{ const nm = getNames(); state.completedCycles.forEach(r => { if (!r.name && nm[r.cycleNumber]) r.name = nm[r.cycleNumber]; }); }
+writeCycleLocal(state);
+
+async function commit(next, toast) {
+    state = { ...next, updatedAt: new Date().toISOString() };
+    state.tradesInCurrentCycle = countInCycle(trades, state.currentCycle);
+    writeCycleLocal(state);
+    let ok = true;
+    try { const r = await saveCycles(state); ok = !!(r && r.success); } catch(e) { ok = false; }
+    if (!ok) showToast('Saved on this device, but the cloud save failed. It will retry on the next sync.', 'error');
+    else if (toast) showToast(toast, 'success');
+}
+const recOf = (n) => state.completedCycles.find(r => r.cycleNumber === n) || { cycleNumber: n };
+const nameOf = (n) => recOf(n).name || '';
+
+const cycleNums = [...new Set(state.completedCycles.map(r => r.cycleNumber))].sort((a,b) => a - b);
 const cycles = {};
-let maxCycleFromTrades = 0;
-trades.forEach((t) => {
-    const cycleNum = t.cycleNumber || 1;
-    if (!cycles[cycleNum]) cycles[cycleNum] = [];
-    cycles[cycleNum].push(t);
-    if (cycleNum > maxCycleFromTrades) maxCycleFromTrades = cycleNum;
-});
+cycleNums.forEach(n => { cycles[n] = trades.filter(t => cycleOf(t) === n); });
+const actualCurrentNum = state.currentCycle;
+const actualCurrentTrades = cycles[actualCurrentNum] || [];
 
-const cycleNums = Object.keys(cycles).map(Number).sort((a,b) => a - b);
-
-// Load manually created cycles from localStorage
-let manualCycles = [];
-let savedCurrentCycle = (cloudCycles?.exists && cloudCycles.currentCycle) ? cloudCycles.currentCycle : 1;
-try {
-    const cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-    if (cycleData.manualCycles) {
-        manualCycles = cycleData.manualCycles;
-    }
-    if (cycleData.currentCycle) {
-        savedCurrentCycle = cycleData.currentCycle;
-    }
-} catch(e) {}
-
-// IMPORTANT: Override the displayed current cycle with the saved one from localStorage
-let actualCurrentNum = savedCurrentCycle;
-let actualCurrentTrades = trades.filter(t => (t.cycleNumber || 1) === actualCurrentNum);
-
-// The level ladder is the same Lazarus logic as the home page, so both pages always agree.
 function levelSeries(cycleTrades) {
-    const sim = simulateLazarus(cycleTrades, bufferSize());
-    return { points: sim.points, endLevel: sim.level, sim };
+    let level = 1;
+    const points = [];
+    cycleTrades.forEach(t => {
+        if (Number.isInteger(t.level) && t.level >= 1 && t.level <= 10) level = t.level; // the level the trader chose for this trade
+        points.push(level);
+        if (t.outcome === 'WIN') level = Math.min(level + 1, 10);
+        else if (t.outcome === 'LOSS') level = Math.max(level - 1, 1);
+    });
+    return { points, endLevel: level };
 }
 
 function winRate(cycleTrades) {
@@ -230,133 +214,63 @@ function winRate(cycleTrades) {
 }
 
 // ── Render current cycle card ────────────────────────────────────────────
-const names = getNames();
-const curPct = Math.min((actualCurrentTrades.length / 20) * 100, 100);
-
-document.getElementById('curCycleTitle').textContent = names[actualCurrentNum] ? `Cycle ${actualCurrentNum} · ${names[actualCurrentNum]}` : `Cycle ${actualCurrentNum}`;
-document.getElementById('curCycleSub').textContent = `${actualCurrentTrades.length} / 20 trades`;
-document.getElementById('curCycleFill').style.width = curPct + '%';
-document.getElementById('curCycleNameInput').value = names[actualCurrentNum] || '';
-document.getElementById('curCycleWinRate').textContent = winRate(actualCurrentTrades).toFixed(1) + '%';
+const curWr = winRate(actualCurrentTrades);
+document.getElementById('curCycleTitle').textContent = nameOf(actualCurrentNum) ? `Cycle ${actualCurrentNum} · ${nameOf(actualCurrentNum)}` : `Cycle ${actualCurrentNum}`;
+const startedAt = recOf(actualCurrentNum).startedAt || actualCurrentTrades[0]?.timestamp;
+document.getElementById('curCycleSub').textContent = `${actualCurrentTrades.length} trade${actualCurrentTrades.length === 1 ? '' : 's'}${startedAt ? ' · since ' + new Date(startedAt).toLocaleDateString() : ''}`;
+document.getElementById('curCycleFill').style.width = curWr + '%';
+document.getElementById('curCycleNameInput').value = nameOf(actualCurrentNum);
+document.getElementById('curCycleWinRate').textContent = curWr.toFixed(1) + '%';
 document.getElementById('curCycleTrades').textContent = actualCurrentTrades.length;
 document.getElementById('curCycleLevel').textContent = actualCurrentTrades.length ? levelSeries(actualCurrentTrades).endLevel : 1;
 
-// FIX: Re-bind the Save Name button correctly
-document.getElementById('curCycleNameSave').addEventListener('click', () => {
+function setName(n, val) {
+    const next = { ...state, completedCycles: state.completedCycles.map(r => r.cycleNumber === n ? { ...r, name: val || undefined } : r) };
+    return commit(next);
+}
+document.getElementById('curCycleNameSave').addEventListener('click', async () => {
     const val = document.getElementById('curCycleNameInput').value.trim();
-    const n = getNames();
-    if (val) n[actualCurrentNum] = val; else delete n[actualCurrentNum];
-    saveNames(n);
+    await setName(actualCurrentNum, val);
     document.getElementById('curCycleTitle').textContent = val ? `Cycle ${actualCurrentNum} · ${val}` : `Cycle ${actualCurrentNum}`;
     showToast('Cycle name saved!', 'success');
 });
 
-// ── Start New Cycle (FORK + HARD RESET) ──────────────────────────────────
+// ── Close this cycle and start a new one ─────────────────────────────────
 document.getElementById('startNewCycleBtn').addEventListener('click', async () => {
-    if (actualCurrentTrades.length === 0 && actualCurrentNum > 1) {
-        showToast('This cycle is already empty. Log a trade to start it.', 'info');
+    if (actualCurrentTrades.length === 0) {
+        showToast('This cycle has no trades yet, so there is nothing to close. Log a trade first.', 'info');
         return;
     }
-    
-    // Calculate the next cycle number (one higher than the highest existing cycle)
-    const highestCycle = Math.max(
-        ...cycleNums,
-        ...manualCycles.map(mc => mc.cycleNumber),
-        actualCurrentNum
-    );
-    const newCycleNum = highestCycle + 1;
-    
-    if (!confirm(`Start a fresh new cycle? 
-    
-Current cycle (${actualCurrentNum}) will remain active with ${actualCurrentTrades.length} trades.
-New Cycle ${newCycleNum} will start fresh with 0 trades and Level 1.`)) return;
-    
-    // Create a new parallel cycle (fork)
-    const newManualCycle = {
-        cycleNumber: newCycleNum,
-        createdAt: new Date().toISOString(),
-        name: '',
-        trades: [] // Empty array - this is a fresh start
-    };
-    
-    let cycleData = {};
-    try {
-        cycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-    } catch(e) {}
-    
-    if (!cycleData.manualCycles) cycleData.manualCycles = [];
-    cycleData.manualCycles.push(newManualCycle);
-    cycleData.currentCycle = newCycleNum;
-    cycleData.tradesInCurrentCycle = 0; // Explicitly set to 0
-    
-    localStorage.setItem('xX_cycle_data', JSON.stringify(cycleData));
-    
-    try {
-        await saveCycles(cycleData);
-    } catch(e) {
-        console.warn('Cloud save failed for cycles:', e);
-    }
-    
-    showToast(`Started fresh Cycle ${newCycleNum} with 0 trades!`, 'success');
+    const newCycleNum = Math.max(...state.completedCycles.map(r => r.cycleNumber), actualCurrentNum) + 1;
+    if (!confirm(`Close Cycle ${actualCurrentNum} (${actualCurrentTrades.length} trades) and start Cycle ${newCycleNum}?
+
+From now on every new trade goes into Cycle ${newCycleNum}. Cycle ${actualCurrentNum} stays in your history.`)) return;
+    const how = (prompt(`How did Cycle ${actualCurrentNum} end?
+Type W for Withdrew, B for Blown account, or leave empty to skip.`, '') || '').trim().toUpperCase();
+    const endedAs = how.startsWith('W') ? 'Withdrew' : how.startsWith('B') ? 'Blown' : '';
+    const nowIso = new Date().toISOString();
+    const records = state.completedCycles.map(r => r.cycleNumber === actualCurrentNum ? { ...r, endedAt: nowIso, ...(endedAs ? { endedAs } : {}) } : r);
+    records.push({ cycleNumber: newCycleNum, startedAt: nowIso });
+    await commit({ ...state, currentCycle: newCycleNum, completedCycles: records }, `Cycle ${newCycleNum} started. Every new trade goes into it.`);
     setTimeout(() => location.reload(), 800);
 });
 
-// ── Switch to a different cycle ──────────────────────────────────────────
+// ── Switch which cycle new trades go into (rarely needed) ────────────────
 async function switchToCycle(cycleNum) {
-    const currentCycleData = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-    currentCycleData.currentCycle = cycleNum;
-    
-    // Recalculate trades in current cycle
-    const cycleTrades = trades.filter(t => (t.cycleNumber || 1) === cycleNum);
-    currentCycleData.tradesInCurrentCycle = cycleTrades.length;
-    
-    localStorage.setItem('xX_cycle_data', JSON.stringify(currentCycleData));
-    
-    try {
-        await saveCycles(currentCycleData);
-    } catch(e) {
-        console.warn('Cloud save failed for cycles:', e);
-    }
-    
-    showToast(`Switched to Cycle ${cycleNum}`, 'success');
+    if (!confirm(`Make Cycle ${cycleNum} the current cycle?
+New trades will be logged into it.`)) return;
+    await commit({ ...state, currentCycle: cycleNum }, `Cycle ${cycleNum} is now the current cycle.`);
     setTimeout(() => location.reload(), 800);
 }
 
 // ── Render all cycles ────────────────────────────────────────────────────
-// Combine auto-completed cycles from trades and manually created cycles
-const allCycleData = [];
-
-// 1. Add all cycles from trades (both completed and in-progress)
-cycleNums.forEach(num => {
-    const cycleTrades = cycles[num];
-    if (cycleTrades && cycleTrades.length > 0) {
-        allCycleData.push({
-            cycleNumber: num,
-            trades: cycleTrades,
-            isCompleted: cycleTrades.length >= 20,
-            source: 'trades'
-        });
-    }
-});
-
-// 2. Add manually created cycles (forked cycles)
-manualCycles.forEach(mc => {
-    const exists = allCycleData.some(c => c.cycleNumber === mc.cycleNumber);
-    if (!exists) {
-        const cycleTrades = trades.filter(t => t.cycleNumber === mc.cycleNumber);
-        allCycleData.push({
-            cycleNumber: mc.cycleNumber,
-            trades: cycleTrades,
-            isCompleted: cycleTrades.length >= 20,
-            source: 'manual'
-        });
-    }
-});
-
-// Sort by cycle number descending (newest first)
-allCycleData.sort((a, b) => b.cycleNumber - a.cycleNumber);
+const allCycleData = state.completedCycles
+    .map(r => ({ cycleNumber: r.cycleNumber, rec: r, trades: cycles[r.cycleNumber] || [] }))
+    .filter(c => c.cycleNumber === actualCurrentNum || c.trades.length)
+    .sort((a, b) => b.cycleNumber - a.cycleNumber);
 
 const grid = document.getElementById('cyclesGrid');
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
 
 if (!allCycleData.length) {
     document.getElementById('cyclesEmpty').style.display = 'block';
@@ -364,58 +278,49 @@ if (!allCycleData.length) {
     allCycleData.forEach(cycleInfo => {
         const num = cycleInfo.cycleNumber;
         const cycleTrades = cycleInfo.trades;
-        
-        if (!cycleTrades || cycleTrades.length === 0) return;
-        
-        const first = cycleTrades[0], last = cycleTrades[cycleTrades.length - 1];
-        const wr = winRate(cycleTrades);
-        const { points, endLevel } = levelSeries(cycleTrades);
-        const isComplete = cycleInfo.isCompleted;
+        const rec = cycleInfo.rec;
         const isCurrent = num === actualCurrentNum;
+        const first = cycleTrades[0], last = cycleTrades[cycleTrades.length - 1];
+        const from = rec.startedAt || (first && first.timestamp);
+        const to = rec.endedAt || (isCurrent ? null : (last && last.timestamp));
+        const wr = winRate(cycleTrades);
+        const { points } = levelSeries(cycleTrades);
+        const ended = rec.endedAs ? ` · ${esc(rec.endedAs)}` : '';
 
         const el = document.createElement('div');
-        el.className = 'cycle-card-item' + (isComplete ? ' completed' : '') + (isCurrent ? ' active-cycle' : '');
+        el.className = 'cycle-card-item' + (isCurrent ? ' active-cycle' : ' completed');
         el.innerHTML = `
             <div class="cci-head">
                 <span class="cci-num">CYCLE ${num}</span>
-                <span class="cci-status ${isCurrent ? 'current' : isComplete ? 'done' : 'active'}">${isCurrent ? 'CURRENT' : isComplete ? 'COMPLETE' : 'PAUSED'}</span>
+                <span class="cci-status ${isCurrent ? 'current' : 'done'}">${isCurrent ? 'CURRENT' : 'CLOSED' + ended}</span>
             </div>
-            <input type="text" class="cci-name-input" placeholder="Name this cycle..." value="${(names[num]||'').replace(/"/g,'&quot;')}" data-cycle="${num}">
-            <div class="cci-dates">${new Date(first.timestamp).toLocaleDateString()} — ${new Date(last.timestamp).toLocaleDateString()}</div>
+            <input type="text" class="cci-name-input" placeholder="Name this cycle..." value="${esc(nameOf(num))}" data-cycle="${num}">
+            <div class="cci-dates">${from ? new Date(from).toLocaleDateString() : '—'} — ${to ? new Date(to).toLocaleDateString() : (isCurrent ? 'now' : '—')}</div>
             <div class="cci-stats">
                 <div><div class="cci-stat-val">${wr.toFixed(1)}%</div><div class="cci-stat-label">WIN RATE</div></div>
                 <div><div class="cci-stat-val">${cycleTrades.length}</div><div class="cci-stat-label">TRADES</div></div>
-                <div><div class="cci-stat-val">L${endLevel}</div><div class="cci-stat-label">LEVEL</div></div>
             </div>
             <div class="cci-chart"><canvas id="cycleChart${num}"></canvas></div>
-            <div class="switch-hint">${isCurrent ? '✓ Currently active' : 'Click to switch to this cycle'}</div>
+            <div class="switch-hint">${isCurrent ? '✓ New trades go here' : 'Click to make this the current cycle'}</div>
         `;
         grid.appendChild(el);
 
-        // Make the card clickable to switch cycles (only if it's not already current)
         if (!isCurrent) {
             el.addEventListener('click', (e) => {
-                // Don't trigger if clicking on the name input
                 if (e.target.tagName === 'INPUT') return;
                 switchToCycle(num);
             });
         }
+        el.querySelector('.cci-name-input').addEventListener('change', (e) => { setName(num, e.target.value.trim()); });
 
-        el.querySelector('.cci-name-input').addEventListener('change', (e) => {
-            const n = getNames();
-            const v = e.target.value.trim();
-            if (v) n[num] = v; else delete n[num];
-            saveNames(n);
-        });
-
-        new Chart(document.getElementById(`cycleChart${num}`), {
+        if (cycleTrades.length) new Chart(document.getElementById(`cycleChart${num}`), {
             type: 'line',
             data: {
-                labels: points.map((_, i) => `${i}`),
+                labels: points.map((_, i) => `${i+1}`),
                 datasets: [{
                     data: points,
-                    borderColor: isCurrent ? '#1DB954' : isComplete ? '#4A90E2' : '#FFD700',
-                    backgroundColor: isCurrent ? 'rgba(29,185,84,0.12)' : isComplete ? 'rgba(74,144,226,0.08)' : 'rgba(255,215,0,0.08)',
+                    borderColor: isCurrent ? '#1DB954' : '#4A90E2',
+                    backgroundColor: isCurrent ? 'rgba(29,185,84,0.12)' : 'rgba(74,144,226,0.08)',
                     borderWidth: isCurrent ? 2.5 : 1.5,
                     pointRadius: 0,
                     tension: 0.15,
@@ -427,10 +332,36 @@ if (!allCycleData.length) {
                 plugins: { legend: { display:false } },
                 scales: {
                     x: { display:false },
-                    y: { min:0, max:10, ticks: { stepSize:5, color:'rgba(255,255,255,0.3)', font:{size:9} }, grid: { color:'rgba(255,255,255,0.05)' } }
+                    y: { min:0, max:11, ticks: { stepSize:5, color:'rgba(255,255,255,0.3)', font:{size:9} }, grid: { color:'rgba(255,255,255,0.05)' } }
                 }
             }
         });
+    });
+}
+
+// ── Trade in the wrong cycle? Move it. ───────────────────────────────────
+{
+    const { moveTradeToCycle } = await import('/db.js');
+    const box = document.createElement('div');
+    box.className = 'card';
+    box.style.marginTop = '22px';
+    const recent = [...trades].reverse().slice(0, 40);
+    const cycleOpts = (sel) => state.completedCycles.map(r => `<option value="${r.cycleNumber}" ${r.cycleNumber === sel ? 'selected' : ''}>Cycle ${r.cycleNumber}${nameOf(r.cycleNumber) ? ' · ' + esc(nameOf(r.cycleNumber)) : ''}</option>`).join('');
+    box.innerHTML = `
+        <div class="card-title" style="font-size:13px;">LOGGED A TRADE IN THE WRONG CYCLE?</div>
+        <div class="card-sub" style="margin-bottom:12px;">Pick the trade and the cycle it belongs to.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="mvTrade" style="flex:2;min-width:220px;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px;font-family:inherit;">${recent.length ? recent.map(t => `<option value="${esc(t.tradeId)}">${new Date(t.timestamp).toLocaleDateString()} · ${esc(t.pair || '?')} ${esc(t.direction || '')} · ${esc(t.outcome || '')} · now in Cycle ${cycleOf(t)}</option>`).join('') : '<option value="">No trades yet</option>'}</select>
+            <select id="mvCycle" style="flex:1;min-width:140px;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px;font-family:inherit;">${cycleOpts(actualCurrentNum)}</select>
+            <button id="mvBtn" style="background:#1DB954;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">MOVE</button>
+        </div>`;
+    document.querySelector('main.main').appendChild(box);
+    document.getElementById('mvBtn').addEventListener('click', async () => {
+        const id = document.getElementById('mvTrade').value, n = parseInt(document.getElementById('mvCycle').value, 10);
+        if (!id) return;
+        const r = await moveTradeToCycle(id, n);
+        if (r.success) { showToast(`Moved to Cycle ${n}.`, 'success'); setTimeout(() => location.reload(), 700); }
+        else showToast('Could not move it: ' + (r.error || 'unknown error'), 'error');
     });
 }
 </script>

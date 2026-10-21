@@ -93,6 +93,7 @@
         .pill-row { display:flex; gap:8px; flex-wrap:wrap; }
         .pill { flex:1; min-width:80px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 8px; text-align:center; cursor:pointer; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6); transition:background 0.12s,border-color 0.12s,transform 0.08s; letter-spacing:0.5px; user-select:none; }
         .pill:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.2); }
+        .pill.lvl { min-width:44px; flex:1 1 17%; }
         .pill:active { transform:scale(0.97); }
         .pill.selected { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.35); color:#fff; }
 
@@ -196,7 +197,7 @@
                 <div class="subtitle">Log the setup, the execution, and the mindset behind it.</div>
             </div>
             <div class="header-right">
-                <div class="cycle-chip">Cycle <strong id="cycleNum">1</strong> · Trades <strong id="cycleTrades">0</strong>/20</div>
+                <div class="cycle-chip">Cycle <strong id="cycleNum">1</strong> · <strong id="cycleTrades">0</strong> trades</div>
                 <a href="/" class="back-btn">← Home</a>
             </div>
         </div>
@@ -267,11 +268,18 @@
                 </div>
 
                 <div class="section">
-                    <div class="section-title">LAZARUS PHASE <span style="font-size:9px;color:rgba(255,255,255,0.35);">(check the EA's STATE readout)</span></div>
+                    <div class="section-title">REWARD MODEL <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:8px;" id="rrHint">(1:2 or 1:3)</span></div>
                     <div class="pill-row">
-                        <div class="pill" data-phase="QUALIFYING">🟡 QUALIFYING</div>
-                        <div class="pill" data-phase="LEGACY">🔵 LEGACY CUSHION</div>
-                        <div class="pill" data-phase="BUFFER">🟢 BUFFER / CONFIRM</div>
+                        <div class="pill" data-rr="1:2">1 : 2</div>
+                        <div class="pill" data-rr="1:3">1 : 3</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">LEVEL <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:8px;" id="levelHint">(which level was this trade taken at?)</span></div>
+                    <div class="pill-row" id="levelRow">
+                        <div class="pill lvl" data-level="1">1</div><div class="pill lvl" data-level="2">2</div><div class="pill lvl" data-level="3">3</div><div class="pill lvl" data-level="4">4</div><div class="pill lvl" data-level="5">5</div>
+                        <div class="pill lvl" data-level="6">6</div><div class="pill lvl" data-level="7">7</div><div class="pill lvl" data-level="8">8</div><div class="pill lvl" data-level="9">9</div><div class="pill lvl" data-level="10">10</div>
                     </div>
                 </div>
 
@@ -405,7 +413,7 @@
 </div>
 
 <script type="module">
-import { requireAuth, requirePin, showToast } from '/shared.js';
+import { requireAuth, requirePin, showToast, readCycleLocal, writeCycleLocal, reconcileCycles, countInCycle } from '/shared.js';
 import { saveTrade, saveCycles, loadAllTrades, loadCycles } from '/db.js';
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -434,7 +442,9 @@ function init() {
     });
 
     makeSingleSelect('[data-exec]');
-    makeSingleSelect('[data-phase]');
+    makeSingleSelect('[data-level]');
+    makeSingleSelect('[data-rr]');
+    suggestLevel();
     makeSingleSelect('[data-session]');
     makeSingleSelect('[data-mindset]');
     makeSingleSelect('[data-rating]');
@@ -483,7 +493,7 @@ function init() {
     document.getElementById('btnBE').addEventListener('click',   () => save('BREAKEVEN'));
 
     document.getElementById('cycleNum').textContent    = cycles.currentCycle;
-    document.getElementById('cycleTrades').textContent = cycles.tradesInCurrentCycle;
+    document.getElementById('cycleTrades').textContent = countInCycle(Object.values(journals.journals || {}), cycles.currentCycle);
 
     prefill();
 }
@@ -518,11 +528,34 @@ function renderScreenshots() {
     });
 }
 
+// Suggest the level from the last trade of this cycle (direct progression: win = up one, loss = down one,
+// breakeven repeats). Only a suggestion: the trader can pick any level, e.g. to repeat one.
+function suggestLevel() {
+    const all = Object.values(journals.journals || {}).filter(t => (t.cycleNumber || 1) === readCycleLocal().currentCycle)
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const last = all[all.length - 1];
+    let next = 1, note = 'first trade of this cycle';
+    if (last && last.level >= 1) {
+        next = last.level;
+        if (last.outcome === 'WIN') next = Math.min(last.level + 1, 10);
+        else if (last.outcome === 'LOSS') next = Math.max(last.level - 1, 1);
+        note = `suggested from your last trade (Level ${last.level}, ${String(last.outcome || '').toLowerCase()})`;
+    }
+    if (last && (last.rr === '1:2' || last.rr === '1:3') && !document.querySelector('[data-rr].selected')) {
+        document.querySelector(`[data-rr="${last.rr}"]`)?.classList.add('selected');
+        const rh = document.getElementById('rrHint'); if (rh) rh.textContent = `(same as your last trade - change it if different)`;
+    }
+    if (document.querySelector('[data-level].selected')) return;
+    document.querySelector(`[data-level="${next}"]`)?.classList.add('selected');
+    const h = document.getElementById('levelHint'); if (h) h.textContent = `(${note} - change it if you traded another level)`;
+}
+
 function validate() {
     if (!document.getElementById('pair').value)      { showToast('Select a trading pair', 'error'); return false; }
     if (!document.getElementById('direction').value) { showToast('Select direction', 'error'); return false; }
     if (!document.getElementById('model').value)      { showToast('Select the model used (xY5/xY7/xY10)', 'error'); return false; }
-    if (!document.querySelector('[data-phase].selected')) { showToast('Select the Lazarus phase (Qualifying / Buffer)', 'error'); return false; }
+    if (!document.querySelector('[data-rr].selected')) { showToast('Select the reward model (1:2 or 1:3)', 'error'); return false; }
+    if (!document.querySelector('[data-level].selected')) { showToast('Select the level this trade was taken at (1-10)', 'error'); return false; }
     if (!document.querySelector('[data-exec].selected'))    { showToast('Select execution type', 'error'); return false; }
     if (!document.querySelector('[data-session].selected')) { showToast('Select trading session', 'error'); return false; }
     if (!document.getElementById('tradeDate').value)  { showToast('Enter trade date', 'error'); return false; }
@@ -548,7 +581,8 @@ async function save(outcome) {
 
     const sess = document.querySelector('[data-session].selected')?.dataset.session || '';
     const exec = document.querySelector('[data-exec].selected')?.dataset.exec || '';
-    const phase = document.querySelector('[data-phase].selected')?.dataset.phase || null;
+    const rr = document.querySelector('[data-rr].selected')?.dataset.rr || null;
+    const level = parseInt(document.querySelector('[data-level].selected')?.dataset.level, 10) || null;
     const mind = document.querySelector('[data-mindset].selected')?.dataset.mindset;
     const rate = document.querySelector('[data-rating].selected')?.dataset.rating;
     const rules = Array.from(document.querySelectorAll('.rule-tag.selected')).map(t => t.dataset.rule);
@@ -557,7 +591,8 @@ async function save(outcome) {
         pair: document.getElementById('pair').value,
         direction: document.getElementById('direction').value,
         model: document.getElementById('model').value || null,
-        phase, // 'QUALIFYING' or 'BUFFER' — matches the EA's on-chart STATE readout at trade time
+        rr, // '1:2' or '1:3': the reward model this trade was taken with
+        level, // 1-10: the level this trade was taken at, chosen by the trader
         outcome, timestamp, tradeDate, tradeTime, isBackdated, tradeId,
         text: document.getElementById('notes').value,
         reason: document.getElementById('reason').value,
@@ -569,21 +604,17 @@ async function save(outcome) {
         mindset: mind ? parseInt(mind) : null,
         executionRating: rate ? parseInt(rate) : null,
         mt4: window._mt4Import || null,
-        cycleNumber: cycles.currentCycle
+        cycleNumber: readCycleLocal().currentCycle
     };
 
     journals.journals[tradeId] = trade;
-    cycles.allTrades.push(tradeId);
-    cycles.tradesInCurrentCycle++;
-
-    if (cycles.tradesInCurrentCycle >= 20) {
-        cycles.completedCycles.push({ cycleNumber: cycles.currentCycle, completedAt: timestamp });
-        cycles.currentCycle++; cycles.tradesInCurrentCycle = 0;
-    }
-
+    // Cycles are trading periods the trader starts themselves: a trade only ever joins the current cycle,
+    // and logging a trade never moves or closes a cycle.
+    const live = reconcileCycles(readCycleLocal(), null, Object.values(journals.journals));
+    cycles = live;
     try {
         localStorage.setItem('xX_journal_data', JSON.stringify(journals));
-        localStorage.setItem('xX_cycle_data', JSON.stringify(cycles));
+        writeCycleLocal(live);
     } catch(e) {}
 
     ['btnWin','btnLoss','btnBE'].forEach(id => {
@@ -593,17 +624,15 @@ async function save(outcome) {
 
     showToast('Saving to cloud...', 'info');
 
-    const [saveResult, cycleResult] = await Promise.all([
-        saveTrade(tradeId, trade),
-        saveCycles(cycles)
-    ]);
+    const saveResult = await saveTrade(tradeId, trade);
 
     if (saveResult.success) {
         if (saveResult.screenshotsFailed > 0) {
             showToast(`${outcome} trade saved — but ${saveResult.screenshotsFailed}/${saveResult.screenshotsTotal} screenshot(s) failed to upload. Try re-adding them from Dashboard.`, 'error');
             setTimeout(() => location.href = '/dashboard.html', 2200);
         } else {
-            showToast(`${outcome} trade saved! 🎯`, 'success');
+            const nextLvl = outcome === 'WIN' ? Math.min((level || 1) + 1, 10) : outcome === 'LOSS' ? Math.max((level || 1) - 1, 1) : (level || 1);
+            showToast(`${outcome === 'BREAKEVEN' ? 'BE' : outcome} logged ✦ Next: Level ${nextLvl}. Execute · Journal · Review.`, 'success');
             setTimeout(() => location.href = '/dashboard.html', 900);
         }
     } else {
@@ -656,6 +685,8 @@ function prefill() {
                 document.getElementById('mt4BannerTitle').textContent = `📥 Inbox Trade #${ticket} — ${symbol} ${dir}`;
                 document.getElementById('mt4BannerSub').textContent   = `${d} · Level ${level} (${mode}) · EA: ${out}`;
                 document.getElementById('mt4Banner').classList.add('show');
+                const lv = parseInt(level, 10);
+                if (lv >= 1 && lv <= 10) { document.querySelectorAll('[data-level]').forEach(x => x.classList.remove('selected')); document.querySelector(`[data-level="${lv}"]`)?.classList.add('selected'); const h = document.getElementById('levelHint'); if (h) h.textContent = '(from the EA)'; }
                 window._mt4Import = { ticket, mode, level, outcome: out };
             }
         } catch(e) {}
@@ -670,20 +701,13 @@ function prefill() {
     try {
         const cached = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
         if (cached.journals) journals = cached;
-        const cachedCycles = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-        if (cachedCycles.currentCycle) cycles = cachedCycles;
     } catch(e) {}
-
-    // A new device (or cleared browser data) has no local cycle info: take the open cycle from the cloud instead of
-    // starting again at cycle 1, so new trades always land in the cycle the trader is really working in.
+    // Make sure this device knows the newest current cycle (e.g. started on another device) before logging.
     try {
-        if (!JSON.parse(localStorage.getItem('xX_cycle_data') || '{}').currentCycle) {
-            const cloudC = await loadCycles();
-            if (cloudC.exists && cloudC.currentCycle) {
-                cycles = { currentCycle: cloudC.currentCycle, tradesInCurrentCycle: cloudC.tradesInCurrentCycle || 0, completedCycles: cloudC.completedCycles || [], allTrades: cloudC.allTrades || [] };
-                localStorage.setItem('xX_cycle_data', JSON.stringify(cycles));
-            }
-        }
+        let cloud = null;
+        try { cloud = await Promise.race([loadCycles(), new Promise(r => setTimeout(() => r(null), 4000))]); } catch (e) { cloud = null; }
+        cycles = reconcileCycles(readCycleLocal(), cloud, Object.values(journals.journals || {}));
+        writeCycleLocal(cycles);
     } catch(e) {}
 
     init();

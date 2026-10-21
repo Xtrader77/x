@@ -251,10 +251,10 @@
     <!-- Cycle Progress -->
     <div class="cycle-card card">
         <div class="cycle-info">
-            <div class="cycle-label">CYCLE PROGRESS</div>
+            <div class="cycle-label">CURRENT CYCLE · WIN RATE</div>
             <div class="cycle-val" id="cycleNum">1</div>
             <div style="color: var(--text-secondary); font-size: 14px; font-weight: 600;">
-                <span id="cycleTrades">0</span> / 20 trades logged
+                <span id="cycleTrades">0</span> trades logged this cycle
             </div>
         </div>
         <div class="cycle-progress">
@@ -350,7 +350,7 @@
 </div>
 
 <script type="module">
-import { requireAuth, requireAuthFast, requirePin, showToast } from '/shared.js';
+import { requireAuth, requireAuthFast, requirePin, showToast, readCycleLocal, writeCycleLocal, reconcileCycles } from '/shared.js';
 import { deleteTrade as cloudDeleteTrade, saveCycles } from '/db.js';
 
 let journals = { journals: {}, tradeCounter: 1 };
@@ -369,8 +369,7 @@ function loadLocal() {
     try {
         const j = JSON.parse(localStorage.getItem('xX_journal_data') || '{}');
         if (j.journals) journals = j;
-        const c = JSON.parse(localStorage.getItem('xX_cycle_data') || '{}');
-        if (c.currentCycle) cycles = c;
+        cycles = reconcileCycles(readCycleLocal(), null, Object.values((j && j.journals) || {}));
     } catch(e) {}
     normalizeTrades();
 }
@@ -465,9 +464,10 @@ function renderEquityChart() {
 }
 
 function updateCycle() {
-    const pct = Math.min((cycles.tradesInCurrentCycle / 20) * 100, 100);
+    const here = Object.values(journals.journals || {}).filter(t => (t.cycleNumber || 1) === cycles.currentCycle);
+    const pct = here.length ? here.filter(t => t.outcome === 'WIN').length / here.length * 100 : 0; // win rate this cycle
     document.getElementById('cycleNum').textContent = cycles.currentCycle;
-    document.getElementById('cycleTrades').textContent = cycles.tradesInCurrentCycle;
+    document.getElementById('cycleTrades').textContent = here.length;
     document.getElementById('cycleBar').style.width = pct + '%';
     document.getElementById('cyclePct').textContent = Math.round(pct) + '%';
 }
@@ -676,7 +676,8 @@ function renderTradeView(t) {
                 <div class="tv-item"><div class="tv-label">Direction</div><div class="tv-value">${tvVal(t.direction)}</div></div>
                 <div class="tv-item"><div class="tv-label">Model</div><div class="tv-value">${tvVal(t.model)}</div></div>
                 <div class="tv-item"><div class="tv-label">Execution</div><div class="tv-value">${t.execution ? esc(EXEC_LABELS[t.execution]||t.execution) : '<span class="empty">—</span>'}</div></div>
-                <div class="tv-item"><div class="tv-label">Phase</div><div class="tv-value">${tvVal(t.phase)}</div></div>
+                <div class="tv-item"><div class="tv-label">R:R</div><div class="tv-value">${tvVal(t.rr)}</div></div>
+                <div class="tv-item"><div class="tv-label">Level</div><div class="tv-value">${tvVal(t.level)}</div></div>
             </div>
         </div>
 
@@ -731,14 +732,12 @@ window.doDelete = async (tradeId) => {
     delete journals.journals[tradeId];
     const idx = cycles.allTrades.indexOf(tradeId);
     if (idx > -1) cycles.allTrades.splice(idx, 1);
-    const inCompleted = cycles.completedCycles?.some(c => c.cycleNumber === trade?.cycleNumber);
-    if (!inCompleted) cycles.tradesInCurrentCycle = Math.max(0, cycles.tradesInCurrentCycle - 1);
+    cycles = reconcileCycles(readCycleLocal(), null, Object.values(journals.journals));
     localStorage.setItem('xX_journal_data', JSON.stringify(journals));
-    localStorage.setItem('xX_cycle_data', JSON.stringify(cycles));
+    writeCycleLocal(cycles);
     showToast('Trade deleted', 'success');
     try {
-        await cloudDeleteTrade(tradeId);
-        await saveCycles(cycles);
+        await cloudDeleteTrade(tradeId); // deleting a trade never moves or closes a cycle
     } catch(e) { showToast('Cloud delete failed', 'error'); }
     setTimeout(() => location.reload(), 500);
 };

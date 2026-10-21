@@ -369,7 +369,7 @@ import { requireAuth, requirePin, showToast, syncToLocalStorage } from '/shared.
 import {
     getCurrentUser, getProfile, saveProfile as dbSaveProfile,
     savePinHash, removePinHash, saveRecovery as dbSaveRecovery,
-    hashPin, signOut, supabase
+    hashPin, signOut, supabase, loadConstitution as cloudLoadConstitution, saveConstitution as cloudSaveConstitution
 } from '/db.js';
 
 const JOURNAL_KEY = 'xX_journal_data';
@@ -399,10 +399,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupHandlers();
 });
 
-function loadConstitution() {
+// The constitution lives in the cloud (so it follows you to every device and survives cleared browser data).
+// This browser keeps a copy for speed. If the cloud has none yet but this browser does, it is uploaded.
+async function loadConstitution() {
     const key = `xX_constitution_${currentUser.id}`;
-    const saved = localStorage.getItem(key);
-    if (saved) document.getElementById('constitutionText').value = saved;
+    const box = document.getElementById('constitutionText');
+    const local = localStorage.getItem(key);
+    if (local) box.value = local;
+    const cloud = await cloudLoadConstitution();
+    if (cloud) {
+        if (cloud !== local) { localStorage.setItem(key, cloud); if (document.activeElement !== box) box.value = cloud; }
+    } else if (local && local.trim()) {
+        cloudSaveConstitution(local).catch(() => {});
+    }
 }
 
 async function loadCloudProfile() {
@@ -497,15 +506,19 @@ function setupHandlers() {
         }
     });
 
-    // Constitution save — stored locally, scoped to this trader
-    document.getElementById('saveConstitutionBtn').addEventListener('click', () => {
+    // Constitution save — to the cloud, with a copy on this device
+    document.getElementById('saveConstitutionBtn').addEventListener('click', async () => {
         const key  = `xX_constitution_${currentUser.id}`;
         const text = document.getElementById('constitutionText').value;
         localStorage.setItem(key, text);
-        showToast('Constitution saved ✓', 'success');
         const note = document.getElementById('constitutionStatus');
-        note.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        setTimeout(() => { note.textContent = ''; }, 4000);
+        note.textContent = 'Saving…';
+        let r = null;
+        try { r = await cloudSaveConstitution(text); } catch (e) { r = { success: false, error: e.message }; }
+        const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        if (r && r.success) { showToast('Constitution saved to your account ✓', 'success'); note.textContent = 'Saved to the cloud · ' + t; }
+        else { showToast('Saved on this device only: ' + ((r && r.error) || 'cloud save failed'), 'error'); note.textContent = 'Saved on this device only · try again online'; }
+        setTimeout(() => { note.textContent = ''; }, 5000);
     });
 
     // PIN input

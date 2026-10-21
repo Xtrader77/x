@@ -161,6 +161,18 @@
             <div id="modelPerf" style="margin-top:10px;"></div>
         </div>
     </div>
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">REWARD MODEL PERFORMANCE (1:2 / 1:3)</div>
+            <div class="chart-wrap" style="height:180px;"><canvas id="rrChart"></canvas></div>
+            <div id="rrPerf" style="margin-top:10px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">LEVEL PERFORMANCE (1-10)</div>
+            <div class="chart-wrap" style="height:180px;"><canvas id="levelChart"></canvas></div>
+            <div id="levelPerf" style="margin-top:10px;"></div>
+        </div>
+    </div>
 
     <!-- HTF + Refined -->
     <div class="cards-2col">
@@ -226,6 +238,7 @@ function init() {
     renderSessChart();
     renderTables();
     renderModelPerf();
+    renderRrLevelPerf();
     renderHTFRefined();
     renderTCEntry();
     renderTCAlone();
@@ -399,6 +412,20 @@ function renderModelPerf() {
     document.getElementById('modelPerf').innerHTML = perfHtml(withData);
 }
 
+// Reward model (1:2 / 1:3) and level (1-10) performance, from what the trader chose on each trade.
+function renderRrLevelPerf() {
+    const rrItems = ['1:2', '1:3'].map(m => { const t = trades.filter(x => x.rr === m); return { label: m, wins: t.filter(x => x.outcome === 'WIN').length, total: t.length }; });
+    const noRr = trades.filter(x => x.rr !== '1:2' && x.rr !== '1:3');
+    if (noRr.length) rrItems.push({ label: 'N/A', wins: noRr.filter(x => x.outcome === 'WIN').length, total: noRr.length });
+    const rrData = rrItems.filter(i => i.total);
+    barChart('rrChart', rrData.map(i => i.label), rrData.map(i => wr(i.wins, i.total)), rrData.map(i => color(wr(i.wins, i.total))));
+    document.getElementById('rrPerf').innerHTML = perfHtml(rrData);
+    const lvItems = [];
+    for (let n = 1; n <= 10; n++) { const t = trades.filter(x => x.level === n); if (t.length) lvItems.push({ label: 'L' + n, wins: t.filter(x => x.outcome === 'WIN').length, total: t.length }); }
+    barChart('levelChart', lvItems.map(i => i.label), lvItems.map(i => wr(i.wins, i.total)), lvItems.map(i => color(wr(i.wins, i.total))));
+    document.getElementById('levelPerf').innerHTML = perfHtml(lvItems);
+}
+
 function renderHTFRefined() {
     const refined = ['H1EF','H1EG','M30EF','M30EG'];
     const withH4  = trades.filter(t=>(t.checklist||[]).includes('H4'));
@@ -511,7 +538,7 @@ function buildRows() {
         const row = {
             'ID':t.tradeId, 'Date':new Date(t.timestamp).toLocaleDateString(),
             'Time':new Date(t.timestamp).toLocaleTimeString(),
-            'Pair':t.pair||'N/A', 'Direction':t.direction||'N/A', 'Model':t.model||t.mt4?.mode||'N/A', 'Outcome':t.outcome,
+            'Pair':t.pair||'N/A', 'Direction':t.direction||'N/A', 'Model':t.model||t.mt4?.mode||'N/A', 'R:R':t.rr||'N/A', 'Level':t.level||'N/A', 'Outcome':t.outcome,
             'Session':t.tradeSession?.session?.toUpperCase()||'N/A', 'Exec':t.execution||'N/A',
             'Mindset':mL(t.mindset), 'Exec Rating':rL(t.executionRating),
             'Rule Breaks':(t.ruleBreaks||[]).join(', ')||'None',
