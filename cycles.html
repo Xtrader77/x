@@ -236,29 +236,55 @@ document.getElementById('curCycleNameSave').addEventListener('click', async () =
 });
 
 // ── Close this cycle and start a new one ─────────────────────────────────
-document.getElementById('startNewCycleBtn').addEventListener('click', async () => {
-    if (actualCurrentTrades.length === 0) {
-        showToast('This cycle has no trades yet, so there is nothing to close. Log a trade first.', 'info');
-        return;
-    }
-    const newCycleNum = Math.max(...state.completedCycles.map(r => r.cycleNumber), actualCurrentNum) + 1;
-    if (!confirm(`Close Cycle ${actualCurrentNum} (${actualCurrentTrades.length} trades) and start Cycle ${newCycleNum}?
+function askDialog({title, body, choices}) {
+    // In-page dialog (browsers and installed apps can silently block confirm()/prompt())
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:#101418;border:1px solid #00e5ff;border-radius:14px;max-width:420px;width:100%;padding:22px;color:#e8f4f8;font-family:inherit';
+        box.innerHTML = '<div style="font-weight:700;font-size:16px;margin-bottom:8px;color:#00e5ff">' + title + '</div><div style="font-size:14px;line-height:1.5;opacity:.9;margin-bottom:16px;white-space:pre-line">' + body + '</div>';
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+        choices.forEach(c => {
+            const bt = document.createElement('button');
+            bt.textContent = c.label;
+            bt.style.cssText = 'padding:12px;border-radius:10px;border:1px solid ' + (c.primary ? '#00e5ff' : '#33404a') + ';background:' + (c.primary ? '#00e5ff' : 'transparent') + ';color:' + (c.primary ? '#001014' : '#e8f4f8') + ';font-weight:700;cursor:pointer;font-size:14px';
+            bt.onclick = () => { ov.remove(); resolve(c.value); };
+            row.appendChild(bt);
+        });
+        box.appendChild(row); ov.appendChild(box); document.body.appendChild(ov);
+    });
+}
 
-From now on every new trade goes into Cycle ${newCycleNum}. Cycle ${actualCurrentNum} stays in your history.`)) return;
-    const how = (prompt(`How did Cycle ${actualCurrentNum} end?
-Type W for Withdrew, B for Blown account, or leave empty to skip.`, '') || '').trim().toUpperCase();
-    const endedAs = how.startsWith('W') ? 'Withdrew' : how.startsWith('B') ? 'Blown' : '';
+document.getElementById('startNewCycleBtn').addEventListener('click', async () => {
+    const newCycleNum = Math.max(...state.completedCycles.map(r => r.cycleNumber), actualCurrentNum) + 1;
+    const how = await askDialog({
+        title: 'Start Cycle ' + newCycleNum + '?',
+        body: 'Cycle ' + actualCurrentNum + ' (' + actualCurrentTrades.length + ' trades) will be closed and kept in your history.\nFrom now on every new trade goes into Cycle ' + newCycleNum + '.\n\nHow did Cycle ' + actualCurrentNum + ' end?',
+        choices: [
+            { label: 'Withdrew', value: 'Withdrew', primary: true },
+            { label: 'Blown account', value: 'Blown' },
+            { label: 'Skip, just start the new cycle', value: '' },
+            { label: 'Cancel', value: null }
+        ]
+    });
+    if (how === null) return;
+    const endedAs = how;
     const nowIso = new Date().toISOString();
     const records = state.completedCycles.map(r => r.cycleNumber === actualCurrentNum ? { ...r, endedAt: nowIso, ...(endedAs ? { endedAs } : {}) } : r);
+    if (!records.some(r => r.cycleNumber === actualCurrentNum)) records.push({ cycleNumber: actualCurrentNum, endedAt: nowIso, ...(endedAs ? { endedAs } : {}) });
     records.push({ cycleNumber: newCycleNum, startedAt: nowIso });
-    await commit({ ...state, currentCycle: newCycleNum, completedCycles: records }, `Cycle ${newCycleNum} started. Every new trade goes into it.`);
+    try {
+        await commit({ ...state, currentCycle: newCycleNum, completedCycles: records }, 'Cycle ' + newCycleNum + ' started. Every new trade goes into it.');
+    } catch (e) { showToast('Could not save: ' + (e && e.message || e), 'error'); return; }
     setTimeout(() => location.reload(), 800);
 });
 
 // ── Switch which cycle new trades go into (rarely needed) ────────────────
 async function switchToCycle(cycleNum) {
-    if (!confirm(`Make Cycle ${cycleNum} the current cycle?
-New trades will be logged into it.`)) return;
+    const ok = await askDialog({ title: 'Switch cycle', body: 'Make Cycle ' + cycleNum + ' the current cycle? New trades will be logged into it.', choices: [{ label: 'Yes, switch', value: true, primary: true }, { label: 'Cancel', value: false }] });
+    if (!ok) return;
     await commit({ ...state, currentCycle: cycleNum }, `Cycle ${cycleNum} is now the current cycle.`);
     setTimeout(() => location.reload(), 800);
 }
