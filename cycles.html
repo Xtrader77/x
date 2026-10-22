@@ -138,6 +138,7 @@
                 <div class="mini-stat"><div class="mini-stat-val" id="curCycleTrades">0</div><div class="mini-stat-label">TRADES LOGGED</div></div>
             </div>
             <button class="new-cycle-btn" id="startNewCycleBtn">🔄 CLOSE THIS CYCLE & START A NEW ONE</button>
+            <div style="text-align:center;font-size:10px;opacity:.35;margin-top:6px" id="verTag"></div>
         </div>
 
         <!-- All cycles -->
@@ -147,10 +148,17 @@
     </main>
 </div>
 
+<script>
+window.__CYCLES_VERSION = 'cycles v3 · 23 Oct';
+function __showErr(m){ var d=document.getElementById('__err'); if(!d){ d=document.createElement('div'); d.id='__err'; d.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99998;background:#3a0d12;border:1px solid #ff5a6a;color:#ffd7db;padding:10px 12px;border-radius:10px;font:12px/1.4 sans-serif'; document.body.appendChild(d);} d.textContent='Cycles page problem: '+m+' ('+window.__CYCLES_VERSION+')'; }
+window.addEventListener('error', function(e){ __showErr(e.message||'script error'); });
+window.addEventListener('unhandledrejection', function(e){ __showErr((e.reason&&e.reason.message)||String(e.reason)); });
+</script>
 <script type="module">
 import { requireAuthFast, requirePin, showToast, readCycleLocal, writeCycleLocal, reconcileCycles, countInCycle, cycleOf } from '/shared.js';
 import { loadAllTrades, saveCycles, loadCycles } from '/db.js';
 
+document.getElementById('verTag').textContent = window.__CYCLES_VERSION;
 const user = await requireAuthFast('/cycles.html');
 if (!user) throw new Error('not authed');
 await requirePin();

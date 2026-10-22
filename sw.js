@@ -1,5 +1,5 @@
 // xX Trading Journal — Service Worker v4 (cache-first, fast)
-const CACHE = 'xx-v5';
+const CACHE = 'xx-v6';
 const PRECACHE = [
     '/',
     '/index.html',
@@ -68,23 +68,23 @@ self.addEventListener('fetch', e => {
         return;
     }
 
-    // App shell — cache first, refresh in background (stale-while-revalidate)
+    // App shell (pages and scripts) — NETWORK FIRST so an update is never hidden by an old saved copy;
+    // the saved copy is only used when offline.
     if (e.request.destination === 'document' ||
         url.endsWith('.js') || url.endsWith('.html') ||
-        url.endsWith('.css') || url.endsWith('.png') ||
-        url.endsWith('.json')) {
+        url.endsWith('.css') || url.endsWith('.json')) {
         e.respondWith(
-            caches.open(CACHE).then(async cache => {
-                const cached = await cache.match(e.request);
-                const fetchPromise = fetch(e.request).then(res => {
-                    if (res.ok) cache.put(e.request, res.clone());
-                    return res;
-                }).catch(() => cached);
-
-                // Return cached immediately, update in background
-                return cached || fetchPromise;
-            })
+            fetch(e.request, { cache: 'no-store' }).then(res => {
+                if (res.ok) { const clone = res.clone(); caches.open(CACHE).then(c => c.put(e.request, clone)); }
+                return res;
+            }).catch(() => caches.match(e.request))
         );
+        return;
+    }
+
+    // Images — cache first
+    if (url.endsWith('.png')) {
+        e.respondWith(caches.match(e.request).then(c => c || fetch(e.request)));
         return;
     }
 
