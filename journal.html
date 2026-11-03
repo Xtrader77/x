@@ -268,10 +268,11 @@
                 </div>
 
                 <div class="section">
-                    <div class="section-title">REWARD MODEL <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:8px;" id="rrHint">(1:2 or 1:3)</span></div>
+                    <div class="section-title">REWARD MODEL <span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:8px;" id="rrHint">(tap every model you took: 1:2, 1:3, 1:5)</span></div>
                     <div class="pill-row">
                         <div class="pill" data-rr="1:2">1 : 2</div>
                         <div class="pill" data-rr="1:3">1 : 3</div>
+                        <div class="pill" data-rr="1:5">1 : 5</div>
                     </div>
                 </div>
 
@@ -433,6 +434,15 @@ function makeSingleSelect(selector) {
     });
 }
 
+function makeMultiSelect(selector) {
+    document.querySelectorAll(selector).forEach(el => {
+        el.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            el.classList.toggle('selected');
+        });
+    });
+}
+
 function init() {
     document.getElementById('tradeDate').value = TODAY;
 
@@ -443,7 +453,7 @@ function init() {
 
     makeSingleSelect('[data-exec]');
     makeSingleSelect('[data-level]');
-    makeSingleSelect('[data-rr]');
+    makeMultiSelect('[data-rr]'); // a setup can be taken on several reward models at once
     suggestLevel();
     makeSingleSelect('[data-session]');
     makeSingleSelect('[data-mindset]');
@@ -541,8 +551,9 @@ function suggestLevel() {
         else if (last.outcome === 'LOSS') next = Math.max(last.level - 1, 1);
         note = `suggested from your last trade (Level ${last.level}, ${String(last.outcome || '').toLowerCase()})`;
     }
-    if (last && (last.rr === '1:2' || last.rr === '1:3') && !document.querySelector('[data-rr].selected')) {
-        document.querySelector(`[data-rr="${last.rr}"]`)?.classList.add('selected');
+    const lastRr = String(last && last.rr || '').split(',').filter(Boolean);
+    if (lastRr.length && !document.querySelector('[data-rr].selected')) {
+        lastRr.forEach(m => document.querySelector(`[data-rr="${m}"]`)?.classList.add('selected'));
         const rh = document.getElementById('rrHint'); if (rh) rh.textContent = `(same as your last trade - change it if different)`;
     }
     if (document.querySelector('[data-level].selected')) return;
@@ -554,7 +565,7 @@ function validate() {
     if (!document.getElementById('pair').value)      { showToast('Select a trading pair', 'error'); return false; }
     if (!document.getElementById('direction').value) { showToast('Select direction', 'error'); return false; }
     if (!document.getElementById('model').value)      { showToast('Select the model used (xY5/xY7/xY10)', 'error'); return false; }
-    if (!document.querySelector('[data-rr].selected')) { showToast('Select the reward model (1:2 or 1:3)', 'error'); return false; }
+    if (!document.querySelector('[data-rr].selected')) { showToast('Select at least one reward model (1:2, 1:3 or 1:5)', 'error'); return false; }
     if (!document.querySelector('[data-level].selected')) { showToast('Select the level this trade was taken at (1-10)', 'error'); return false; }
     if (!document.querySelector('[data-exec].selected'))    { showToast('Select execution type', 'error'); return false; }
     if (!document.querySelector('[data-session].selected')) { showToast('Select trading session', 'error'); return false; }
@@ -581,7 +592,7 @@ async function save(outcome) {
 
     const sess = document.querySelector('[data-session].selected')?.dataset.session || '';
     const exec = document.querySelector('[data-exec].selected')?.dataset.exec || '';
-    const rr = document.querySelector('[data-rr].selected')?.dataset.rr || null;
+    const rr = Array.from(document.querySelectorAll('[data-rr].selected')).map(x => x.dataset.rr).join(',') || null; // e.g. '1:2,1:3'
     const level = parseInt(document.querySelector('[data-level].selected')?.dataset.level, 10) || null;
     const mind = document.querySelector('[data-mindset].selected')?.dataset.mindset;
     const rate = document.querySelector('[data-rating].selected')?.dataset.rating;
@@ -591,7 +602,7 @@ async function save(outcome) {
         pair: document.getElementById('pair').value,
         direction: document.getElementById('direction').value,
         model: document.getElementById('model').value || null,
-        rr, // '1:2' or '1:3': the reward model this trade was taken with
+        rr, // the reward models this trade was taken on, e.g. '1:2,1:3' (db.js keeps them in order)
         level, // 1-10: the level this trade was taken at, chosen by the trader
         outcome, timestamp, tradeDate, tradeTime, isBackdated, tradeId,
         text: document.getElementById('notes').value,
@@ -677,7 +688,10 @@ function prefill() {
                 const [d, t] = datetime.split(' ');
                 document.getElementById('pair').value      = symbol || '';
                 document.getElementById('direction').value = dir || '';
-                if (mode && ['xY5','xY7','xY10'].includes(mode)) document.getElementById('model').value = mode;
+                // the EA writes the model with its reward model after a dash: xY7 = 1:2, xY7-1:3, xY7-1:5
+                const modeBase = String(mode || '').split('-')[0], modeRr = String(mode || '').split('-')[1] || '1:2';
+                if (modeBase && ['xY5','xY7','xY10'].includes(modeBase)) document.getElementById('model').value = modeBase;
+                if (['1:2','1:3','1:5'].includes(modeRr)) { document.querySelectorAll('[data-rr]').forEach(x => x.classList.remove('selected')); document.querySelector(`[data-rr="${modeRr}"]`)?.classList.add('selected'); }
                 if (d) { document.getElementById('tradeDate').value = d; document.getElementById('backdatedBadge').style.display = (d !== TODAY) ? 'inline-block' : 'none'; }
                 if (t) document.getElementById('tradeTime').value = t.substring(0,5);
                 document.getElementById('mt4Level').value = `Level ${level} (${mode})`;

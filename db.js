@@ -130,11 +130,19 @@ export async function saveRecovery(question, answerHash) {
 }
 
 // ── Trades ────────────────────────────────────────────────────────────────────
-// Reward ratio of a trade ('1:2' or '1:3'): the `rr` column, or kept inside mt4_data on older databases.
+// Reward models of a trade. A setup can be taken on several at once (SuperNova places 1:2, 1:3 and 1:5 together), so a trade
+// carries a LIST, saved as one text like '1:2,1:3'. Old single values ('1:2') are lists of one. Order is always 1:2, 1:3, 1:5.
+const RR_ALL = ['1:2', '1:3', '1:5'];
+export function normRr(v) {
+    const list = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[,+\s]+/);
+    const out = RR_ALL.filter(m => list.map(x => String(x).trim()).includes(m));
+    return out.length ? out.join(',') : null;
+}
+// the `rr` column, or kept inside mt4_data on older databases
 function rrOf(t) {
     let v = t.rr;
     if (!v && t.mt4_data) { const o = safeJSON(t.mt4_data, null); v = o && o.rr; }
-    return v === '1:2' || v === '1:3' ? v : null;
+    return normRr(v);
 }
 
 // A trade's level: the `level` column, or "L7" kept in the old `phase` column
@@ -155,7 +163,7 @@ export async function saveTrade(tradeId, tradeData) {
         id: tradeId, user_id: user.id,
         pair: tradeData.pair || null, direction: tradeData.direction || null,
         model: tradeData.model || tradeData.mt4?.mode || null,
-        rr: tradeData.rr === '1:2' || tradeData.rr === '1:3' ? tradeData.rr : null,
+        rr: normRr(tradeData.rr),
         level: Number.isInteger(tradeData.level) && tradeData.level >= 1 && tradeData.level <= 10 ? tradeData.level : null,
         outcome: tradeData.outcome || null, trade_date: tradeData.tradeDate || null,
         trade_time: tradeData.tradeTime || null, is_backdated: tradeData.isBackdated || false,
@@ -188,7 +196,8 @@ export async function saveTrade(tradeId, tradeData) {
         return out;
     };
     for (let attempt = 0; attempt < 3 && insertError; attempt++) {
-        const m = /'(level|rr)' column|column "?(level|rr)"?/i.exec(insertError.message || '');
+        // a missing column, or a database whose rr rule still only allows 1:2 / 1:3 (see README): keep rr inside mt4_data instead
+        const m = /'(level|rr)' column|column "?(level|rr)"?/i.exec(insertError.message || '') || (/trades_rr_check/.test(insertError.message || '') ? [null, null, 'rr'] : null);
         if (!m) break;
         if ((m[1] || m[2]).toLowerCase() === 'level') noLevelCol = true; else noRrCol = true;
         rowWithTs = buildRow();
