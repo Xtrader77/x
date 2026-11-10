@@ -1,5 +1,5 @@
 // xX Trading Journal — Service Worker v4 (cache-first, fast)
-const CACHE = 'xx-v7';
+const CACHE = 'xx-v8';
 const PRECACHE = [
     '/',
     '/index.html',
@@ -7,6 +7,9 @@ const PRECACHE = [
     '/register.html',
     '/lock.html',
     '/journal.html',
+    '/planner.html',
+    '/planner-logic.js',
+    '/plans-db.js',
     '/dashboard.html',
     '/analytics.html',
     '/improvement.html',

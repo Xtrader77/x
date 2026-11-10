@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Planner | xX Trading</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { height:100%; }
+        body { font-family:'Inter',sans-serif; background:#000; color:#fff; min-height:100vh; }
+        :root { --s12:#5B9BF5; --s13:#A58BF2; --s15:#E3B04B; --ok:#1DB954; --bad:#E22134; --warn:#ff6b6b; --dim:rgba(255,255,255,0.5); --line:rgba(255,255,255,0.08); }
+
+        .app-shell { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+        .sidebar { background:#0a0a0a; border-right:1px solid rgba(255,255,255,0.07); padding:22px 14px; display:flex; flex-direction:column; gap:2px; position:sticky; top:0; height:100vh; }
+        .sidebar-brand { display:flex; align-items:center; gap:10px; padding:6px 10px 26px; }
+        .sidebar-brand .mark { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#1DB954,#4A90E2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+        .sidebar-brand .name { font-size:14px; font-weight:800; letter-spacing:0.5px; }
+        .sidebar-brand .sub { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.5px; }
+        .nav-link { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:9px; text-decoration:none; color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; transition:background .15s,color .15s; }
+        .nav-link .ic { font-size:16px; width:20px; text-align:center; }
+        .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85); }
+        .nav-link.active { background:rgba(255,255,255,0.09); color:#fff; box-shadow:inset 3px 0 0 #1DB954; }
+        .nav-link .lbl { white-space:nowrap; }
+        .sidebar-foot { margin-top:auto; padding:14px 10px 0; font-size:10.5px; color:rgba(255,255,255,0.28); border-top:1px solid rgba(255,255,255,0.06); }
+
+        .main { padding:26px 34px 110px; width:100%; max-width:1280px; }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--line); gap:14px; flex-wrap:wrap; }
+        .header h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
+        .header .subtitle { font-size:12.5px; color:rgba(255,255,255,0.4); margin-top:4px; }
+        .btn-ghost { background:transparent; border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.75); padding:9px 18px; border-radius:50px; font-size:13px; cursor:pointer; text-decoration:none; font-family:inherit; }
+        .btn-ghost:hover { border-color:rgba(255,255,255,0.45); color:#fff; }
+
+        .workspace { display:grid; grid-template-columns:1fr 340px; gap:18px; align-items:start; }
+        .col { display:flex; flex-direction:column; gap:14px; min-width:0; }
+        .card { background:#111; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:22px; }
+        .card h2 { font-size:17px; font-weight:700; margin-bottom:4px; }
+        .card .lead { font-size:13px; color:var(--dim); line-height:1.6; margin-bottom:18px; max-width:62ch; }
+        .card h3 { font-size:12px; font-weight:700; letter-spacing:.8px; color:rgba(255,255,255,0.5); margin:20px 0 10px; }
+
+        /* stepper */
+        .stepper { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+        .stp { flex:1; min-width:96px; background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:10px 10px; text-align:left; cursor:pointer; color:rgba(255,255,255,0.5); font-family:inherit; font-size:12px; font-weight:600; display:flex; gap:8px; align-items:center; }
+        .stp .n { width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; font-size:11px; flex:none; }
+        .stp.on { color:#fff; border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.07); }
+        .stp.done .n { background:var(--ok); color:#000; }
+        .stp:hover { color:#fff; }
+
+        label.l { display:block; font-size:11px; font-weight:600; letter-spacing:.8px; color:rgba(255,255,255,0.4); margin-bottom:7px; }
+        select, input[type=date], input[type=time], input[type=number], input[type=text], textarea { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; }
+        select:focus, input:focus, textarea:focus { outline:none; border-color:rgba(255,255,255,0.4); }
+        input[type=date]::-webkit-calendar-picker-indicator, input[type=time]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.5; }
+        option { background:#111; }
+        textarea { min-height:84px; resize:vertical; line-height:1.55; }
+        .g2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+        .hint { font-size:12px; color:rgba(255,255,255,0.4); margin-top:7px; line-height:1.5; }
+
+        .pills { display:flex; gap:8px; flex-wrap:wrap; }
+        .pill { flex:1; min-width:78px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:11px 8px; text-align:center; font-size:13px; font-weight:600; cursor:pointer; color:rgba(255,255,255,0.7); font-family:inherit; }
+        .pill:hover { background:rgba(255,255,255,0.09); }
+        .pill.sel { background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.45); color:#fff; }
+        .pill.win.sel { background:rgba(29,185,84,.18); border-color:var(--ok); color:var(--ok); }
+        .pill.loss.sel { background:rgba(226,33,52,.16); border-color:var(--bad); color:var(--warn); }
+        .pill small { display:block; font-weight:500; font-size:11px; color:rgba(255,255,255,0.45); margin-top:3px; }
+
+        .sys { border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; border-left-width:4px; }
+        .sys.c12 { border-left-color:var(--s12); } .sys.c13 { border-left-color:var(--s13); } .sys.c15 { border-left-color:var(--s15); }
+        .sys.off { opacity:.55; }
+        .sys .nm { font-size:17px; font-weight:800; min-width:56px; }
+        .sys .meta { flex:1; min-width:150px; font-size:12.5px; color:var(--dim); line-height:1.5; }
+        .sys .meta b { color:#fff; font-weight:600; }
+        .sys select { width:96px; }
+        .sys .tg { font-size:12px; color:var(--dim); }
+        .tag { display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; }
+        .tag.on { background:rgba(29,185,84,.15); color:var(--ok); border:1px solid rgba(29,185,84,.35); }
+        .tag.off { background:rgba(255,255,255,.06); color:var(--dim); border:1px solid var(--line); }
+        .tag.bad { background:rgba(226,33,52,.12); color:var(--warn); border:1px solid rgba(226,33,52,.35); }
+
+        .chk { display:flex; gap:11px; padding:12px 14px; border-radius:10px; font-size:13px; line-height:1.5; margin-bottom:8px; align-items:flex-start; }
+        .chk.ok { background:rgba(29,185,84,.07); border:1px solid rgba(29,185,84,.2); }
+        .chk.bad { background:rgba(226,33,52,.1); border:1px solid rgba(226,33,52,.4); color:#ffb3ba; }
+        .chk.unk { background:rgba(255,255,255,.04); border:1px solid var(--line); color:var(--dim); }
+        .chk .ic { flex:none; font-weight:800; }
+        .chk.ok .ic { color:var(--ok); } .chk.bad .ic { color:var(--warn); }
+
+        .dots { display:flex; gap:8px; margin-top:6px; }
+        .dot { width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,.1); }
+        .dot.f { background:var(--bad); }
+
+        table.t { width:100%; border-collapse:collapse; font-size:13px; }
+        table.t th { text-align:left; font-size:11px; letter-spacing:.7px; color:rgba(255,255,255,.4); font-weight:600; padding:6px 8px; }
+        table.t td { padding:9px 8px; border-top:1px solid var(--line); }
+        table.t tr.cur td { background:rgba(255,255,255,.05); }
+        .fit { color:var(--ok); font-weight:600; } .nofit { color:var(--warn); font-weight:600; }
+
+        .bias { display:flex; gap:6px; margin-bottom:8px; }
+        .bias .pill { padding:8px 6px; font-size:12px; min-width:0; }
+        .read { border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:10px; }
+        .read .hd { font-size:13px; font-weight:700; margin-bottom:10px; }
+
+        .tags { display:flex; flex-wrap:wrap; gap:8px; }
+        .rtag { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:8px 14px; font-size:12px; cursor:pointer; color:rgba(255,255,255,.65); font-family:inherit; }
+        .rtag.sel { background:rgba(226,33,52,.15); border-color:rgba(226,33,52,.5); color:var(--warn); }
+        .rtag.good.sel { background:rgba(29,185,84,.15); border-color:rgba(29,185,84,.5); color:var(--ok); }
+
+        .drop { border:2px dashed rgba(255,255,255,.12); border-radius:10px; padding:22px; text-align:center; cursor:pointer; font-size:13px; color:var(--dim); }
+        .drop:hover { border-color:rgba(255,255,255,.3); }
+        .shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; margin-top:12px; }
+        .shot { position:relative; } .shot img { width:100%; height:92px; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+        .shot button { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(226,33,52,.9); color:#fff; cursor:pointer; }
+
+        .sum-row { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:8px 0; border-top:1px solid var(--line); }
+        .sum-row:first-of-type { border-top:none; } .sum-row span:first-child { color:var(--dim); }
+        .sum-row b { font-weight:600; text-align:right; }
+        .miss { font-size:12.5px; color:#ffb3ba; line-height:1.9; }
+        .miss a { color:#ffb3ba; cursor:pointer; text-decoration:underline; }
+        .ready { font-size:12.5px; color:var(--ok); }
+
+        .plist .it { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 0; border-top:1px solid var(--line); font-size:13px; }
+        .plist .it:first-child { border-top:none; }
+        .plist .it button { background:none; border:none; color:rgba(255,255,255,.4); cursor:pointer; font-size:12px; font-family:inherit; }
+        .plist .it button:hover { color:#fff; }
+        .plist .it .who { cursor:pointer; flex:1; min-width:0; } .plist .it .who small { display:block; color:var(--dim); font-size:11.5px; }
+        .plist .it.cur .who { color:#fff; font-weight:700; }
+
+        .foot { position:sticky; bottom:0; margin-top:6px; padding:14px 0 2px; background:linear-gradient(180deg,rgba(0,0,0,0),#000 30%); display:flex; gap:10px; flex-wrap:wrap; }
+        .btn { padding:14px 22px; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(255,255,255,.1); color:#fff; }
+        .btn:hover { filter:brightness(1.15); }
+        .btn.pri { background:#fff; color:#000; } .btn.go { background:var(--ok); color:#fff; } .btn[disabled] { opacity:.4; cursor:not-allowed; }
+        .btn.sp { margin-left:auto; }
+        .chip { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(255,255,255,.08); color:rgba(255,255,255,.7); }
+        .chip.draft { background:rgba(255,214,0,.12); color:#ffd600; } .chip.planned { background:rgba(74,144,226,.15); color:#6aa8ee; } .chip.taken { background:rgba(29,185,84,.15); color:var(--ok); }
+        .banner { background:rgba(74,144,226,.1); border:1px solid rgba(74,144,226,.3); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:13px; color:#a9cdf5; }
+        .out { font-size:14px; padding:12px 14px; border-radius:10px; margin-top:14px; background:rgba(255,255,255,.05); }
+        .out b.win { color:var(--ok); } .out b.loss { color:var(--warn); }
+
+        @media (max-width:980px) {
+            .app-shell { grid-template-columns:64px 1fr; }
+            .sidebar { padding:18px 8px; align-items:center; }
+            .sidebar-brand { padding:6px 0 22px; justify-content:center; } .sidebar-brand div:not(.mark) { display:none; }
+            .nav-link { justify-content:center; padding:12px 0; width:44px; } .nav-link .lbl { display:none; } .sidebar-foot { display:none; }
+            .workspace { grid-template-columns:1fr; } .main { padding:20px 16px 110px; }
+        }
+        @media (max-width:640px) {
+            .app-shell { display:block; } .sidebar { display:none; }
+            .g2, .g3 { grid-template-columns:1fr; }
+            .btn { flex:1; padding:14px 10px; } .btn.sp { margin-left:0; }
+        }
+        @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand"><div class="mark">xX</div><div><div class="name">xX TRADING</div><div class="sub">JOURNAL</div></div></div>
+        <a href="/" class="nav-link" title="Home"><span class="ic">🏠</span><span class="lbl">Home</span></a>
+        <a href="/planner.html" class="nav-link active" title="Trade Planner"><span class="ic">📝</span><span class="lbl">Trade Planner</span></a>
+        <a href="/dashboard.html" class="nav-link" title="Dashboard"><span class="ic">📊</span><span class="lbl">Dashboard</span></a>
+        <a href="/analytics.html" class="nav-link" title="Analytics"><span class="ic">📈</span><span class="lbl">Analytics</span></a>
+        <a href="/lab.html" class="nav-link" title="Lab"><span class="ic">🧪</span><span class="lbl">Lab</span></a>
+        <a href="/improvement.html" class="nav-link" title="Improve"><span class="ic">🔧</span><span class="lbl">Improve</span></a>
+        <a href="/cycles.html" class="nav-link" title="Cycles"><span class="ic">🔁</span><span class="lbl">Cycles</span></a>
+        <a href="/profile.html" class="nav-link" title="Profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
+        <div class="sidebar-foot">Where discipline<br>becomes leverage.</div>
+    </aside>
+
+    <main class="main">
+        <div class="header">
+            <div>
+                <h1>Trade Planner</h1>
+                <div class="subtitle">Plan the setup before you place it. Log it when it closes.</div>
+            </div>
+            <a href="/" class="btn-ghost">← Home</a>
+        </div>
+
+        <div id="eaBanner" class="banner" style="display:none"></div>
+
+        <div class="workspace">
+            <div class="col">
+                <div class="stepper" id="stepper"></div>
+                <div class="card" id="stage"></div>
+                <div class="foot" id="foot"></div>
+            </div>
+            <div class="col">
+                <div class="card" id="summary"></div>
+                <div class="card plist" id="plans"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/planner-logic.js"></script>
+<script type="module">
+import { requireAuth, requirePin, showToast, readCycleLocal, writeCycleLocal, reconcileCycles, injectBottomNav } from '/shared.js';
+import { saveTrade, loadAllTrades, loadCycles } from '/db.js';
+import { loadPlans, writeLocalPlans, savePlanCloud, deletePlanCloud } from '/plans-db.js';
+
+const X = window.XPlan;
+const TODAY = new Date().toISOString().slice(0, 10);
+const COLORS = { '1:2': 'c12', '1:3': 'c13', '1:5': 'c15' };
+const NAMES = { '1:2': '1 : 2', '1:3': '1 : 3', '1:5': '1 : 5' };
+const GATE = { '1:3': '1:2', '1:5': '1:3' };
+const RULE_BREAKS = ['Entered Early', 'Entered Late', 'Chased Market', 'Moved SL', 'Closed Early', 'Revenge Trade', 'Against HTF Bias', 'Overtrading', 'FOMO', 'Took a second setup today', 'Traded outside the window'];
+const BIAS = [['up', 'Up'], ['range', 'Range'], ['down', 'Down']];
+const READS = [['long', 'Long term', 'Daily and weekly. Where is price in the big picture?'], ['mid', 'Mid term', 'H4 and H1. What is the structure doing?'], ['short', 'Short term', 'M30 to M5. What is price doing around the open?']];
+const OUTS = [['win', 'Win', 'win'], ['loss', 'Loss', 'loss'], ['be', 'Breakeven', ''], ['partial', 'Partial', '']];
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => 'PLAN_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+
+let history = [];            // closed trades
+let plans = {};              // all unfinished plans
+let plan = null;             // the plan on screen
+let step = 'status';
+let view = 'plan';           // 'plan' | 'result'
+let lad = null;
+let saveTimer = null, cloudTimer = null;
+
+// ---------- data ----------
+function blankPlan() {
+    const l = X.ladder(history);
+    return {
+        id: uid(), status: 'draft', createdAt: Date.now(), updatedAt: Date.now(),
+        date: TODAY, time: '', pair: '', direction: '', mode: '', execution: '', session: '',
+        systems: X.SYSTEMS.filter((s) => l.on[s]).map((s) => ({ sys: s, level: l.levels[s] })),
+        read: { long: { bias: '', note: '' }, mid: { bias: '', note: '' }, short: { bias: '', note: '' } },
+        reason: '', mindset: 0, mindNote: '', range: { adr: '', up: '', down: '' },
+        result: { outcomes: {}, followed: null, ruleBreaks: [], rating: 0, reflection: '' },
+        screenshots: []
+    };
+}
+const isEmpty = (p) => !p.pair && !p.direction && !p.mode && !p.time && !p.reason && !p.mindset && !(p.screenshots || []).length && !['long', 'mid', 'short'].some((k) => p.read[k].bias || p.read[k].note);
+
+function touch() {
+    plan.updatedAt = Date.now();
+    if (!plans[plan.id] && isEmpty(plan)) { renderSummary(); return; }
+    plans[plan.id] = plan;
+    clearTimeout(saveTimer); saveTimer = setTimeout(() => writeLocalPlans(plans), 250);
+    clearTimeout(cloudTimer); cloudTimer = setTimeout(() => savePlanCloud(plan), 1800);
+    renderSummary(); renderPlans();
+}
+async function loadHistory() {
+    let all = {};
+    try { const r = await Promise.race([loadAllTrades(false), new Promise((res) => setTimeout(() => res(null), 6000))]); all = (r && r.journals) || {}; } catch (e) { all = {}; }
+    if (!Object.keys(all).length) { try { all = (JSON.parse(localStorage.getItem('xX_journal_data') || '{}').journals) || {}; } catch (e) { all = {}; } }
+    history = Object.values(all);
+    return all;
+}
+
+// ---------- derived ----------
+const nowCheck = () => X.rulesCheck(history, { now: { date: plan.date, time: plan.time }, openPlans: Object.values(plans).filter((p) => p.status === 'taken'), ignoreId: plan.id });
+const modeT = () => X.targetsFor(plan.mode);
+const onSys = () => plan.systems.filter((s) => X.SYSTEMS.includes(s.sys));
+const hasSys = (s) => !!plan.systems.find((x) => x.sys === s);
+function stepDone(id) {
+    const miss = X.missing(plan).filter((m) => m.step === id);
+    if (id === 'status') return true;
+    if (id === 'rules') return !!plan.date && !!plan.time;
+    return miss.length === 0 && (id !== 'mind' || !!plan.mindset);
+}
+
+// ---------- rendering ----------
+function renderStepper() {
+    const steps = X.STEPS.map((s, i) => `<button class="stp ${step === s.id && view === 'plan' ? 'on' : ''} ${stepDone(s.id) && s.id !== 'status' && s.id !== 'review' ? 'done' : ''}" data-step="${s.id}"><span class="n">${stepDone(s.id) && s.id !== 'status' && s.id !== 'review' ? '✓' : i + 1}</span>${esc(s.title)}</button>`);
+    if (plan.status === 'taken') steps.push(`<button class="stp ${view === 'result' ? 'on' : ''}" data-step="__result"><span class="n">${X.STEPS.length + 1}</span>Result</button>`);
+    $('#stepper').innerHTML = steps.join('');
+}
+
+function statusHTML() {
+    const L = lad || X.ladder(history), lock = X.weeklyLock(history, { date: plan.date || TODAY });
+    const cards = X.SYSTEMS.map((s) => {
+        const on = L.on[s];
+        return `<div class="sys ${COLORS[s]} ${on ? '' : 'off'}"><div class="nm">${NAMES[s]}</div><div class="meta">${on ? `Next level <b>${L.levels[s]}</b>` : `Off. It joins when <b>${GATE[s]}</b> will trade at level ${X.UNLOCK_AT}.`}</div><span class="tag ${on ? 'on' : 'off'}">${on ? 'On' : 'Off'}</span></div>`;
+    }).join('<div style="height:10px"></div>');
+    const dots = Array.from({ length: lock.limit }, (_, i) => `<span class="dot ${i < lock.streak ? 'f' : ''}"></span>`).join('');
+    return `<h2>Where you stand</h2><p class="lead">Worked out from your logged trades. A win moves a system up a level, a loss moves it one back, breakeven or a partial repeats the level. You can change any level in step 4.</p>${cards}
+    <h3>LOSING SETUPS IN A ROW</h3><div class="dots">${dots}</div>
+    <div class="hint">${lock.locked ? `<span style="color:var(--warn)">Locked until Monday ${esc(lock.until)} 00:00 broker time.</span>` : `Three in a row locks the EA until next Monday 00:00 broker time. You are at ${lock.streak} of ${lock.limit}.`}</div>
+    ${history.length ? '' : '<div class="hint" style="margin-top:14px">No closed trades yet. Everything starts at level 1 with only 1:2 on.</div>'}`;
+}
+
+function rulesHTML() {
+    const checks = nowCheck().map((c) => `<div class="chk ${c.unknown ? 'unk' : c.ok ? 'ok' : 'bad'}"><span class="ic">${c.unknown ? '•' : c.ok ? '✓' : '✕'}</span><span>${esc(c.text)}</span></div>`).join('');
+    return `<h2>Rules check</h2><p class="lead">When will you place this setup? Use the time on your MetaTrader clock (Market Watch). Red items are warnings. The journal cannot stop MetaTrader, but it will not let you pretend you did not see them.</p>
+    <div class="g2"><div><label class="l">DATE</label><input type="date" data-f="date" value="${esc(plan.date)}"></div><div><label class="l">TIME ON METATRADER CLOCK</label><input type="time" data-f="time" value="${esc(plan.time)}"></div></div>
+    <h3>CHECKS</h3><div id="checks">${checks}</div>`;
+}
+
+function rangeHTML() {
+    const r = plan.range || {}, adr = parseFloat(r.adr), up = parseFloat(r.up) || 0, dn = parseFloat(r.down) || 0;
+    const room = X.roomLeft(adr, up, dn);
+    let body = '<div class="hint">Optional. Enter the average daily range and how far price has already gone each way today to see which targets still fit.</div>';
+    if (room) {
+        const side = plan.direction === 'SELL' ? 'down' : 'up';
+        const rm = room[plan.direction ? side : 'up'];
+        const fit = X.targetFit(room.up, room.down);
+        const t = modeT();
+        body = `<div class="hint" style="margin-bottom:10px">Room left: <b style="color:#fff">${room.up}</b> pips up, <b style="color:#fff">${room.down}</b> pips down.${plan.direction ? '' : ' Choose buy or sell to check your side.'}</div>`;
+        if (t && plan.direction) body += `<table class="t"><tr><th>System</th><th>Target</th><th>Room ${side}: ${rm}</th></tr>${X.SYSTEMS.map((s) => `<tr><td>${NAMES[s]}</td><td>${t.tp[s]} pips</td><td class="${t.tp[s] <= rm ? 'fit' : 'nofit'}">${t.tp[s] <= rm ? 'Fits' : 'Too far for today'}</td></tr>`).join('')}</table>`;
+        else if (fit) body += `<table class="t"><tr><th>Mode</th>${X.SYSTEMS.map((s) => `<th>${NAMES[s]}</th>`).join('')}</tr>${fit.up.rows.map((row) => `<tr><td>${row.mode}</td>${row.cells.map((c) => `<td class="${c.fits ? 'fit' : 'nofit'}">${c.tp}${c.fits ? '' : ' ✕'}</td>`).join('')}</tr>`).join('')}</table><div class="hint">Showing the up side.</div>`;
+    }
+    return `<h3>TARGETS THAT FIT TODAY</h3><div class="g3"><div><label class="l">AVERAGE DAILY RANGE (PIPS)</label><input type="number" inputmode="decimal" data-r="adr" value="${esc(r.adr)}"></div><div><label class="l">TRAVELLED UP SO FAR</label><input type="number" inputmode="decimal" data-r="up" value="${esc(r.up)}"></div><div><label class="l">TRAVELLED DOWN SO FAR</label><input type="number" inputmode="decimal" data-r="down" value="${esc(r.down)}"></div></div><div id="rangeOut" style="margin-top:12px">${body}</div>`;
+}
+
+function setupHTML() {
+    const pairs = ['XAUUSD', 'NAS100', 'EURUSD', 'GBPUSD', 'AUDUSD', 'USDJPY', 'Other'];
+    const modes = Object.keys(X.MODES).map((m) => { const t = X.MODES[m]; return `<button class="pill ${plan.mode === m ? 'sel' : ''}" data-mode="${m}">${m}<small>SL ${t.sl} pips</small></button>`; }).join('');
+    const t = modeT();
+    const tbl = t ? `<h3>YOUR NUMBERS IN ${esc(plan.mode)}</h3><table class="t"><tr><th>Stop loss</th><th>Breakeven at</th>${X.SYSTEMS.map((s) => `<th>${NAMES[s]} target</th>`).join('')}</tr><tr><td>${t.sl} pips</td><td>${t.be} pips</td>${X.SYSTEMS.map((s) => `<td>${t.tp[s]} pips</td>`).join('')}</tr></table>` : '';
+    return `<h2>Pair and mode</h2><p class="lead">What are you trading, which way, and how wide is the stop?</p>
+    <div class="g2"><div><label class="l">PAIR</label><select data-f="pair"><option value="">Select</option>${pairs.map((p) => `<option ${plan.pair === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+    <div><label class="l">DIRECTION</label><div class="pills"><button class="pill ${plan.direction === 'BUY' ? 'sel' : ''}" data-dir="BUY">Buy</button><button class="pill ${plan.direction === 'SELL' ? 'sel' : ''}" data-dir="SELL">Sell</button></div></div></div>
+    <h3>MODE</h3><div class="pills">${modes}</div>${tbl}
+    <h3>HOW IT WILL ENTER</h3><div class="pills"><button class="pill ${plan.execution === 'limit' ? 'sel' : ''}" data-ex="limit">Limit</button><button class="pill ${plan.execution === 'instant' ? 'sel' : ''}" data-ex="instant">Instant</button></div>
+    <h3>SESSION</h3><div class="pills">${[['asia', 'Asia'], ['london', 'London'], ['newyork', 'New York']].map(([k, n]) => `<button class="pill ${plan.session === k ? 'sel' : ''}" data-se="${k}">${n}</button>`).join('')}</div>
+    ${rangeHTML()}`;
+}
+
+function systemsHTML() {
+    const L = lad || X.ladder(history), t = modeT();
+    const rows = X.SYSTEMS.map((s) => {
+        const cur = plan.systems.find((x) => x.sys === s), gated = !L.on[s];
+        const opts = Array.from({ length: X.MAX_LEVEL[s] }, (_, i) => `<option value="${i + 1}" ${cur && cur.level === i + 1 ? 'selected' : ''}>Level ${i + 1}</option>`).join('');
+        return `<div class="sys ${COLORS[s]} ${cur ? '' : 'off'}"><div class="nm">${NAMES[s]}</div>
+        <div class="meta">${t ? `Target <b>${t.tp[s]} pips</b>, stop <b>${t.sl}</b>.` : 'Choose the mode in step 3 to see the target.'}<br>Worked out: ${L.on[s] ? `level <b>${L.levels[s]}</b>` : 'off right now'}.${cur && gated ? `<br><span style="color:var(--warn)">SuperNova keeps ${NAMES[s]} off until ${GATE[s]} will trade at level ${X.UNLOCK_AT}. Plan it only if your EA has it on.</span>` : ''}</div>
+        ${cur ? `<select data-lvl="${s}">${opts}</select>` : ''}
+        <button class="pill ${cur ? 'sel' : ''}" style="flex:none;min-width:70px" data-sys="${s}">${cur ? 'On' : 'Off'}</button></div>`;
+    }).join('<div style="height:10px"></div>');
+    return `<h2>Systems and levels</h2><p class="lead">Switch on the systems this setup will run and set the level each one trades at. The levels come from your results. Change one only if you have a reason, for example a retry.</p>${rows}<div class="hint" style="margin-top:12px">One setup is up to three tickets, one per system. All of them share the same entry and stop.</div>`;
+}
+
+function readHTML() {
+    const blocks = READS.map(([k, name, help]) => `<div class="read"><div class="hd">${name}<div class="hint" style="margin:3px 0 0;font-weight:400">${help}</div></div>
+    <div class="bias">${BIAS.map(([v, n]) => `<button class="pill ${plan.read[k].bias === v ? 'sel' : ''}" data-bias="${k}:${v}">${n}</button>`).join('')}</div>
+    <textarea data-note="${k}" placeholder="What do you see?">${esc(plan.read[k].note)}</textarea></div>`).join('');
+    return `<h2>Market read</h2><p class="lead">Write down what the market is doing before you trade it. A bias or a note on any one of the three is enough to continue.</p>${blocks}
+    <h3>WHY THIS SETUP</h3><input type="text" data-f="reason" placeholder="One line: what makes this the setup?" value="${esc(plan.reason)}">
+    <h3>CHART BEFORE THE TRADE</h3>${shotsHTML('pre')}`;
+}
+
+function shotsHTML(kind) {
+    const list = (plan.screenshots || []).map((s, i) => ({ s, i })).filter((x) => (x.s.kind || 'pre') === kind);
+    return `<div class="drop" data-drop="${kind}">Tap to add a screenshot<input type="file" accept="image/*" multiple style="display:none" data-file="${kind}"></div>${list.length ? `<div class="shots">${list.map((x) => `<div class="shot"><img src="${x.s.data}" alt=""><button data-rmshot="${x.i}" aria-label="Remove">×</button></div>`).join('')}</div>` : ''}`;
+}
+
+function mindHTML() {
+    const M = [['😤', 'Frustrated'], ['😟', 'Off'], ['😐', 'Neutral'], ['😊', 'Focused'], ['🔥', 'In the zone']];
+    return `<h2>Mindset and notes</h2><p class="lead">How are you, right now, before the trade?</p>
+    <div class="pills">${M.map(([e, n], i) => `<button class="pill ${plan.mindset === i + 1 ? 'sel' : ''}" data-mind="${i + 1}">${e}<small>${i + 1} ${n}</small></button>`).join('')}</div>
+    <h3>NOTES</h3><textarea data-f="mindNote" placeholder="Anything else you want on record before you place it">${esc(plan.mindNote)}</textarea>`;
+}
+
+function reviewHTML() {
+    const miss = X.missing(plan), sm = X.summary(plan), checks = nowCheck().filter((c) => !c.ok && !c.unknown);
+    const rows = sm ? [['Pair', `${esc(plan.pair)} ${esc(plan.direction)}`], ['Mode', `${esc(plan.mode)}, stop ${sm.sl} pips`], ['When', `${esc(plan.date)} ${esc(plan.time)}`], ['Systems', sm.systems.map((s) => `${NAMES[s.sys]} L${s.level} (${s.tp} pips)`).join('<br>') || 'None']] : [];
+    const warn = checks.length ? `<h3>RULES WARNINGS</h3>${checks.map((c) => `<div class="chk bad"><span class="ic">✕</span><span>${esc(c.text)}</span></div>`).join('')}` : '';
+    return `<h2>Review</h2><p class="lead">${miss.length ? 'A few steps are not finished yet. Fix them, then mark the plan as planned.' : plan.status === 'draft' ? 'Everything is filled in. Mark it as planned, then place the trade in MetaTrader.' : plan.status === 'planned' ? 'This plan is ready. Once you have placed the trade, tell the journal.' : 'This plan is on.'}</p>
+    ${rows.map(([a, b]) => `<div class="sum-row"><span>${a}</span><b>${b}</b></div>`).join('')}${warn}
+    ${miss.length ? `<h3>STILL MISSING</h3><div class="miss">${miss.map((m) => `<a data-go="${m.step}">${esc(m.text)}</a>`).join('<br>')}</div>` : ''}`;
+}
+
+function resultHTML() {
+    const R = plan.result, sys = onSys();
+    const rows = sys.map((s) => {
+        const o = R.outcomes[s.sys], n = o ? X.nextLevel(s.sys, s.level, o) : null, t = modeT();
+        return `<div class="sys ${COLORS[s.sys]}"><div class="nm">${NAMES[s.sys]}</div><div class="meta">Level <b>${s.level}</b>${t ? `, target ${t.tp[s.sys]} pips` : ''}${n ? `<br>Next level: <b>${n}</b>` : ''}</div>
+        <div class="pills" style="flex:1;min-width:260px">${OUTS.map(([v, nme, cls]) => `<button class="pill ${cls} ${o === v ? 'sel' : ''}" data-out="${s.sys}:${v}">${nme}</button>`).join('')}</div></div>`;
+    }).join('<div style="height:10px"></div>');
+    const so = X.setupOutcome(sys.map((s) => ({ sys: s.sys, level: s.level, outcome: R.outcomes[s.sys] })));
+    const pc = X.planCheck(R.followed, so);
+    const PC = { good_win: 'Good win: you followed the plan and it paid.', bad_win: 'Bad win: it paid, but you broke the plan. Do not repeat it.', good_loss: 'Good loss: you followed the plan. This one is just the cost of doing business.', bad_loss: 'Bad loss: you broke the plan and it cost you.', good_be: 'Good breakeven: you followed the plan.', bad_be: 'Breakeven, but you broke the plan.' };
+    return `<h2>Result</h2><p class="lead">The trade is closed. Score each system, then answer one honest question: did you follow the plan?</p>${rows}
+    ${so ? `<div class="out">Setup result: <b class="${so}">${so === 'win' ? 'Win' : so === 'loss' ? 'Loss' : 'Breakeven'}</b>${so === 'loss' ? ' (every system lost)' : so === 'win' ? ' (at least one system won)' : ''}</div>` : ''}
+    <h3>DID YOU FOLLOW THE PLAN?</h3><div class="pills"><button class="pill win ${R.followed === true ? 'sel' : ''}" data-fol="1">Yes</button><button class="pill loss ${R.followed === false ? 'sel' : ''}" data-fol="0">No</button></div>
+    ${pc ? `<div class="hint">${esc(PC[pc])}</div>` : ''}
+    <h3>RULE BREAKS</h3><div class="tags">${RULE_BREAKS.map((r) => `<button class="rtag ${R.ruleBreaks.includes(r) ? 'sel' : ''}" data-rb="${esc(r)}">${esc(r)}</button>`).join('')}<button class="rtag good ${R.ruleBreaks.length === 0 && R.followed ? 'sel' : ''}" data-rb="__none">No rule break</button></div>
+    <h3>EXECUTION RATING</h3><div class="pills">${[1, 2, 3, 4, 5].map((n) => `<button class="pill ${R.rating === n ? 'sel' : ''}" data-rate="${n}">${'★'.repeat(n)}</button>`).join('')}</div>
+    <h3>WHAT WILL YOU DO DIFFERENTLY?</h3><textarea data-res="reflection" placeholder="Lesson, in your own words">${esc(R.reflection)}</textarea>
+    <h3>CHART AFTER THE TRADE</h3>${shotsHTML('post')}`;
+}
+
+function renderStage() {
+    let h = '';
+    if (view === 'result') h = resultHTML();
+    else h = { status: statusHTML, rules: rulesHTML, setup: setupHTML, systems: systemsHTML, read: readHTML, mind: mindHTML, review: reviewHTML }[step]();
+    $('#stage').innerHTML = h;
+    renderFoot();
+}
+
+function renderFoot() {
+    const i = X.STEPS.findIndex((s) => s.id === step), miss = X.missing(plan).length;
+    let h = '';
+    if (view === 'result') {
+        const ok = onSys().every((s) => plan.result.outcomes[s.sys]) && plan.result.followed != null;
+        h = `<button class="btn" data-act="back-plan">← Back to plan</button><button class="btn go sp" data-act="log" ${ok ? '' : 'disabled'}>Log this trade</button>`;
+    } else {
+        h = `<button class="btn" data-act="prev" ${i === 0 ? 'disabled' : ''}>Back</button>`;
+        if (step !== 'review') h += `<button class="btn" data-act="save">Save draft</button><button class="btn pri sp" data-act="next">Next</button>`;
+        else if (plan.status === 'draft') h += `<button class="btn" data-act="save">Save draft</button><button class="btn pri sp" data-act="plan" ${miss ? 'disabled' : ''}>Mark as planned</button>`;
+        else if (plan.status === 'planned') h += `<button class="btn pri sp" data-act="taken">I placed this trade</button>`;
+        else h += `<button class="btn go sp" data-act="to-result">Close the trade</button>`;
+    }
+    $('#foot').innerHTML = h;
+}
+
+function renderSummary() {
+    const sm = X.summary(plan), miss = X.missing(plan);
+    const rows = [['Status', `<span class="chip ${plan.status}">${plan.status === 'draft' ? 'Draft' : plan.status === 'planned' ? 'Planned' : 'Trade is on'}</span>`], ['Pair', plan.pair ? `${esc(plan.pair)} ${esc(plan.direction)}` : '–'], ['Mode', plan.mode ? `${esc(plan.mode)} · stop ${sm.sl}` : '–'], ['When', plan.date ? `${esc(plan.date)} ${esc(plan.time)}` : '–']];
+    const sys = sm && sm.systems.length ? sm.systems.map((s) => `<div class="sum-row"><span>${NAMES[s.sys]} · L${s.level}</span><b>${s.tp} pips</b></div>`).join('') : '<div class="sum-row"><span>Systems</span><b>–</b></div>';
+    $('#summary').innerHTML = `<h2 style="margin-bottom:12px">This plan</h2>${rows.map(([a, b]) => `<div class="sum-row"><span>${a}</span><b>${b}</b></div>`).join('')}${sys}
+    <div style="margin-top:14px">${miss.length ? `<div class="miss">${miss.map((m) => `<a data-go="${m.step}">${esc(m.text)}</a>`).join('<br>')}</div>` : '<div class="ready">✓ Ready to be marked as planned</div>'}</div>`;
+}
+
+function renderPlans() {
+    const list = Object.values(plans).sort((a, b) => b.updatedAt - a.updatedAt);
+    $('#plans').innerHTML = `<h2 style="margin-bottom:12px">Your plans</h2>${list.length ? list.map((p) => `<div class="it ${p.id === plan.id ? 'cur' : ''}"><div class="who" data-open="${p.id}">${esc(p.pair || 'New plan')} ${esc(p.direction)} ${esc(p.mode)}<small><span class="chip ${p.status}">${p.status}</span> ${esc(p.date || '')}</small></div><button data-del="${p.id}" aria-label="Delete plan">Delete</button></div>`).join('') : '<div class="hint">No unfinished plans.</div>'}<div style="margin-top:12px"><button class="btn" style="width:100%;padding:11px" data-act="new">+ New plan</button></div>`;
+}
+
+function renderAll() { renderStepper(); renderStage(); renderSummary(); renderPlans(); }
+
+// ---------- actions ----------
+function open(id) { plan = plans[id] || plan; step = plan.status === 'draft' ? 'status' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; renderAll(); window.scrollTo({ top: 0 }); }
+function go(s) { step = s; view = 'plan'; renderAll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function newPlan() { plan = blankPlan(); step = 'status'; view = 'plan'; renderAll(); }
+
+function addShots(files, kind) {
+    Array.from(files).forEach((f) => {
+        if (!f.type.startsWith('image/')) return;
+        const r = new FileReader();
+        r.onload = (e) => { plan.screenshots.push({ data: e.target.result, name: f.name, kind }); touch(); renderStage(); };
+        r.readAsDataURL(f);
+    });
+}
+
+async function logTrade() {
+    const R = plan.result, sys = onSys().map((s) => ({ sys: s.sys, level: s.level, tp: (modeT() || { tp: {} }).tp[s.sys], outcome: R.outcomes[s.sys] }));
+    const so = X.setupOutcome(sys), OUT = { win: 'WIN', loss: 'LOSS', be: 'BREAKEVEN' }[so] || 'BREAKEVEN';
+    const tradeId = 'TRADE_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const date = plan.date || TODAY, time = plan.time || '00:00';
+    const lowest = sys[0] || {};
+    const read = {}; READS.forEach(([k]) => { if (plan.read[k].bias || plan.read[k].note) read[k] = plan.read[k]; });
+    const trade = {
+        pair: plan.pair, direction: plan.direction, model: plan.mode, rr: sys.map((s) => s.sys).join(','), level: lowest.level || null,
+        outcome: OUT, timestamp: new Date(`${date}T${time}:00`).toISOString(), tradeDate: date, tradeTime: time, isBackdated: date !== TODAY, tradeId,
+        text: [plan.mindNote, R.reflection].filter(Boolean).join('\n\n'), reason: plan.reason || '', tradeSession: { session: plan.session, time },
+        execution: plan.execution, checklist: [], screenshots: (plan.screenshots || []).map((s) => ({ data: s.data, name: s.name, annotation: s.kind === 'post' ? 'After the trade' : 'Before the trade' })),
+        ruleBreaks: R.ruleBreaks, mindset: plan.mindset || null, executionRating: R.rating || null,
+        mt4: { mode: plan.mode, source: 'planner', plan: { id: plan.id, systems: sys, read, followed: R.followed, check: X.planCheck(R.followed, so), reflection: R.reflection, range: plan.range, plannedAt: plan.createdAt, takenAt: plan.takenAt || null } },
+        cycleNumber: readCycleLocal().currentCycle
+    };
+    const btn = document.querySelector('[data-act="log"]'); if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    let journals = { journals: {}, tradeCounter: 1 };
+    try { const c = JSON.parse(localStorage.getItem('xX_journal_data') || '{}'); if (c.journals) journals = c; } catch (e) { /* none yet */ }
+    journals.journals[tradeId] = trade;
+    try { const live = reconcileCycles(readCycleLocal(), null, Object.values(journals.journals)); localStorage.setItem('xX_journal_data', JSON.stringify(journals)); writeCycleLocal(live); } catch (e) { /* storage full */ }
+    const res = await saveTrade(tradeId, trade);
+    if (!res.success) { showToast('Cloud save failed: ' + (res.error || 'unknown error'), 'error', 5000); if (btn) { btn.disabled = false; btn.textContent = 'Log this trade'; } return; }
+    delete plans[plan.id]; writeLocalPlans(plans); deletePlanCloud(plan.id);
+    const nxt = sys.map((s) => `${s.sys} L${X.nextLevel(s.sys, s.level, s.outcome)}`).join(', ');
+    showToast(`Logged. Next: ${nxt}`, 'success', 3500);
+    setTimeout(() => { location.href = '/dashboard.html'; }, 1100);
+}
+
+function fromInbox() {
+    const raw = sessionStorage.getItem('xX_pending_prefill'); if (!raw) return false;
+    sessionStorage.removeItem('xX_pending_prefill');
+    try {
+        const parts = (JSON.parse(raw).line || '').split(',');
+        if (parts.length < 10) return false;
+        const [ticket, datetime, symbol, dir, , , , out, mode, level] = parts;
+        const [d, t] = String(datetime).split(' ');
+        const base = String(mode || '').split('-')[0], rr = String(mode || '').split('-')[1] || '1:2';
+        plan = blankPlan();
+        plan.pair = symbol || ''; plan.direction = String(dir || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
+        if (X.MODES[base]) plan.mode = base;
+        plan.date = d || TODAY; plan.time = (t || '').slice(0, 5);
+        plan.systems = [{ sys: X.SYSTEMS.includes(rr) ? rr : '1:2', level: Math.min(Math.max(parseInt(level, 10) || 1, 1), 10) }];
+        plan.status = 'taken'; plan.takenAt = Date.now(); plan.fromEA = { ticket };
+        const o = X.normOutcome(out); if (o) plan.result.outcomes[plan.systems[0].sys] = o;
+        plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan);
+        view = 'result';
+        const b = $('#eaBanner'); b.style.display = 'block'; b.textContent = `Inbox trade #${ticket}: ${symbol} ${dir}. Fill in the plan details if you like, then add the market read and the result.`;
+        return true;
+    } catch (e) { return false; }
+}
+
+// ---------- events ----------
+document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-step],[data-go],[data-act],[data-open],[data-del],[data-mode],[data-dir],[data-ex],[data-se],[data-sys],[data-bias],[data-mind],[data-out],[data-fol],[data-rb],[data-rate],[data-drop],[data-rmshot]');
+    if (!el || !plan) return;
+    const d = el.dataset;
+    if (d.step) { if (d.step === '__result') { view = 'result'; renderAll(); } else go(d.step); return; }
+    if (d.go) return go(d.go);
+    if (d.open) return open(d.open);
+    if (d.del) { if (!confirm('Delete this plan?')) return; const was = plan.id === d.del; delete plans[d.del]; writeLocalPlans(plans); deletePlanCloud(d.del); if (was) newPlan(); else renderPlans(); return; }
+    if (d.drop) { el.querySelector('input').click(); return; }
+    if (d.rmshot) { plan.screenshots.splice(+d.rmshot, 1); touch(); return renderStage(); }
+    if (d.mode) { plan.mode = d.mode; touch(); return renderStage(); }
+    if (d.dir) { plan.direction = d.dir; touch(); return renderStage(); }
+    if (d.ex) { plan.execution = plan.execution === d.ex ? '' : d.ex; touch(); return renderStage(); }
+    if (d.se) { plan.session = plan.session === d.se ? '' : d.se; touch(); return renderStage(); }
+    if (d.sys) {
+        const L = lad || X.ladder(history);
+        if (hasSys(d.sys)) plan.systems = plan.systems.filter((s) => s.sys !== d.sys);
+        else { plan.systems.push({ sys: d.sys, level: L.levels[d.sys] || 1 }); plan.systems.sort((a, b) => X.SYSTEMS.indexOf(a.sys) - X.SYSTEMS.indexOf(b.sys)); }
+        touch(); return renderStage();
+    }
+    if (d.bias) { const [k, v] = d.bias.split(':'); plan.read[k].bias = plan.read[k].bias === v ? '' : v; touch(); return renderStage(); }
+    if (d.mind) { plan.mindset = +d.mind; touch(); return renderStage(); }
+    if (d.out) { const k = d.out.lastIndexOf(':'), s = d.out.slice(0, k), v = d.out.slice(k + 1); plan.result.outcomes[s] = v; touch(); return renderStage(); }
+    if (d.fol) { plan.result.followed = d.fol === '1'; touch(); return renderStage(); }
+    if (d.rate) { plan.result.rating = +d.rate; touch(); return renderStage(); }
+    if (d.rb) {
+        const rb = plan.result.ruleBreaks;
+        if (d.rb === '__none') plan.result.ruleBreaks = [];
+        else { const i = rb.indexOf(d.rb); if (i >= 0) rb.splice(i, 1); else rb.push(d.rb); }
+        touch(); return renderStage();
+    }
+    const a = d.act; if (!a) return;
+    const i = X.STEPS.findIndex((s) => s.id === step);
+    if (a === 'next') return go(X.STEPS[Math.min(i + 1, X.STEPS.length - 1)].id);
+    if (a === 'prev') return go(X.STEPS[Math.max(i - 1, 0)].id);
+    if (a === 'save') { plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan).then((ok) => showToast(ok ? 'Draft saved' : 'Draft saved on this device', ok ? 'success' : 'info')); return renderPlans(); }
+    if (a === 'plan') { if (X.missing(plan).length) return; plan.status = 'planned'; plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan); showToast('Planned. Place it in MetaTrader.', 'success'); return renderAll(); }
+    if (a === 'taken') { plan.status = 'taken'; plan.takenAt = Date.now(); plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan); view = 'result'; return renderAll(); }
+    if (a === 'to-result') { view = 'result'; return renderAll(); }
+    if (a === 'back-plan') { view = 'plan'; step = 'review'; return renderAll(); }
+    if (a === 'new') return newPlan();
+    if (a === 'log') return logTrade();
+});
+
+document.addEventListener('input', (e) => {
+    const t = e.target; if (!plan) return;
+    if (t.dataset.f) { plan[t.dataset.f] = t.value; touch(); if ((t.dataset.f === 'date' || t.dataset.f === 'time') && $('#checks')) $('#checks').innerHTML = nowCheck().map((c) => `<div class="chk ${c.unknown ? 'unk' : c.ok ? 'ok' : 'bad'}"><span class="ic">${c.unknown ? '•' : c.ok ? '✓' : '✕'}</span><span>${esc(c.text)}</span></div>`).join(''); renderStepper(); }
+    else if (t.dataset.note) { plan.read[t.dataset.note].note = t.value; touch(); renderStepper(); }
+    else if (t.dataset.res) { plan.result[t.dataset.res] = t.value; touch(); }
+    else if (t.dataset.r) { plan.range[t.dataset.r] = t.value; touch(); const o = document.createElement('div'); o.innerHTML = rangeHTML(); $('#rangeOut').innerHTML = o.querySelector('#rangeOut').innerHTML; }
+});
+document.addEventListener('change', (e) => {
+    const t = e.target; if (!plan) return;
+    if (t.dataset.lvl) { const s = plan.systems.find((x) => x.sys === t.dataset.lvl); if (s) s.level = +t.value; touch(); renderStepper(); }
+    else if (t.dataset.f === 'pair') { plan.pair = t.value; touch(); renderStepper(); }
+    else if (t.dataset.file) { addShots(t.files, t.dataset.file); t.value = ''; }
+});
+
+// ---------- start ----------
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await requireAuth('/planner.html'); if (!user) return;
+    await requirePin();
+    injectBottomNav('planner');
+    await loadHistory();
+    plans = await loadPlans();
+    lad = X.ladder(history);
+    if (fromInbox()) { renderAll(); return; }
+    const want = new URLSearchParams(location.search).get('plan');
+    const list = Object.values(plans).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (want && plans[want]) { plan = plans[want]; step = plan.status === 'draft' ? 'status' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; }
+    else if (list.length) { plan = list[0]; step = plan.status === 'draft' ? 'status' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; }
+    else plan = blankPlan();
+    renderAll();
+});
+</script>
+</body>
+</html>

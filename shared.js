@@ -106,7 +106,7 @@ export function injectBottomNav(activePage) {
 
         [
             ['/', '🏠', 'HOME', 'home'],
-            ['/journal.html', '📝', 'TRADE', 'journal'],
+            ['/planner.html', '📝', 'PLAN', 'planner'],
             ['/dashboard.html', '📊', 'DASH', 'dashboard'],
             ['/lab.html', '🧪', 'LAB', 'lab'],
             ['/improvement.html', '🔧', 'IMPROVE', 'improvement'],
