@@ -85,7 +85,7 @@
             <div><div class="name">xX Trading</div><div class="sub">Analytics</div></div>
         </div>
         <a href="/" class="nav-link" title="Home"><span class="ic">🏠</span><span class="lbl">Home</span></a>
-        <a href="/planner.html" class="nav-link" title="Trade Planner"><span class="ic">📝</span><span class="lbl">Trade Planner</span></a>
+        <a href="/journal.html" class="nav-link" title="Trade Journal"><span class="ic">📝</span><span class="lbl">Trade Journal</span></a>
         <a href="/dashboard.html" class="nav-link" title="Dashboard"><span class="ic">📊</span><span class="lbl">Dashboard</span></a>
         <a href="/analytics.html" class="nav-link active" title="Analytics"><span class="ic">📈</span><span class="lbl">Analytics</span></a>
         <a href="/lab.html" class="nav-link" title="Lab"><span class="ic">🧪</span><span class="lbl">Lab</span></a>
@@ -163,12 +163,12 @@
     </div>
     <div class="cards-2col">
         <div class="card">
-            <div class="card-title">REWARD MODEL PERFORMANCE (1:2 / 1:3 / 1:5)</div>
+            <div class="card-title">SYSTEM PERFORMANCE (1:2 / 1:3 / 1:5)</div>
             <div class="chart-wrap" style="height:180px;"><canvas id="rrChart"></canvas></div>
             <div id="rrPerf" style="margin-top:10px;"></div>
         </div>
         <div class="card">
-            <div class="card-title">LEVEL PERFORMANCE (1-10)</div>
+            <div class="card-title">LEVEL PERFORMANCE (ALL SYSTEMS)</div>
             <div class="chart-wrap" style="height:180px;"><canvas id="levelChart"></canvas></div>
             <div id="levelPerf" style="margin-top:10px;"></div>
         </div>
@@ -205,10 +205,23 @@
         <div class="chart-wrap"><canvas id="tcAloneChart"></canvas></div>
         <div id="tcAloneTable" style="margin-top:14px;"></div>
     </div>
+    <div class="cards-2col">
+        <div class="card">
+            <div class="card-title">PLAN COMPLIANCE</div>
+            <div id="planPerf"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">WEEKLY LOCK</div>
+            <div id="lockPerf"></div>
+            <div class="card-title" style="margin-top:20px;">MOST COMMON RULE BREAKS</div>
+            <div id="breakPerf"></div>
+        </div>
+    </div>
 
     </main>
 </div>
 
+<script src="/planner-logic.js"></script>
 <script type="module">
 import { requireAuth, requireAuthFast, requirePin, showToast, syncToLocalStorage } from '/shared.js';
 
@@ -239,6 +252,7 @@ function init() {
     renderTables();
     renderModelPerf();
     renderRrLevelPerf();
+    renderCompliance();
     renderHTFRefined();
     renderTCEntry();
     renderTCAlone();
@@ -413,21 +427,42 @@ function renderModelPerf() {
 }
 
 // Reward model (1:2 / 1:3 / 1:5) and level (1-10) performance, from what the trader chose on each trade.
+// every ticket of every trade: a planned setup has one per system with its own result, an old record has its reward models and one result
+function tickets() {
+    const P = window.XPlan, out = [];
+    trades.forEach(t => P.systemsOf(t).forEach(s => out.push({ sys: s.sys, level: s.level, outcome: P.normOutcome(s.outcome) })));
+    return out;
+}
 function renderRrLevelPerf() {
-    // a trade taken on several models (rr like '1:2,1:3') counts under each of them
-    const rrOfTrade = x => String(x.rr || '').split(',').filter(Boolean);
-    const rrItems = ['1:2', '1:3', '1:5'].map(m => { const t = trades.filter(x => rrOfTrade(x).includes(m)); return { label: m, wins: t.filter(x => x.outcome === 'WIN').length, total: t.length }; });
-    const noRr = trades.filter(x => !rrOfTrade(x).length);
-    if (noRr.length) rrItems.push({ label: 'N/A', wins: noRr.filter(x => x.outcome === 'WIN').length, total: noRr.length });
+    const tk = tickets(), win = x => x.outcome === 'win';
+    const rrItems = ['1:2', '1:3', '1:5'].map(m => { const t = tk.filter(x => x.sys === m && x.outcome); return { label: m, wins: t.filter(win).length, total: t.length }; });
     const rrData = rrItems.filter(i => i.total);
     barChart('rrChart', rrData.map(i => i.label), rrData.map(i => wr(i.wins, i.total)), rrData.map(i => color(wr(i.wins, i.total))));
     document.getElementById('rrPerf').innerHTML = perfHtml(rrData);
     const lvItems = [];
-    for (let n = 1; n <= 10; n++) { const t = trades.filter(x => x.level === n); if (t.length) lvItems.push({ label: 'L' + n, wins: t.filter(x => x.outcome === 'WIN').length, total: t.length }); }
+    for (let n = 1; n <= 10; n++) { const t = tk.filter(x => x.level === n && x.outcome); if (t.length) lvItems.push({ label: 'L' + n, wins: t.filter(win).length, total: t.length }); }
     barChart('levelChart', lvItems.map(i => i.label), lvItems.map(i => wr(i.wins, i.total)), lvItems.map(i => color(wr(i.wins, i.total))));
     document.getElementById('levelPerf').innerHTML = perfHtml(lvItems);
 }
-
+function renderCompliance() {
+    const P = window.XPlan, planned = trades.filter(t => t.mt4 && t.mt4.plan && t.mt4.plan.followed != null);
+    const el = document.getElementById('planPerf');
+    const lock = P.weeklyLock(trades, { date: new Date().toISOString().slice(0, 10) });
+    document.getElementById('lockPerf').innerHTML = `<div class="perf-item"><span class="perf-label">Losing setups in a row</span><span class="perf-val ${lock.streak?'negative':'positive'}">${lock.streak} / ${lock.limit}</span></div>`
+      + `<div class="perf-item"><span class="perf-label">Weekly lock</span><span class="perf-val ${lock.locked?'negative':'positive'}">${lock.locked ? 'Until Monday ' + lock.until : 'Not locked'}</span></div>`;
+    const bk = {}; trades.forEach(t => (t.ruleBreaks || []).forEach(r => { bk[r] = (bk[r] || 0) + 1; }));
+    const top = Object.entries(bk).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    document.getElementById('breakPerf').innerHTML = top.length ? top.map(([r, n]) => `<div class="perf-item"><span class="perf-label">${r}</span><span class="perf-val negative">${n}</span></div>`).join('') : '<div class="empty-state">No rule breaks logged</div>';
+    if (!planned.length) { el.innerHTML = '<div class="empty-state">Trades logged from the Trade Journal will show here.</div>'; return; }
+    const cnt = k => planned.filter(t => P.planCheck(t.mt4.plan.followed, P.setupOutcome(P.systemsOf(t))) === k).length;
+    const fol = planned.filter(t => t.mt4.plan.followed), brk = planned.filter(t => !t.mt4.plan.followed);
+    const w = a => a.filter(t => P.setupOutcome(P.systemsOf(t)) === 'win').length;
+    const rows = [['Good wins (plan followed)', cnt('good_win')], ['Bad wins (plan broken)', cnt('bad_win')], ['Good losses (plan followed)', cnt('good_loss')], ['Bad losses (plan broken)', cnt('bad_loss')]];
+    el.innerHTML = rows.map(([l, n]) => `<div class="perf-item"><span class="perf-label">${l}</span><span class="perf-val">${n}</span></div>`).join('')
+      + `<div class="perf-item"><span class="perf-label">Plan followed</span><span class="perf-val ${fol.length/planned.length>=0.8?'positive':'negative'}">${wr(fol.length, planned.length)}% (${fol.length}/${planned.length})</span></div>`
+      + `<div class="perf-item"><span class="perf-label">Win rate when followed</span><span class="perf-val">${fol.length ? wr(w(fol), fol.length) + '%' : '-'}</span></div>`
+      + `<div class="perf-item"><span class="perf-label">Win rate when broken</span><span class="perf-val">${brk.length ? wr(w(brk), brk.length) + '%' : '-'}</span></div>`;
+}
 function renderHTFRefined() {
     const refined = ['H1EF','H1EG','M30EF','M30EG'];
     const withH4  = trades.filter(t=>(t.checklist||[]).includes('H4'));

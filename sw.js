@@ -7,7 +7,6 @@ const PRECACHE = [
     '/register.html',
     '/lock.html',
     '/journal.html',
-    '/planner.html',
     '/planner-logic.js',
     '/plans-db.js',
     '/dashboard.html',
