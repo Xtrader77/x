@@ -196,7 +196,7 @@
 <script src="/planner-logic.js"></script>
 <script type="module">
 import { requireAuth, requirePin, showToast, readCycleLocal, writeCycleLocal, reconcileCycles, injectBottomNav } from '/shared.js';
-import { saveTrade, loadAllTrades, loadCycles } from '/db.js';
+import { saveTrade, loadAllTrades, loadCycles, supabase } from '/db.js';
 import { loadPlans, writeLocalPlans, savePlanCloud, deletePlanCloud } from '/plans-db.js';
 
 const X = window.XPlan;
@@ -334,11 +334,35 @@ function systemsHTML() {
     return `<h2>Systems and levels</h2><p class="lead">Switch on the systems this setup will run and set the level each one trades at. The levels come from your results. Change one only if you have a reason, for example a retry.</p>${rows}<div class="hint" style="margin-top:12px">One setup is up to three tickets, one per system. All of them share the same entry and stop.</div>`;
 }
 
+async function fillFromBrief() {
+    const say = (t) => { const m = document.getElementById('briefMsg'); if (m) m.textContent = t; };
+    say('Looking…');
+    let row = null;
+    try {
+        const r = await Promise.race([supabase.from('fundamentals_briefs').select('pair,made_at,lean,confidence,headline,valid_for,partial,run').eq('pair', plan.pair).order('made_at', { ascending: false }).limit(1), new Promise((res) => setTimeout(() => res({ data: null }), 6000))]);
+        row = r && r.data && r.data[0];
+    } catch (e) { row = null; }
+    if (!row) return say('No brief available for this pair right now.');
+    const age = Date.now() - new Date(row.made_at).getTime();
+    const when = new Date(row.made_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const bias = { Bullish: 'up', Bearish: 'down', Neutral: 'range' }[row.lean] || '';
+    const evs = row.run && Array.isArray(row.run.events) ? row.run.events : [];
+    const ev = evs.slice(0, 4).map((e) => e && e.title ? `${e.currency ? e.currency + ' ' : ''}${e.title}` : '').filter(Boolean);
+    const line = `NOVA brief (${when}): ${row.lean || 'Unclear'}${row.confidence ? ', ' + row.confidence + ' confidence' : ''}. ${row.headline ? ' ' + row.headline.replace(/[.\s]+$/, '') + '.' : ''}${row.valid_for ? ' Valid for ' + row.valid_for + '.' : ''}${ev.length ? ' Events: ' + ev.join('; ') + '.' : ''}${row.partial ? ' (numbers only)' : ''}${age > 36 * 3600e3 ? ' (old brief)' : ''}`.trim();
+    const sh = plan.read.short;
+    if (sh.note.includes('NOVA brief')) return say('Already added.');
+    sh.note = sh.note ? sh.note + '\n' + line : line;
+    if (!sh.bias && bias) sh.bias = bias;
+    touch(); renderStage();
+}
+
 function readHTML() {
     const blocks = READS.map(([k, name, help]) => `<div class="read"><div class="hd">${name}<div class="hint" style="margin:3px 0 0;font-weight:400">${help}</div></div>
     <div class="bias">${BIAS.map(([v, n]) => `<button class="pill ${plan.read[k].bias === v ? 'sel' : ''}" data-bias="${k}:${v}">${n}</button>`).join('')}</div>
     <textarea data-note="${k}" placeholder="What do you see?">${esc(plan.read[k].note)}</textarea></div>`).join('');
-    return `<h2>Market read</h2><p class="lead">Write down what the market is doing before you trade it. A bias or a note on any one of the three is enough to continue.</p>${blocks}
+    const BRIEF_PAIRS = ['XAUUSD', 'NAS100', 'EURUSD', 'GBPUSD', 'AUDUSD', 'USDJPY'];
+    const briefBtn = BRIEF_PAIRS.includes(plan.pair) ? `<div class="hint" style="margin:0 0 14px"><button class="pill" style="flex:none;padding:8px 14px" data-act="brief">Fill from today's NOVA brief</button><span id="briefMsg" style="margin-left:10px"></span><br>Fills the short term box with the ${esc(plan.pair)} brief from NOVA. It never replaces what you already wrote.</div>` : '';
+    return `<h2>Market read</h2><p class="lead">Write down what the market is doing before you trade it. A bias or a note on any one of the three is enough to continue.</p>${briefBtn}${blocks}
     <h3>WHY THIS SETUP</h3><input type="text" data-f="reason" placeholder="One line: what makes this the setup?" value="${esc(plan.reason)}">
     <h3>CHART BEFORE THE TRADE</h3>${shotsHTML('pre')}`;
 }
@@ -522,6 +546,7 @@ document.addEventListener('click', (e) => {
         touch(); return renderStage();
     }
     const a = d.act; if (!a) return;
+    if (a === 'brief') return fillFromBrief();
     const i = X.STEPS.findIndex((s) => s.id === step);
     if (a === 'next') return go(X.STEPS[Math.min(i + 1, X.STEPS.length - 1)].id);
     if (a === 'prev') return go(X.STEPS[Math.max(i - 1, 0)].id);
