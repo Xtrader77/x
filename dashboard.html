@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | xX Trading</title>
+    <title>Dashboard | NOVA Journal</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a0a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -214,13 +214,14 @@
 
         .empty-state { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 15px; line-height: 1.6; }
     </style>
+    <link rel="stylesheet" href="/shell.css">
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="mark">xX</div>
-            <div><div class="name">xX Trading</div><div class="sub">Dashboard</div></div>
+            <div class="mark">N</div>
+            <div><div class="name">NOVA</div><div class="sub">Dashboard</div></div>
         </div>
         <a href="/" class="nav-link" title="Home"><span class="ic">🏠</span><span class="lbl">Home</span></a>
         <a href="/journal.html" class="nav-link" title="Trade Journal"><span class="ic">📝</span><span class="lbl">Trade Journal</span></a>
@@ -907,7 +908,7 @@ function exportPDF() {
     const total  = trades.length;
 
     doc.setFontSize(18); doc.setFont(undefined,'bold');
-    doc.text('xX Trading Journal — Dashboard', 14, 20);
+    doc.text('NOVA Journal — Dashboard', 14, 20);
     doc.setFontSize(10); doc.setFont(undefined,'normal');
     doc.text(`Generated: ${new Date().toLocaleDateString()} | Total Trades: ${total} | Win Rate: ${total?((wins/total)*100).toFixed(1):0}%`, 14, 30);
 

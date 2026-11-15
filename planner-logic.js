@@ -165,30 +165,23 @@
   }
 
   const STEPS = [
-    { id: 'status', title: 'Status' },
-    { id: 'rules', title: 'Rules check' },
-    { id: 'setup', title: 'Pair and mode' },
-    { id: 'systems', title: 'Systems and levels' },
+    { id: 'setup', title: 'The trade' },
     { id: 'read', title: 'Market read' },
-    { id: 'mind', title: 'Mindset and notes' },
-    { id: 'review', title: 'Review' }
+    { id: 'review', title: 'Place it' }
   ];
 
-  // what is still missing before the plan can be marked Planned
+  // what is still missing before the plan can be marked Planned.
+  // Only what the EA needs is required; the market read and mindset are worth doing but never block a plan.
   function missing(plan) {
     const p = plan || {}, miss = [];
     if (!p.pair) miss.push({ step: 'setup', text: 'Choose the pair' });
     if (!p.direction) miss.push({ step: 'setup', text: 'Choose buy or sell' });
     if (!MODES[p.mode]) miss.push({ step: 'setup', text: 'Choose the mode (xY5, xY7 or xY10)' });
-    if (!p.date) miss.push({ step: 'rules', text: 'Enter the date' });
-    if (!p.time) miss.push({ step: 'rules', text: 'Enter the time on your MetaTrader clock' });
+    if (!p.date) miss.push({ step: 'setup', text: 'Enter the date' });
+    if (!p.time) miss.push({ step: 'setup', text: 'Enter the time on your MetaTrader clock' });
     const on = (p.systems || []).filter((s) => SYSTEMS.includes(s.sys));
-    if (!on.length) miss.push({ step: 'systems', text: 'Switch on at least one system' });
-    on.forEach((s) => { if (!(s.level >= 1 && s.level <= MAX_LEVEL[s.sys])) miss.push({ step: 'systems', text: `Set a level for ${s.sys}` }); });
-    const r = p.read || {};
-    const hasRead = ['long', 'mid', 'short'].some((k) => { const v = r[k]; return v && (typeof v === 'string' ? v.trim() : ((v.note || '').trim() || v.bias)); });
-    if (!hasRead) miss.push({ step: 'read', text: 'Write your market read (bias or a note for long, mid or short term)' });
-    if (!p.mindset) miss.push({ step: 'mind', text: 'Rate your mindset' });
+    if (!on.length) miss.push({ step: 'setup', text: 'Switch on at least one system' });
+    on.forEach((s) => { if (!(s.level >= 1 && s.level <= MAX_LEVEL[s.sys])) miss.push({ step: 'setup', text: `Set a level for ${s.sys}` }); });
     return miss;
   }
 

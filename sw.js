@@ -1,5 +1,5 @@
-// xX Trading Journal — Service Worker v4 (cache-first, fast)
-const CACHE = 'xx-v9';
+// NOVA Journal — Service Worker v4 (cache-first, fast)
+const CACHE = 'nova-v10';
 const PRECACHE = [
     '/',
     '/index.html',
@@ -7,6 +7,7 @@ const PRECACHE = [
     '/register.html',
     '/lock.html',
     '/journal.html',
+    '/shell.css',
     '/planner-logic.js',
     '/plans-db.js',
     '/dashboard.html',

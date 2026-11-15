@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trade Journal | xX Trading</title>
+    <title>Trade Journal | NOVA Journal</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -151,12 +151,21 @@
             .btn { flex:1; padding:14px 10px; } .btn.sp { margin-left:0; }
         }
         @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+        .ladbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:#0c0c0c; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:var(--dim); }
+        .lchips { display:flex; gap:8px; flex-wrap:wrap; }
+        .lchip { border-left:3px solid var(--s12); background:rgba(255,255,255,.05); border-radius:8px; padding:5px 10px; color:#fff; }
+        .lchip.c13 { border-left-color:var(--s13); } .lchip.c15 { border-left-color:var(--s15); } .lchip.off { opacity:.45; }
+        .lrow { display:flex; align-items:center; gap:8px; } .lrow .dot { width:11px; height:11px; }
+        details.more { margin-top:18px; border-top:1px solid var(--line); padding-top:12px; }
+        details.more summary { cursor:pointer; color:var(--dim); font-size:13px; font-weight:600; padding:6px 0; }
+        details.more summary:hover { color:#fff; }
     </style>
+    <link rel="stylesheet" href="/shell.css">
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar">
-        <div class="sidebar-brand"><div class="mark">xX</div><div><div class="name">xX TRADING</div><div class="sub">JOURNAL</div></div></div>
+        <div class="sidebar-brand"><div class="mark">N</div><div><div class="name">NOVA</div><div class="sub">JOURNAL</div></div></div>
         <a href="/" class="nav-link" title="Home"><span class="ic">🏠</span><span class="lbl">Home</span></a>
         <a href="/journal.html" class="nav-link active" title="Trade Journal"><span class="ic">📝</span><span class="lbl">Trade Journal</span></a>
         <a href="/dashboard.html" class="nav-link" title="Dashboard"><span class="ic">📊</span><span class="lbl">Dashboard</span></a>
@@ -172,12 +181,13 @@
         <div class="header">
             <div>
                 <h1>Trade Journal</h1>
-                <div class="subtitle">Plan the setup before you place it. Log it when it closes.</div>
+                <div class="subtitle">Three quick steps to plan a trade. Log it when it closes.</div>
             </div>
             <a href="/" class="btn-ghost">← Home</a>
         </div>
 
         <div id="eaBanner" class="banner" style="display:none"></div>
+        <div id="ladderBar" class="ladbar"></div>
 
         <div class="workspace">
             <div class="col">
@@ -216,17 +226,19 @@ const uid = () => 'PLAN_' + Date.now() + '_' + Math.random().toString(36).slice(
 let history = [];            // closed trades
 let plans = {};              // all unfinished plans
 let plan = null;             // the plan on screen
-let step = 'status';
+let step = 'setup';
 let view = 'plan';           // 'plan' | 'result'
 let lad = null;
 let saveTimer = null, cloudTimer = null;
 
 // ---------- data ----------
+const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function lastMode() { const t = history.filter((h) => h && X.MODES[h.model]).sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))[0]; return t ? t.model : ''; }
 function blankPlan() {
     const l = X.ladder(history);
     return {
         id: uid(), status: 'draft', createdAt: Date.now(), updatedAt: Date.now(),
-        date: TODAY, time: '', pair: '', direction: '', mode: '', execution: '', session: '',
+        date: TODAY, time: nowHM(), pair: '', direction: '', mode: lastMode(), execution: '', session: '',
         systems: X.SYSTEMS.filter((s) => l.on[s]).map((s) => ({ sys: s, level: l.levels[s] })),
         read: { long: { bias: '', note: '' }, mid: { bias: '', note: '' }, short: { bias: '', note: '' } },
         reason: '', mindset: 0, mindNote: '', range: { adr: '', up: '', down: '' },
@@ -234,7 +246,7 @@ function blankPlan() {
         screenshots: []
     };
 }
-const isEmpty = (p) => !p.pair && !p.direction && !p.mode && !p.time && !p.reason && !p.mindset && !(p.screenshots || []).length && !['long', 'mid', 'short'].some((k) => p.read[k].bias || p.read[k].note);
+const isEmpty = (p) => !p.pair && !p.direction && (!p.mode || p.mode === lastMode()) && !p.reason && !p.mindset && !(p.screenshots || []).length && !['long', 'mid', 'short'].some((k) => p.read[k].bias || p.read[k].note);
 
 function touch() {
     plan.updatedAt = Date.now();
@@ -258,37 +270,30 @@ const modeT = () => X.targetsFor(plan.mode);
 const onSys = () => plan.systems.filter((s) => X.SYSTEMS.includes(s.sys));
 const hasSys = (s) => !!plan.systems.find((x) => x.sys === s);
 function stepDone(id) {
-    const miss = X.missing(plan).filter((m) => m.step === id);
-    if (id === 'status') return true;
-    if (id === 'rules') return !!plan.date && !!plan.time;
-    return miss.length === 0 && (id !== 'mind' || !!plan.mindset);
+    if (id === 'setup') return X.missing(plan).length === 0;
+    if (id === 'read') return ['long', 'mid', 'short'].some((k) => plan.read[k].bias || (plan.read[k].note || '').trim());
+    return false;
 }
 
 // ---------- rendering ----------
 function renderStepper() {
-    const steps = X.STEPS.map((s, i) => `<button class="stp ${step === s.id && view === 'plan' ? 'on' : ''} ${stepDone(s.id) && s.id !== 'status' && s.id !== 'review' ? 'done' : ''}" data-step="${s.id}"><span class="n">${stepDone(s.id) && s.id !== 'status' && s.id !== 'review' ? '✓' : i + 1}</span>${esc(s.title)}</button>`);
+    const steps = X.STEPS.map((s, i) => { const d = stepDone(s.id); return `<button class="stp ${step === s.id && view === 'plan' ? 'on' : ''} ${d ? 'done' : ''}" data-step="${s.id}"><span class="n">${d ? '✓' : i + 1}</span>${esc(s.title)}${s.id === 'read' ? ' <small style="opacity:.6">(optional)</small>' : ''}</button>`; });
     if (plan.status === 'taken') steps.push(`<button class="stp ${view === 'result' ? 'on' : ''}" data-step="__result"><span class="n">${X.STEPS.length + 1}</span>Result</button>`);
     $('#stepper').innerHTML = steps.join('');
 }
 
-function statusHTML() {
+function renderLadder() {
     const L = lad || X.ladder(history), lock = X.weeklyLock(history, { date: plan.date || TODAY });
-    const cards = X.SYSTEMS.map((s) => {
-        const on = L.on[s];
-        return `<div class="sys ${COLORS[s]} ${on ? '' : 'off'}"><div class="nm">${NAMES[s]}</div><div class="meta">${on ? `Next level <b>${L.levels[s]}</b>` : `Off. It joins when <b>${GATE[s]}</b> will trade at level ${X.UNLOCK_AT}.`}</div><span class="tag ${on ? 'on' : 'off'}">${on ? 'On' : 'Off'}</span></div>`;
-    }).join('<div style="height:10px"></div>');
+    const chips = X.SYSTEMS.map((s) => `<span class="lchip ${COLORS[s]} ${L.on[s] ? '' : 'off'}"><b>${NAMES[s]}</b> ${L.on[s] ? 'level ' + L.levels[s] : 'off'}</span>`).join('');
     const dots = Array.from({ length: lock.limit }, (_, i) => `<span class="dot ${i < lock.streak ? 'f' : ''}"></span>`).join('');
-    return `<h2>Where you stand</h2><p class="lead">Worked out from your logged trades. A win moves a system up a level, a loss moves it one back, breakeven or a partial repeats the level. You can change any level in step 4.</p>${cards}
-    <h3>LOSING SETUPS IN A ROW</h3><div class="dots">${dots}</div>
-    <div class="hint">${lock.locked ? `<span style="color:var(--warn)">Locked until Monday ${esc(lock.until)} 00:00 broker time.</span>` : `Three in a row locks the EA until next Monday 00:00 broker time. You are at ${lock.streak} of ${lock.limit}.`}</div>
-    ${history.length ? '' : '<div class="hint" style="margin-top:14px">No closed trades yet. Everything starts at level 1 with only 1:2 on.</div>'}`;
+    $('#ladderBar').innerHTML = `<div class="lchips">${chips}</div><div class="lrow" title="Three losing setups in a row lock the EA until Monday 00:00 broker time">${lock.locked ? `<span style="color:var(--warn)">Locked until Monday ${esc(lock.until)}</span>` : `<span>Losses in a row</span>${dots}`}</div>`;
 }
 
-function rulesHTML() {
-    const checks = nowCheck().map((c) => `<div class="chk ${c.unknown ? 'unk' : c.ok ? 'ok' : 'bad'}"><span class="ic">${c.unknown ? '•' : c.ok ? '✓' : '✕'}</span><span>${esc(c.text)}</span></div>`).join('');
-    return `<h2>Rules check</h2><p class="lead">When will you place this setup? Use the time on your MetaTrader clock (Market Watch). Red items are warnings. The journal cannot stop MetaTrader, but it will not let you pretend you did not see them.</p>
-    <div class="g2"><div><label class="l">DATE</label><input type="date" data-f="date" value="${esc(plan.date)}"></div><div><label class="l">TIME ON METATRADER CLOCK</label><input type="time" data-f="time" value="${esc(plan.time)}"></div></div>
-    <h3>CHECKS</h3><div id="checks">${checks}</div>`;
+function checksHTML() {
+    const list = nowCheck();
+    const bad = list.filter((c) => !c.ok && !c.unknown);
+    if (!bad.length) return `<div class="chk ok"><span class="ic">✓</span><span>${list.length ? 'No rule warnings for this time.' : 'No checks to run.'}</span></div>`;
+    return bad.map((c) => `<div class="chk bad"><span class="ic">✕</span><span>${esc(c.text)}</span></div>`).join('');
 }
 
 function rangeHTML() {
@@ -307,31 +312,34 @@ function rangeHTML() {
     return `<h3>TARGETS THAT FIT TODAY</h3><div class="g3"><div><label class="l">AVERAGE DAILY RANGE (PIPS)</label><input type="number" inputmode="decimal" data-r="adr" value="${esc(r.adr)}"></div><div><label class="l">TRAVELLED UP SO FAR</label><input type="number" inputmode="decimal" data-r="up" value="${esc(r.up)}"></div><div><label class="l">TRAVELLED DOWN SO FAR</label><input type="number" inputmode="decimal" data-r="down" value="${esc(r.down)}"></div></div><div id="rangeOut" style="margin-top:12px">${body}</div>`;
 }
 
+function systemsRowHTML() {
+    const L = lad || X.ladder(history), t = modeT();
+    return X.SYSTEMS.map((s) => {
+        const cur = plan.systems.find((x) => x.sys === s), gated = !L.on[s];
+        const opts = Array.from({ length: X.MAX_LEVEL[s] }, (_, i) => `<option value="${i + 1}" ${cur && cur.level === i + 1 ? 'selected' : ''}>Level ${i + 1}</option>`).join('');
+        return `<div class="sys ${COLORS[s]} ${cur ? '' : 'off'}"><div class="nm">${NAMES[s]}</div>
+        <div class="meta">${t ? `Target <b>${t.tp[s]} pips</b>` : 'Pick a mode to see the target'}${cur && gated ? `<br><span style="color:var(--warn)">The EA keeps ${NAMES[s]} off until ${GATE[s]} reaches level ${X.UNLOCK_AT}.</span>` : ''}</div>
+        ${cur ? `<select data-lvl="${s}" aria-label="Level for ${NAMES[s]}">${opts}</select>` : ''}
+        <button class="pill ${cur ? 'sel' : ''}" style="flex:none;min-width:70px" data-sys="${s}">${cur ? 'On' : 'Off'}</button></div>`;
+    }).join('');
+}
+
 function setupHTML() {
     const pairs = ['XAUUSD', 'NAS100', 'EURUSD', 'GBPUSD', 'AUDUSD', 'USDJPY', 'Other'];
     const modes = Object.keys(X.MODES).map((m) => { const t = X.MODES[m]; return `<button class="pill ${plan.mode === m ? 'sel' : ''}" data-mode="${m}">${m}<small>SL ${t.sl} pips</small></button>`; }).join('');
     const t = modeT();
-    const tbl = t ? `<h3>YOUR NUMBERS IN ${esc(plan.mode)}</h3><table class="t"><tr><th>Stop loss</th><th>Breakeven at</th>${X.SYSTEMS.map((s) => `<th>${NAMES[s]} target</th>`).join('')}</tr><tr><td>${t.sl} pips</td><td>${t.be} pips</td>${X.SYSTEMS.map((s) => `<td>${t.tp[s]} pips</td>`).join('')}</tr></table>` : '';
-    return `<h2>Pair and mode</h2><p class="lead">What are you trading, which way, and how wide is the stop?</p>
+    const tbl = t ? `<div class="hint" style="margin-top:10px">Stop loss <b style="color:#fff">${t.sl}</b> · breakeven at <b style="color:#fff">${t.be}</b> · ${X.SYSTEMS.map((s) => `${NAMES[s]} target <b style="color:#fff">${t.tp[s]}</b>`).join(' · ')} (pips)</div>` : '';
+    return `<h2>The trade</h2><p class="lead">Everything the EA needs, on one screen. Your usual mode and the time are already filled in.</p>
     <div class="g2"><div><label class="l">PAIR</label><select data-f="pair"><option value="">Select</option>${pairs.map((p) => `<option ${plan.pair === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
     <div><label class="l">DIRECTION</label><div class="pills"><button class="pill ${plan.direction === 'BUY' ? 'sel' : ''}" data-dir="BUY">Buy</button><button class="pill ${plan.direction === 'SELL' ? 'sel' : ''}" data-dir="SELL">Sell</button></div></div></div>
     <h3>MODE</h3><div class="pills">${modes}</div>${tbl}
+    <h3>WHEN</h3><div class="g2"><div><label class="l">DATE</label><input type="date" data-f="date" value="${esc(plan.date)}"></div><div><label class="l">TIME ON METATRADER CLOCK</label><input type="time" data-f="time" value="${esc(plan.time)}"></div></div>
+    <div id="checks" style="margin-top:10px">${checksHTML()}</div>
+    <h3>SYSTEMS</h3><div id="sysRows">${systemsRowHTML()}</div>
+    <details class="more"><summary>More options (entry type, session, daily range)</summary>
     <h3>HOW IT WILL ENTER</h3><div class="pills"><button class="pill ${plan.execution === 'limit' ? 'sel' : ''}" data-ex="limit">Limit</button><button class="pill ${plan.execution === 'instant' ? 'sel' : ''}" data-ex="instant">Instant</button></div>
     <h3>SESSION</h3><div class="pills">${[['asia', 'Asia'], ['london', 'London'], ['newyork', 'New York']].map(([k, n]) => `<button class="pill ${plan.session === k ? 'sel' : ''}" data-se="${k}">${n}</button>`).join('')}</div>
-    ${rangeHTML()}`;
-}
-
-function systemsHTML() {
-    const L = lad || X.ladder(history), t = modeT();
-    const rows = X.SYSTEMS.map((s) => {
-        const cur = plan.systems.find((x) => x.sys === s), gated = !L.on[s];
-        const opts = Array.from({ length: X.MAX_LEVEL[s] }, (_, i) => `<option value="${i + 1}" ${cur && cur.level === i + 1 ? 'selected' : ''}>Level ${i + 1}</option>`).join('');
-        return `<div class="sys ${COLORS[s]} ${cur ? '' : 'off'}"><div class="nm">${NAMES[s]}</div>
-        <div class="meta">${t ? `Target <b>${t.tp[s]} pips</b>, stop <b>${t.sl}</b>.` : 'Choose the mode in step 3 to see the target.'}<br>Worked out: ${L.on[s] ? `level <b>${L.levels[s]}</b>` : 'off right now'}.${cur && gated ? `<br><span style="color:var(--warn)">SuperNova keeps ${NAMES[s]} off until ${GATE[s]} will trade at level ${X.UNLOCK_AT}. Plan it only if your EA has it on.</span>` : ''}</div>
-        ${cur ? `<select data-lvl="${s}">${opts}</select>` : ''}
-        <button class="pill ${cur ? 'sel' : ''}" style="flex:none;min-width:70px" data-sys="${s}">${cur ? 'On' : 'Off'}</button></div>`;
-    }).join('<div style="height:10px"></div>');
-    return `<h2>Systems and levels</h2><p class="lead">Switch on the systems this setup will run and set the level each one trades at. The levels come from your results. Change one only if you have a reason, for example a retry.</p>${rows}<div class="hint" style="margin-top:12px">One setup is up to three tickets, one per system. All of them share the same entry and stop.</div>`;
+    ${rangeHTML()}</details>`;
 }
 
 async function fillFromBrief() {
@@ -362,9 +370,9 @@ function readHTML() {
     <textarea data-note="${k}" placeholder="What do you see?">${esc(plan.read[k].note)}</textarea></div>`).join('');
     const BRIEF_PAIRS = ['XAUUSD', 'NAS100', 'EURUSD', 'GBPUSD', 'AUDUSD', 'USDJPY'];
     const briefBtn = BRIEF_PAIRS.includes(plan.pair) ? `<div class="hint" style="margin:0 0 14px"><button class="pill" style="flex:none;padding:8px 14px" data-act="brief">Fill from today's NOVA brief</button><span id="briefMsg" style="margin-left:10px"></span><br>Fills the short term box with the ${esc(plan.pair)} brief from NOVA. It never replaces what you already wrote.</div>` : '';
-    return `<h2>Market read</h2><p class="lead">Write down what the market is doing before you trade it. A bias or a note on any one of the three is enough to continue.</p>${briefBtn}${blocks}
+    return `<h2>Market read</h2><p class="lead">Optional, and worth the 30 seconds. Tap a bias for each timeframe. Notes are only if you want them.</p>${briefBtn}${blocks}
     <h3>WHY THIS SETUP</h3><input type="text" data-f="reason" placeholder="One line: what makes this the setup?" value="${esc(plan.reason)}">
-    <h3>CHART BEFORE THE TRADE</h3>${shotsHTML('pre')}`;
+    <h3>CHART BEFORE THE TRADE</h3>${shotsHTML('pre')}${mindBlock()}`;
 }
 
 function shotsHTML(kind) {
@@ -372,18 +380,17 @@ function shotsHTML(kind) {
     return `<div class="drop" data-drop="${kind}">Tap to add a screenshot<input type="file" accept="image/*" multiple style="display:none" data-file="${kind}"></div>${list.length ? `<div class="shots">${list.map((x) => `<div class="shot"><img src="${x.s.data}" alt=""><button data-rmshot="${x.i}" aria-label="Remove">×</button></div>`).join('')}</div>` : ''}`;
 }
 
-function mindHTML() {
+function mindBlock() {
     const M = [['😤', 'Frustrated'], ['😟', 'Off'], ['😐', 'Neutral'], ['😊', 'Focused'], ['🔥', 'In the zone']];
-    return `<h2>Mindset and notes</h2><p class="lead">How are you, right now, before the trade?</p>
-    <div class="pills">${M.map(([e, n], i) => `<button class="pill ${plan.mindset === i + 1 ? 'sel' : ''}" data-mind="${i + 1}">${e}<small>${i + 1} ${n}</small></button>`).join('')}</div>
-    <h3>NOTES</h3><textarea data-f="mindNote" placeholder="Anything else you want on record before you place it">${esc(plan.mindNote)}</textarea>`;
+    return `<h3>HOW ARE YOU RIGHT NOW?</h3><div class="pills">${M.map(([e, n], i) => `<button class="pill ${plan.mindset === i + 1 ? 'sel' : ''}" data-mind="${i + 1}">${e}<small>${n}</small></button>`).join('')}</div>
+    <textarea data-f="mindNote" placeholder="Anything else for the record (optional)" style="margin-top:10px">${esc(plan.mindNote)}</textarea>`;
 }
 
 function reviewHTML() {
     const miss = X.missing(plan), sm = X.summary(plan), checks = nowCheck().filter((c) => !c.ok && !c.unknown);
     const rows = sm ? [['Pair', `${esc(plan.pair)} ${esc(plan.direction)}`], ['Mode', `${esc(plan.mode)}, stop ${sm.sl} pips`], ['When', `${esc(plan.date)} ${esc(plan.time)}`], ['Systems', sm.systems.map((s) => `${NAMES[s.sys]} L${s.level} (${s.tp} pips)`).join('<br>') || 'None']] : [];
     const warn = checks.length ? `<h3>RULES WARNINGS</h3>${checks.map((c) => `<div class="chk bad"><span class="ic">✕</span><span>${esc(c.text)}</span></div>`).join('')}` : '';
-    return `<h2>Review</h2><p class="lead">${miss.length ? 'A few steps are not finished yet. Fix them, then mark the plan as planned.' : plan.status === 'draft' ? 'Everything is filled in. Mark it as planned, then place the trade in MetaTrader.' : plan.status === 'planned' ? 'This plan is ready. Once you have placed the trade, tell the journal.' : 'This plan is on.'}</p>
+    return `<h2>Place it</h2><p class="lead">${miss.length ? 'Two or three things are still missing. Tap one to jump to it.' : plan.status === 'taken' ? 'This trade is on.' : 'Ready. Place the trade in MetaTrader, then tap the button below.'}</p>
     ${rows.map(([a, b]) => `<div class="sum-row"><span>${a}</span><b>${b}</b></div>`).join('')}${warn}
     ${miss.length ? `<h3>STILL MISSING</h3><div class="miss">${miss.map((m) => `<a data-go="${m.step}">${esc(m.text)}</a>`).join('<br>')}</div>` : ''}`;
 }
@@ -411,7 +418,7 @@ function resultHTML() {
 function renderStage() {
     let h = '';
     if (view === 'result') h = resultHTML();
-    else h = { status: statusHTML, rules: rulesHTML, setup: setupHTML, systems: systemsHTML, read: readHTML, mind: mindHTML, review: reviewHTML }[step]();
+    else h = { setup: setupHTML, read: readHTML, review: reviewHTML }[step]();
     $('#stage').innerHTML = h;
     renderFoot();
 }
@@ -424,10 +431,10 @@ function renderFoot() {
         h = `<button class="btn" data-act="back-plan">← Back to plan</button><button class="btn go sp" data-act="log" ${ok ? '' : 'disabled'}>Log this trade</button>`;
     } else {
         h = `<button class="btn" data-act="prev" ${i === 0 ? 'disabled' : ''}>Back</button>`;
-        if (step !== 'review') h += `<button class="btn" data-act="save">Save draft</button><button class="btn pri sp" data-act="next">Next</button>`;
-        else if (plan.status === 'draft') h += `<button class="btn" data-act="save">Save draft</button><button class="btn pri sp" data-act="plan" ${miss ? 'disabled' : ''}>Mark as planned</button>`;
-        else if (plan.status === 'planned') h += `<button class="btn pri sp" data-act="taken">I placed this trade</button>`;
-        else h += `<button class="btn go sp" data-act="to-result">Close the trade</button>`;
+        if (step === 'setup') h += `<button class="btn" data-act="save">Save draft</button><button class="btn pri sp" data-act="next">${miss ? 'Next' : 'Next: market read'}</button>`;
+        else if (step === 'read') h += `<button class="btn" data-act="save">Save draft</button><button class="btn pri sp" data-act="next">Next</button>`;
+        else if (plan.status === 'taken') h += `<button class="btn go sp" data-act="to-result">Close the trade</button>`;
+        else h += `<button class="btn" data-act="plan" ${miss ? 'disabled' : ''}>${plan.status === 'planned' ? 'Planned' : 'Save as planned'}</button><button class="btn pri sp" data-act="taken" ${miss ? 'disabled' : ''}>I placed this trade</button>`;
     }
     $('#foot').innerHTML = h;
 }
@@ -445,12 +452,12 @@ function renderPlans() {
     $('#plans').innerHTML = `<h2 style="margin-bottom:12px">Your plans</h2>${list.length ? list.map((p) => `<div class="it ${p.id === plan.id ? 'cur' : ''}"><div class="who" data-open="${p.id}">${esc(p.pair || 'New plan')} ${esc(p.direction)} ${esc(p.mode)}<small><span class="chip ${p.status}">${p.status}</span> ${esc(p.date || '')}</small></div><button data-del="${p.id}" aria-label="Delete plan">Delete</button></div>`).join('') : '<div class="hint">No unfinished plans.</div>'}<div style="margin-top:12px"><button class="btn" style="width:100%;padding:11px" data-act="new">+ New plan</button></div>`;
 }
 
-function renderAll() { renderStepper(); renderStage(); renderSummary(); renderPlans(); }
+function renderAll() { renderLadder(); renderStepper(); renderStage(); renderSummary(); renderPlans(); }
 
 // ---------- actions ----------
-function open(id) { plan = plans[id] || plan; step = plan.status === 'draft' ? 'status' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; renderAll(); window.scrollTo({ top: 0 }); }
+function open(id) { plan = plans[id] || plan; step = plan.status === 'draft' ? 'setup' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; renderAll(); window.scrollTo({ top: 0 }); }
 function go(s) { step = s; view = 'plan'; renderAll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-function newPlan() { plan = blankPlan(); step = 'status'; view = 'plan'; renderAll(); }
+function newPlan() { plan = blankPlan(); step = 'setup'; view = 'plan'; renderAll(); }
 
 function addShots(files, kind) {
     Array.from(files).forEach((f) => {
@@ -524,15 +531,15 @@ document.addEventListener('click', (e) => {
     if (d.del) { if (!confirm('Delete this plan?')) return; const was = plan.id === d.del; delete plans[d.del]; writeLocalPlans(plans); deletePlanCloud(d.del); if (was) newPlan(); else renderPlans(); return; }
     if (d.drop) { el.querySelector('input').click(); return; }
     if (d.rmshot) { plan.screenshots.splice(+d.rmshot, 1); touch(); return renderStage(); }
-    if (d.mode) { plan.mode = d.mode; touch(); return renderStage(); }
-    if (d.dir) { plan.direction = d.dir; touch(); return renderStage(); }
+    if (d.mode) { plan.mode = d.mode; touch(); renderStepper(); return renderStage(); }
+    if (d.dir) { plan.direction = d.dir; touch(); renderStepper(); return renderStage(); }
     if (d.ex) { plan.execution = plan.execution === d.ex ? '' : d.ex; touch(); return renderStage(); }
     if (d.se) { plan.session = plan.session === d.se ? '' : d.se; touch(); return renderStage(); }
     if (d.sys) {
         const L = lad || X.ladder(history);
         if (hasSys(d.sys)) plan.systems = plan.systems.filter((s) => s.sys !== d.sys);
         else { plan.systems.push({ sys: d.sys, level: L.levels[d.sys] || 1 }); plan.systems.sort((a, b) => X.SYSTEMS.indexOf(a.sys) - X.SYSTEMS.indexOf(b.sys)); }
-        touch(); return renderStage();
+        touch(); renderStepper(); return renderStage();
     }
     if (d.bias) { const [k, v] = d.bias.split(':'); plan.read[k].bias = plan.read[k].bias === v ? '' : v; touch(); return renderStage(); }
     if (d.mind) { plan.mindset = +d.mind; touch(); return renderStage(); }
@@ -552,7 +559,7 @@ document.addEventListener('click', (e) => {
     if (a === 'prev') return go(X.STEPS[Math.max(i - 1, 0)].id);
     if (a === 'save') { plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan).then((ok) => showToast(ok ? 'Draft saved' : 'Draft saved on this device', ok ? 'success' : 'info')); return renderPlans(); }
     if (a === 'plan') { if (X.missing(plan).length) return; plan.status = 'planned'; plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan); showToast('Planned. Place it in MetaTrader.', 'success'); return renderAll(); }
-    if (a === 'taken') { plan.status = 'taken'; plan.takenAt = Date.now(); plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan); view = 'result'; return renderAll(); }
+    if (a === 'taken') { if (X.missing(plan).length) return; plan.status = 'taken'; plan.takenAt = Date.now(); plans[plan.id] = plan; writeLocalPlans(plans); savePlanCloud(plan); view = 'result'; return renderAll(); }
     if (a === 'to-result') { view = 'result'; return renderAll(); }
     if (a === 'back-plan') { view = 'plan'; step = 'review'; return renderAll(); }
     if (a === 'new') return newPlan();
@@ -561,7 +568,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('input', (e) => {
     const t = e.target; if (!plan) return;
-    if (t.dataset.f) { plan[t.dataset.f] = t.value; touch(); if ((t.dataset.f === 'date' || t.dataset.f === 'time') && $('#checks')) $('#checks').innerHTML = nowCheck().map((c) => `<div class="chk ${c.unknown ? 'unk' : c.ok ? 'ok' : 'bad'}"><span class="ic">${c.unknown ? '•' : c.ok ? '✓' : '✕'}</span><span>${esc(c.text)}</span></div>`).join(''); renderStepper(); }
+    if (t.dataset.f) { plan[t.dataset.f] = t.value; touch(); if ((t.dataset.f === 'date' || t.dataset.f === 'time') && $('#checks')) $('#checks').innerHTML = checksHTML(); renderStepper(); }
     else if (t.dataset.note) { plan.read[t.dataset.note].note = t.value; touch(); renderStepper(); }
     else if (t.dataset.res) { plan.result[t.dataset.res] = t.value; touch(); }
     else if (t.dataset.r) { plan.range[t.dataset.r] = t.value; touch(); const o = document.createElement('div'); o.innerHTML = rangeHTML(); $('#rangeOut').innerHTML = o.querySelector('#rangeOut').innerHTML; }
@@ -584,8 +591,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (fromInbox()) { renderAll(); return; }
     const want = new URLSearchParams(location.search).get('plan');
     const list = Object.values(plans).sort((a, b) => b.updatedAt - a.updatedAt);
-    if (want && plans[want]) { plan = plans[want]; step = plan.status === 'draft' ? 'status' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; }
-    else if (list.length) { plan = list[0]; step = plan.status === 'draft' ? 'status' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; }
+    if (want && plans[want]) { plan = plans[want]; step = plan.status === 'draft' ? 'setup' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; }
+    else if (list.length) { plan = list[0]; step = plan.status === 'draft' ? 'setup' : 'review'; view = plan.status === 'taken' ? 'result' : 'plan'; }
     else plan = blankPlan();
     renderAll();
 });
